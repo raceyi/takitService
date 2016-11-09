@@ -1,0 +1,134 @@
+<ion-header class="shophomeHeader">
+  <ion-navbar>
+    <ion-title>{{shopname}}</ion-title>
+  </ion-navbar>
+</ion-header>
+ <!--
+  <ion-content class="recommendation" #recommendation *ngIf="!minVersion">
+    <div id="recommendText" [hidden]='todayMenuHideFlag'>오늘의 추천메뉴</div>
+          <div [ngSwitch]="recommendMenuNum" [hidden]='todayMenuHideFlag'>
+            <ion-list *ngSwitchCase="1">
+                <ion-row>
+                  <ion-col width-33>
+                    &nbsp;
+                  </ion-col>
+                  <ion-col width-33 *ngFor="let recommend of recommendMenu">   
+                    <button ion-button clear (click)="menuSelected(recommend.category_no,recommend.name)" class="menuImgButton"> 
+                    <img [src]="recommend.filename" class="RecoImg LeftReco" >
+                    </button>
+                  </ion-col>
+                  <ion-col width-33>
+                    &nbsp;
+                  </ion-col>
+                </ion-row>
+
+                <ion-row>
+                  <ion-col width-33>
+                    &nbsp;
+                  </ion-col>
+                  <ion-col width-33 class="menuText" *ngFor="let recommend of recommendMenu">    
+                    <p>{{recommend.name}}</p>
+                    <div [hidden]="hideFlag(recommend.descriptionHide)">
+                    <p class="RecoMenu">{{recommend.description}}</p>
+                    </div>
+                    <p>{{recommend.price}}</p>
+                  </ion-col>
+                  <ion-col width-33>
+                    &nbsp;
+                  </ion-col>
+                </ion-row>
+            </ion-list>
+            <ion-list *ngSwitchCase="2">
+                <ion-row>
+                  <ion-col width-17>
+                    &nbsp;
+                  </ion-col>
+                  <ion-col width-33 *ngFor="let recommend of recommendMenu">
+                    <button ion-button clear (click)="menuSelected(recommend.category_no,recommend.name)" class="menuImgButton">
+                    <img [src]="recommend.filename" class="RecoImg LeftReco" >
+                    </button>
+                  </ion-col>
+                  <ion-col width-17>
+                    &nbsp;
+                  </ion-col>
+                </ion-row>
+
+                <ion-row>
+                  <ion-col width-17>
+                    &nbsp;
+                  </ion-col>
+                  <ion-col width-33 class="menuText" *ngFor="let recommend of recommendMenu">
+                    <p class="RecoMenu">{{recommend.name}}</p>
+                    <div [hidden]="hideFlag(recommend.descriptionHide)">
+                    <p class="RecoMenu">{{recommend.description}}</p>
+                    </div>
+                    <p class="RecoMenu">{{recommend.price}}</p>
+                  </ion-col>
+                  <ion-col width-17>
+                    &nbsp;
+                  </ion-col>
+                </ion-row>
+            </ion-list>
+            <ion-list *ngSwitchCase="3">
+                <ion-row>
+                  <ion-col width-33 *ngFor="let recommend of recommendMenu">
+                    <button ion-button clear (click)="menuSelected(recommend.category_no,recommend.name)" class="menuImgButton">
+                    <img [src]="recommend.filename" class="RecoImg LeftReco" >
+                    </button>
+                  </ion-col>
+                </ion-row>
+
+                <ion-row>
+                  <ion-col width-33  class="menuText" *ngFor="let recommend of recommendMenu">
+                    <p>{{recommend.name}}</p>
+                    <div [hidden]="hideFlag(recommend.descriptionHide)" >
+                    <p class="RecoMenu">{{recommend.description}}</p>
+                    </div>
+                    <p>{{recommend.price}}</p>
+                  </ion-col>
+                </ion-row>
+            </ion-list>
+            
+    </div>
+ </ion-content>
+  -->
+
+  <ion-content class="segmentBar" #segmentBar>
+    <ion-row>
+        <ion-col width-33 *ngFor="let category of categories">
+        <ion-segment #categorySegment [(ngModel)]="categorySelected">
+                <ion-segment-button [value]="category.no" (click)="categoryChange(category.no)">
+                  {{category.name}}
+                </ion-segment-button>
+        </ion-segment>        
+        </ion-col>
+    </ion-row>
+  </ion-content>
+
+  <ion-content class="menus" #menusContent  (swipe)="swipeCategory($event)">
+      <div [ngSwitch]="categorySelected">
+        <ion-list *ngSwitchCase="categorySelected">
+          <ion-item *ngFor="let row of menuRows">
+            <div>
+              <ion-row> 
+                <ion-col width-33 *ngFor="let menu of row.menus">
+                  <button ion-button clear (click)="menuSelected(menu.category_no,menu.menuName)" class="menuImgButton"><img [src]="menu.filename"  class="menuImg" ></button>
+                </ion-col>  
+              </ion-row>
+              <ion-row>
+                <ion-col width-33 *ngFor="let menu of row.menus"> 
+                  <p class="MenuText">{{menu.menuName}}</p>
+                  <div [hidden]="hideFlag(menu.descriptionHide)" >
+                  <p class="MenuText">{{menu.description}}</p>
+                  </div>
+                  <p class="MenuText">{{menu.price}}</p>
+                </ion-col>
+              </ion-row>
+            </div>
+          </ion-item>
+        </ion-list>            
+        <br><br><br>
+        <br><br><br>
+      </div>
+</ion-content>
+

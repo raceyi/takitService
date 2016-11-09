@@ -1,0 +1,148 @@
+<ion-header class="shopMyPage">
+  <ion-navbar>
+    <ion-title>
+      {{shopname}}
+    </ion-title>
+  </ion-navbar>
+</ion-header>
+
+
+<ion-content class="segmentButton">  
+  <ion-row>
+    <ion-col width-75>
+    </ion-col>
+    <ion-col width-25>
+      <button ion-button  class="updateButton" color='gray'><span class="updateButtonText">업데이트</span></button>
+    </ion-col>    
+  </ion-row>
+<div padding>
+  <ion-segment [(ngModel)]="myPageMenu">
+    <ion-segment-button (click)="historySelect()" value="orderHistory">
+      주문내역
+    </ion-segment-button>
+    <ion-segment-button (click)="couponSelect()" value="couponHistory">
+      쿠폰
+    </ion-segment-button>
+  </ion-segment>
+</div>
+</ion-content>
+<!--
+<ion-content padding class="infiniteScroll" [hidden]="myPageMenu==='couponHistory'">
+  <ion-list>
+        <ion-item *ngFor="let order of orders">
+                      <ion-row (click)="toggleOrder(order)">
+                          <ion-col width-20 class="detail">{{order.orderedDateString}}</ion-col>
+                          <ion-col width-60 class="status">{{order.orderName}}</ion-col>
+                          <ion-col width-20 class="status" [hidden]="order.orderStatus!='paid'"><button ion-button class="cancelButton" (click)="cancelOrder(order)"><span class="cancelButtonText" style="color:white">취소</span></button></ion-col>
+                          <ion-col width-20 class="status" [hidden]="order.orderStatus=='paid'">{{order.statusString}}</ion-col>
+                      </ion-row>
+                      <ion-row  [hidden]="order.hidden">
+                          <ion-col width-10></ion-col>
+                          <ion-col width-40><span class="detail">주문번호</span> <span class="status">{{order.orderNO}}</span></ion-col>
+                          <ion-col width-50><span class="detail">결제금액</span><span class="status">&nbsp;{{order.amount}}원</span></ion-col>
+                      </ion-row>
+                      <ion-row  [hidden]="order.hidden">
+                          <ion-col width-10></ion-col>
+                          <ion-col width-90><span class="detail">주문시간 {{order.orderedTimeString}}</span> </ion-col>
+                      </ion-row>
+                      <div *ngFor="let menu of order.orderListObj.menus" [hidden]="order.hidden">
+                      <ion-row>
+                                <ion-col width-10></ion-col>
+                                <ion-col width-70><span class="status">{{menu.menuName}}({{menu.quantity}})</span></ion-col>
+                                <ion-col width-20><span class="status">{{menu.price}}원</span></ion-col>
+                      </ion-row>          
+                      <ion-row *ngFor="let option of menu.options" class="detail">
+                          <ion-col width-20></ion-col>
+                          <ion-col width-80><span class="status">{{option.name}}:{{option.price}}</span>
+                                  <span class="status" *ngIf="option.select!=undefined">{{option.select}}</span> 
+                          </ion-col>        
+                      </ion-row>      
+                      </div>
+        </ion-item>
+  </ion-list>
+</ion-content>
+-->
+
+<ion-content padding class="infiniteScroll" [hidden]="myPageMenu==='couponHistory'">
+  <ion-list>
+        <ion-item *ngFor="let order of orders">
+                      <ion-row (click)="toggleOrder(order)">
+                          <ion-col width-20 class="detail">{{order.orderedDateString}}</ion-col>
+                          <ion-col width-60 class="status">{{order.orderName}}</ion-col>
+                          <ion-col width-20 class="status" [hidden]="order.orderStatus!='paid'"><button ion-button class="cancelButton" (click)="cancelOrder(order)"><span class="cancelButtonText" style="color:white">취소</span></button></ion-col>
+                          <ion-col width-20 class="status" [hidden]="order.orderStatus=='paid'">{{order.statusString}}</ion-col>
+                      </ion-row>
+                      <ion-row  [hidden]="order.hidden">
+                          <ion-col width-10></ion-col>
+                          <ion-col width-40><span class="detail">주문번호</span> <span class="status">{{order.orderNO}}</span></ion-col>
+                          <ion-col width-50><span class="detail">결제금액</span><span class="status">&nbsp;{{order.amount}}원</span></ion-col>
+                      </ion-row>
+                      <ion-row  [hidden]="order.hidden">
+                          <ion-col width-10></ion-col>
+                          <ion-col width-90><span class="detail">주문시간 {{order.orderedTimeString}}</span> </ion-col>
+                      </ion-row>
+                      <div *ngFor="let menu of order.orderListObj.menus" [hidden]="order.hidden">
+                      <ion-row>
+                                <ion-col width-10></ion-col>
+                                <ion-col width-70><span class="status">{{menu.menuName}}({{menu.quantity}})</span></ion-col>
+                                <ion-col width-20><span class="status">{{menu.price}}원</span></ion-col>
+                      </ion-row>          
+                      <ion-row *ngFor="let option of menu.options" class="detail">
+                          <ion-col width-20></ion-col>
+                          <ion-col width-80><span class="status">{{option.name}}:{{option.price}}</span>
+                                  <span class="status" *ngIf="option.select!=undefined">{{option.select}}</span> 
+                          </ion-col>        
+                      </ion-row>      
+                      </div>
+        </ion-item>
+  </ion-list>
+
+ <ion-infinite-scroll (ionInfinite)="doInfinite($event)" [hidden]="orders.length==0">
+   <ion-infinite-scroll-content></ion-infinite-scroll-content>
+ </ion-infinite-scroll>
+ <div class="dummy">
+ </div>
+</ion-content>
+
+<ion-content class="couponHistory" [hidden]="myPageMenu==='orderHistory'">
+  <ion-list padding >
+    쿠폰함이 비었습니다. 
+  </ion-list>
+    <!--
+  <ion-list>
+    <ion-card>
+      <ion-card-header class="cardHeader">
+        500원 할인쿠폰
+      </ion-card-header>
+      <ion-card-content class="cardContent">
+        쿠폰번호 : abc124<br>
+        사용기한 : 2016-07-30 ~ 2016-08-30
+      </ion-card-content>
+    </ion-card>
+    <ion-card>
+      <ion-card-header class="cardHeader">
+        10% 할인쿠폰
+      </ion-card-header>
+      <ion-card-content class="cardContent">
+        쿠폰번호 : acc234<br>
+        사용기한 : 2016-07-30 ~ 2016-08-30
+      </ion-card-content>
+    </ion-card>
+    <ion-card>
+      <ion-card-header class="cardHeader">
+        5% 할인쿠폰<span style="color:red">(사용완료)</span>
+      </ion-card-header>
+      <ion-card-content class="cardContent">
+        쿠폰번호 : fff455<br>
+        사용기한 : 2016-07-30 ~ 2016-08-30
+      </ion-card-content>
+    </ion-card>
+    <ion-item>
+      <ion-label class="explain">-사용 기간 내에 사용하지 않은 쿠폰은 자동 삭제 됩니다.
+        -쿠폰은 주문 1건당 1매만 사용가능합니다.</ion-label>
+    </ion-item>
+  </ion-list>
+    -->
+</ion-content>
+
+

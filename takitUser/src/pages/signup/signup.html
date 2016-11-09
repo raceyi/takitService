@@ -1,0 +1,34 @@
+<ion-header>
+  <ion-navbar>
+    <ion-title class="takitTitle">
+       타킷 회원 가입
+    </ion-title>
+  </ion-navbar>
+</ion-header>
+
+<ion-content  #signupPage padding class="signup">
+  <div padding>
+    <button ion-button full color="facebook" (click)="facebookSignup($event)"> 페이스북 </button>
+    <button ion-button full color="kakao" (click)="kakaoSignup($event)"> 카카오 </button> 
+    <button ion-button full color="email" (click)="emailSignupSelect($event)"> 이메일 </button> 
+    <div padding [hidden]="emailHide">
+      <ion-item>
+          <ion-input [focuser]="focusEmail" type="email" (focus)="scrollUpForKeypad()" placeholder="이메일" [(ngModel)]="email" ></ion-input>
+      </ion-item>
+      <ion-item>
+          <ion-input [focuser]="focusPassword" type="password" (focus)="scrollUpForKeypad()" placeholder="비밀번호" [(ngModel)]="password" ></ion-input>
+      </ion-item>
+      <p [hidden]="paswordGuideHide">{{paswordGuide}}</p>
+      <ion-item>
+          <ion-input [focuser]="focusPasswordCheck" type="password"  (focus)="scrollUpForKeypad()" placeholder="비밀번호확인" [(ngModel)]="passwordCheck"></ion-input>
+      </ion-item>
+      <p [hidden]="passwordMatch">비밀번호가 일치하지 않습니다.</p> 
+
+      <button ion-button full (click)="emailSignup($event)"> 제출 </button> 
+    </div>
+  </div>
+
+</ion-content>
+
+
+

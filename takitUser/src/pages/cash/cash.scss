@@ -1,0 +1,200 @@
+page-cash{
+ .item {
+    padding-right: 5px;
+    padding-left: 5px;
+    }
+
+    .button-block {
+     margin-left: inherit; 
+     margin-right: inherit; 
+    }
+
+    .segment-md>.segment-button {
+        border-width: 2px !important;
+        border-style: solid !important;
+        border-color: #3474e1 !important;
+        padding:0px !important;
+    }
+
+    .segment-md>.segment-activated {
+        background-color: #387ef5 !important;
+        color: white !important;
+    }
+
+    .toolbar-background{
+        background:transparent;
+    }
+
+    .available-amount{
+        text-align: right;
+    }
+
+    .available-amount>span{
+        color:#387ef5;
+        font-size: 2.5rem;
+    }
+
+    ion-list .item .item-inner{
+    border-bottom:0px !important;
+    }
+
+    ion-list > .item:last-child{
+    border-bottom:0px;
+    }
+
+    ion-list > .item:first-child{
+    border-top:0px;
+    }
+
+    .textSet{
+    font-size: 1.4rem;
+    }
+
+    .cashId.item.item-input>.item-inner{
+    padding-right:2px;
+    }
+
+    .cashIdValue{
+    color:#387ef5;
+    border:1px solid #BEBEBE;
+    border-radius: 4px;
+    height:38px;
+    }
+
+    .cashIdValue>.text-input {
+        margin: 8px 8px 8px 8px;
+    }
+
+    .config{
+    width:20%;
+    }
+
+    .button-outline{
+        border-color: #BEBEBE;
+    }
+
+    .explain{
+    text-align: justify;
+    white-space: pre-line; //normal
+    color:#7F7F7F;
+    font-size: 1.3rem; 
+    }
+
+    .button-block{
+    margin-left:8px;
+    margin-right:8px;
+    }
+
+    .cashIn-check{
+    margin-left: 10px;
+    margin-right:10px;
+    margin-top:20px;
+    background-color: #EEEEEE;
+    border: 2px solid #387ef5;
+    }
+
+    .checkInfo{
+    text-align: justify;
+    white-space: pre-line;
+    font-size: 1.4rem;
+    }
+
+    .cashIn-check-table{
+    text-align: center;
+    font-size: 1.4rem;
+    }
+
+    .cashIn-check-table>ion-row>ion-col:last-child{
+    background-color: #ffffff;
+    border-left: 1px solid #bebebe;
+    }
+
+    .cashIn-check-table>ion-row{
+    background-color: #EEEEEE;
+    font-weight: bold;
+    border-bottom: 1px solid #bebebe;
+    }
+
+    .cashIn-check-table>ion-row:last-child{
+    border-bottom: 0px;
+    }
+
+    .cashIn-check-inputBox{
+    border:1px solid #BEBEBE;
+    border-radius: 4px;
+    height:30px;
+    font-size: 1.3rem;
+    }
+
+    .cashIn-check-inputBox>.text-input{
+        margin: 8px 8px 8px 8px;
+        padding: 0;
+        width: calc(100% - 8px - 8px);
+    }
+
+    .cashHistory-select{
+    font-size: 1.4rem;
+    }
+
+    .HistoryTable{
+    text-align: center;
+    font-size: 1.4rem;
+    }
+
+    .HistoryTable>ion-row:first-child{
+    background-color: #EEEEEE;
+    font-weight: bold;
+    }
+
+    .HistoryTable>ion-row{
+    border-bottom: 1px solid #bebebe;
+    }
+
+    .HistoryTable>ion-row>ion-col{
+    margin: 3px 0px 3px 0px;
+    }
+
+    .cashOut-text{
+    width:43%;
+    font-size: 1.3rem; 
+    }
+
+    .input{
+    padding-left: 0px;
+    }
+
+    .inputBox{
+    border:1px solid #BEBEBE;
+    border-radius: 4px;
+    height:40px;
+    font-size: 1.3rem;
+    }
+
+    ion-select {
+        padding: 16px 10px 13px 16px;
+    }
+
+    .bankSelect{
+    font-size: 1.3rem;
+    }
+
+    .bankSelect.item.item-select{
+    padding-left:0px;
+    }
+
+    .bankSelect.item.item-select>.item-inner>.input-wrapper{
+    border: 1px solid #BEBEBE;
+    border-radius: 4px;
+    height:40px;
+    padding-right: 0px;
+    margin-top: 2px;
+    }
+
+    .item-input.input-has-focus::after{
+    border-bottom-color: transparent;
+    }
+    
+    .cashOut{
+        width:30%;
+    }
+}

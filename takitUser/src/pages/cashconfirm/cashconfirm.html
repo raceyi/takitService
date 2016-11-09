@@ -1,0 +1,70 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      캐쉬입금확인 
+    </ion-title>
+    <ion-buttons start>
+      <button ion-button (click)="dismiss()">
+        <span color="primary">취소</span>
+      </button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+                          
+            <ion-item>
+                <ion-grid class="cashIn-check-table">
+                <ion-row center>
+                    <ion-col>거래일</ion-col>
+                    <ion-col>
+                    <ion-item>
+                    <ion-input #input class="cashIn-check-inputBox" type="text" placeholder="2016.11.04" ></ion-input>
+                    </ion-item>
+                    </ion-col>
+                </ion-row>
+                <ion-row center>
+                    <ion-col>입금액</ion-col>
+                    <ion-col>
+                    <ion-item>
+                    <ion-input #input class="cashIn-check-inputBox" type="text" placeholder="5000" ></ion-input>
+                    </ion-item>
+                    </ion-col>
+                </ion-row>
+                <ion-row center>
+                    <ion-col>입금은행</ion-col>
+                    <ion-col>
+                    <ion-item>
+                    <ion-input class="cashIn-check-inputBox" type="text" placeholder="우리"></ion-input>
+                    </ion-item>
+                    </ion-col>
+                </ion-row>
+                <ion-row center>
+                    <ion-col>거래지점</ion-col>
+                    <ion-col>
+                    <ion-item>
+                    <ion-input class="cashIn-check-inputBox" type="text" placeholder="과천" ></ion-input>
+                    </ion-item>
+                    </ion-col>
+                </ion-row>
+                    <ion-row center>
+                    <ion-col>캐쉬아이디</ion-col>
+                    <ion-col>
+                    <ion-item>
+                    <ion-input class="cashIn-check-inputBox" type="text" placeholder="kalen" ></ion-input>
+                    </ion-item>
+                    </ion-col>
+                </ion-row>
+
+                </ion-grid>
+            </ion-item>
+            <ion-item>
+            <ion-label class="checkInfo">본인의 캐쉬입금이 아닐경우 <span style="color:red">민형사상</span>의 책임을 지겠습니다.</ion-label>
+            <ion-checkbox></ion-checkbox>
+            </ion-item>
+            <ion-item>
+            <button ion-button block (click)="cashInComplete()">캐쉬 입금 확인하기 </button>
+            </ion-item>
+
+</ion-content>
+

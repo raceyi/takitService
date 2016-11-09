@@ -1,0 +1,6 @@
+<ion-tabs #shopTabs selectedIndex="1" >
+  <ion-tab [root]="tabShopExit" tabTitle="상점나가기" (ionSelect)="shopExit($event)" tabIcon="exit" #shopExitTab ></ion-tab>
+  <ion-tab [root]="tabShopHome" tabTitle="상점홈" (ionSelect)="shopHome($event)" tabIcon="home"></ion-tab>
+  <ion-tab [root]="tabShopCart" tabTitle="장바구니" (ionSelect)="shopCart($event)" tabIcon="cart"></ion-tab>
+  <ion-tab [root]="tabMyPage" tabTitle="My Page" (ionSelect)="shopOrder($event)" tabIcon="information-circle"></ion-tab>
+</ion-tabs>

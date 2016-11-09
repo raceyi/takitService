@@ -1,0 +1,30 @@
+<ion-header>
+  <ion-navbar hideBackButton>
+  </ion-navbar>
+</ion-header>
+
+<!-- 
+<ion-content (swipe)="swipeHome($event)"  class="home">
+-->
+  
+<ion-content #homeContent class="home">
+     <ion-card *ngFor="let shop of storageProvider.shoplist" >
+       <button ion-button full class="cardImage" (click)="getSelected(shop.takitId)">
+       <img [src]="shop.filename"/>
+       </button>
+       <ion-card-title class="takitId">
+       {{shop.takitId}}
+ <!--        
+       <ion-row>
+       <ion-col width-80>
+       {{shop.takitId}}
+       </ion-col>
+       <ion-col width-20>
+       <ion-icon class="iconRemove" name="close-circle" (click)="removeSelected(shop.takitId)"></ion-icon>
+       </ion-col>
+       </ion-row>
+-->
+       </ion-card-title>
+    </ion-card>
+</ion-content>
+

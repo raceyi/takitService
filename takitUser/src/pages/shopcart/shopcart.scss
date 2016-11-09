@@ -1,0 +1,222 @@
+page-shopcart{
+    .orderInfo{
+        margin: 5px 0px 5px 0px;
+    }
+
+    .orderDelete{
+        width: 30%;
+    }
+
+    .orderDelete>.item-inner{
+        border-bottom:0px !important;
+    }
+
+    .order2{
+        border-bottom: 1px solid #eeeeee;
+    }
+
+    .order3>.item-inner{
+        border-bottom: 2px solid #dedede;
+        border-top: 2px solid #dedede;
+    }
+
+    .order4>.item-inner{
+        border-bottom:0px;
+    }
+
+    .order5>.item-inner{
+        border-bottom: 2px solid #dedede;
+    }
+
+    .price{
+        font-size: 1.4rem;
+        text-align: right;
+    }
+
+    .payInfo{
+        margin-left: 15px;
+        margin-top:30px;
+        margin-bottom: 30px;
+    }
+
+    .payInfo>.item{
+        background-color: #eeeeee;
+    }
+
+    .totalPrice{
+        font-size: 1.5rem;
+        border: 2.5px solid #387ef5;
+        font-weight: bold;
+    }
+
+    .total{
+        font-size: 2rem;
+        text-align: right;
+    }
+
+    button.button1{
+        margin-left: 0px;
+        border-left: 1px solid #ffffff;
+    }
+///////////////////////////////
+    .left{
+        float :left;
+    }
+
+    .right{
+        text-align:right;
+        padding-right:3%;
+    }
+
+    .center{
+        font-weight :bold;
+        text-align: center;
+        font-size: 1.3rem;
+        padding-top : 8px;
+        padding-bottom : 8px;
+    }
+
+    #grayDiv{
+        margin : 3%;
+        background-color : #eeeeee;
+    }
+
+    #borderRow{
+        width : 100%;
+        margin-left : 0.5%;
+        width : 99.5%;
+        border : 2px solid #37e;
+    }
+    
+///////////////////////////////////
+    .cash{
+        font-weight :bold;
+        text-align: center;
+        font-size: 1.3rem;
+        padding-top : 8px;
+        padding-bottom : 0px;
+    }
+    .cashPassword{
+        background-color: #eeeeee;
+        padding:0;
+    }
+
+    .cashPassword>.item-inner{
+        border:0;
+    }
+
+    .cashpassword>.item-inner>.input-wrapper{
+        height:30px;
+    }
+
+    .passwordinput{
+    border:1px solid #BEBEBE;
+    background-color: #ffffff;
+    border-radius: 4px;
+    height:3rem;
+    font-size: 1.3rem;
+    }
+
+    .passwordinput>.text-input{
+        margin:0;
+        padding: 0;
+        height:3rem;
+    }
+
+    .password{
+        padding-top:14px;
+        padding-bottom:0px;
+        font-weight :bold;
+        text-align: center;
+        font-size: 1.3rem;
+    }
+
+    .password0{
+        padding-top:0;
+        padding-bottom:0;
+    }
+
+    .orderInfo{
+        padding-left:16px;
+        font-weight :bold;
+        font-size: 1.2rem;
+        margin:0px;
+    }
+
+    .orderInfo0{
+        font-size: 1.1rem;
+    }
+
+    .orderInfo1{
+        font-size: 1.2rem;
+        border-left: 1px solid #BEBEBE;
+    }
+
+    .collapse{
+        padding-left:15px;
+        padding-top:0px;
+        padding-bottom: 0px;
+        padding-right: 0px;
+
+        button{
+            background-color:white;
+            color:inherit;
+            box-shadow:none;
+        }
+        span{
+            display:block;
+        }
+        .button-icon-only ion-icon{
+            font-size:1.2em;
+            line-height:inherit;
+        }
+    }
+
+    .cancelNoti{
+     padding-bottom: 5px;
+    }
+    ////////////////////////////
+    // takeout option
+        .onOff>div.toggle-icon{
+        height:20px;
+    }
+
+    .onOff>div.toggle-icon.toggle-checked{
+        height:20px;
+    }
+
+    .onOff>div.toggle-icon.toggle-checked>div.toggle-inner{
+        width:19px;
+        height:19px;
+        top:0px;
+    }
+
+    .onOff>div.toggle-icon>div.toggle-inner{
+        width:19px;
+        height:19px;
+        top:0px;
+    }
+
+    .box{
+        border : 2px solid black;
+        margin-top : 2%; 
+        margin-left : 3%;
+        margin-right : 3%;
+    }
+
+    .orderOption{
+        width : 95%;
+        font-size: 1.3rem;
+        margin-top:1%;
+        margin-bottom:1%;
+    }
+
+  .segment-md>.segment-button {
+        border-width: 2px !important;
+        border-style: solid !important;
+        border-color: #3474e1 !important;
+        padding:0px !important;
+        background-color: #387ef5 !important;
+        color: white !important;
+    }
+}

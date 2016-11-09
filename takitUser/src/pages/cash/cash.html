@@ -1,0 +1,230 @@
+<ion-header>
+  <ion-navbar hideBackButton>
+  </ion-navbar>
+</ion-header>
+<!--
+<ion-content padding class="cash" (swipe)="swipeCash($event)">
+    -->
+<ion-content #cashContent class="cash">
+    <ion-item>
+        <ion-label class="textSet"><strong>사용가능 금액</strong></ion-label>
+        <ion-label class="available-amount"><span>{{available}}</span> 원</ion-label>
+    </ion-item>
+
+    <div>
+    <ion-segment [(ngModel)]="cashMenu" [attr.light]="isAndroid ? '' : null">
+      <ion-segment-button outline value="cashIn">
+      입금하기
+      </ion-segment-button>
+      <ion-segment-button outline value="cashHistory">
+       전체내역
+      </ion-segment-button>
+      <ion-segment-button outline value="cashOut">
+       환불받기
+      </ion-segment-button>
+    </ion-segment>
+    </div>
+
+    <div [ngSwitch]="cashMenu">
+        <ion-list *ngSwitchCase="'cashIn'">
+            <ion-item>
+                <ion-label class="textSet"><strong>캐쉬아이디(받는통장 표시내용)</strong></ion-label>
+            </ion-item>
+            <ion-row>
+            <ion-item ion-col class="cashId">
+                <ion-input class="cashIdValue" type="text" placeholder="kalen"></ion-input>
+            </ion-item>
+                <button ion-button class="config" (click)="configureCashId()">
+                    <span>설정</span>
+                </button>
+            </ion-row>
+            <!--
+            <ion-item>
+                <ion-label class="explain">- 영문, 숫자 등을 조합하여 7자리 캐쉬아이디를 설정해주세요
+                </ion-label>
+            </ion-item>
+            -->
+            <ion-item>
+                <ion-label class="textSet">입금계좌 : 농협 301-2424-3636-21 (타킷주식회사)</ion-label>
+            </ion-item>
+            <ion-item>
+                <p class="explain">-계좌이체시 <span style="color:red"> 받는통장 표시내용에 반드시 캐쉬아이디를 입력</span>해주시기 바랍니다. 입금확인에 최대 5분이 소요될 수 있습니다.
+                </p>
+                <p class="explain">
+                - 계좌이체 이후 캐쉬 입금을 바로 확인하실려면 아래 <span style="color:blue">입금 바로 확인하기</span> 버튼을 클릭해주세요. 
+                </p>
+                <p class="explain">
+                - 받는통장 표시내용에 캐쉬아이디를 입력하지 않았을 시에는 아래 계좌 이체 정보 입력을 통한 <span style="color:blue">입금 수동 확인하기</span>를 수행해주시기 바랍니다. 
+                </p>
+            </ion-item>
+                <button ion-button full (click)="cashInCheck(input)"> 입금 바로 확인하기 </button>
+            <div class="cashIn-check">
+            <ion-item>
+                <ion-grid class="cashIn-check-table">
+                <ion-row center>
+                    <ion-col>거래일시</ion-col>
+                    <ion-col>
+                    <ion-item>
+                    <ion-input #input class="cashIn-check-inputBox" type="text"  ></ion-input>
+                    </ion-item>
+                    </ion-col>
+                </ion-row>
+                <ion-row center>
+                    <ion-col>입금액</ion-col>
+                    <ion-col>
+                    <ion-item>
+                    <ion-input #input class="cashIn-check-inputBox" type="text" placeholder="5000" ></ion-input>
+                    </ion-item>
+                    </ion-col>
+                </ion-row>
+                <ion-row center>
+                    <ion-col>입금은행</ion-col>
+                    <ion-col>
+                    <ion-item>
+                    <ion-input class="cashIn-check-inputBox" type="text" placeholder="우리"></ion-input>
+                    </ion-item>
+                    </ion-col>
+                </ion-row>
+                <ion-row center>
+                    <ion-col>거래지점</ion-col>
+                    <ion-col>
+                    <ion-item>
+                    <ion-input class="cashIn-check-inputBox" type="text" placeholder="과천" ></ion-input>
+                    </ion-item>
+                    </ion-col>
+                </ion-row>
+                    <ion-row center>
+                    <ion-col>받는통장 표시내용</ion-col>
+                    <ion-col>
+                    <ion-item>
+                    <ion-input class="cashIn-check-inputBox" type="text" placeholder="이경주" ></ion-input>
+                    </ion-item>
+                    </ion-col>
+                </ion-row>
+
+                </ion-grid>
+            </ion-item>
+            <!--
+            <ion-item>
+            <ion-label class="checkInfo">본인 입금임을 확인합니다.</ion-label>
+            <ion-checkbox></ion-checkbox>
+            </ion-item>
+            -->
+            <ion-item>
+            <button ion-button block (click)="cashInComplete(event)">입금 수동 확인하기</button>
+            </ion-item>
+            </div>
+        </ion-list>
+
+        <ion-list *ngSwitchCase="'cashHistory'">
+
+            <ion-item class="cashHistory-select"> 
+            <ion-label></ion-label>
+            <ion-select [(ngModel)]="division">
+                <ion-option value="전체" checked="true">전체</ion-option>
+                <ion-option value="사용">사용</ion-option>
+                <ion-option value="환불">환불</ion-option>
+                <ion-option value="적립">적립</ion-option>
+            </ion-select>
+            <ion-select [(ngModel)]="YearMonth">
+                <ion-option value="2016-01" checked="true">2016년 1월</ion-option>
+                <ion-option value="2016-02">2016년 2월</ion-option>
+                <ion-option value="2016-03">2016년 3월</ion-option>
+                <ion-option value="2016-04">2016년 4월</ion-option>
+                <ion-option value="2016-05">2016년 5월</ion-option>
+                <ion-option value="2016-06">2016년 6월</ion-option>
+                <ion-option value="2016-07">2016년 7월</ion-option>
+            </ion-select>
+            </ion-item>
+
+            <ion-item>
+            <ion-grid class="HistoryTable">
+                <ion-row>
+                    <ion-col>거래일</ion-col>
+                    <ion-col>구분</ion-col>
+                    <ion-col>금액</ion-col>
+                </ion-row>
+                <ion-row>
+                    <ion-col>2016-01-29</ion-col>
+                    <ion-col>이자</ion-col>
+                    <ion-col>+2</ion-col>
+                </ion-row>
+                <ion-row>
+                    <ion-col>2016-01-15</ion-col>
+                    <ion-col>사용</ion-col>
+                    <ion-col>-2,000</ion-col>
+                </ion-row>
+                <ion-row>
+                    <ion-col>2016-01-03</ion-col>
+                    <ion-col>사용</ion-col>
+                    <ion-col>-5,000</ion-col>
+                </ion-row>
+                <ion-row>
+                    <ion-col>2016-01-03</ion-col>
+                    <ion-col>적립</ion-col>
+                    <ion-col>20,000</ion-col>
+                </ion-row>
+            </ion-grid>
+            </ion-item>
+
+        </ion-list>
+
+        <ion-list *ngSwitchCase="'cashOut'">
+            <ion-item>
+              <ion-label class="textSet"><strong>등록 환불 계좌 </strong></ion-label>
+            </ion-item>
+            <ion-row>
+            <ion-item ion-col class="cashOut-text">
+                <ion-label>예금주</ion-label>
+            </ion-item>
+            <ion-item ion-col class="input">
+                <ion-input class="inputBox" type="text" placeholder="이영숙"></ion-input>
+            </ion-item>
+            </ion-row>
+
+            <ion-row>
+            <ion-item ion-col class="cashOut-text">
+                <ion-label>은행</ion-label>
+            </ion-item>
+            <ion-item class="bankSelect">
+                <ion-label></ion-label>
+                <ion-select [(ngModel)]="bank">
+                <ion-option value="기업">IBK기업은행</ion-option>
+                <ion-option value="국민">국민은행</ion-option>
+                <ion-option value="농협" checked="true">농협은행</ion-option>
+                <ion-option value="외환">외환은행</ion-option>
+                <ion-option value="우리">우리은행</ion-option>
+                <ion-option value="제일">SC제일은행</ion-option>
+                <ion-option value="신한">신한은행</ion-option>
+                <ion-option value="하나">하나은행</ion-option>
+                <ion-option value="씨티">씨티은행</ion-option>
+                </ion-select>
+            </ion-item>
+            </ion-row>
+
+            <ion-row>
+            <ion-item ion-col class="cashOut-text">
+                <ion-label>계좌번호</ion-label>
+            </ion-item>
+            <ion-item ion-col class="input">
+                <ion-input class="inputBox" type="text" placeholder="1002*******9408"></ion-input>
+            </ion-item>
+            </ion-row>
+            <ion-item>
+                <ion-label class="explain">
+                    - 캐쉬를 고객님의 계좌로 이체합니다. 이체 수수료는 월 4회 이하 무료이나 4회를 초과하는 경우 농협계좌 150원, 타행 400원의 수수료가 차감되어 이체됩니다.
+                </ion-label>
+            </ion-item>
+            <ion-row>
+            <ion-item ion-col class="cashId">
+                <ion-input class="cashIdValue" type="number" placeholder="환불금액"></ion-input>
+            </ion-item>
+                <button ion-button  class="cashOut">
+                    <span>환불신청</span>
+                </button>
+            </ion-row>
+            
+        </ion-list> 
+
+    </div>
+</ion-content>

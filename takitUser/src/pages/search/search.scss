@@ -1,0 +1,55 @@
+page-search{
+
+    .searchbar-search-icon{
+        display: none;
+    }
+
+    ion-searchbar {
+        padding: 0px;
+    }
+
+    .searchBarItems>ion-label{
+        margin:0px;
+    }
+
+    ion-list .item .item-inner{
+        border-bottom:0px;
+    }
+
+    [padding], [padding] scroll-content{
+        padding: 0px ; 
+    }
+
+    .segment-button {
+        border-width: 2px !important;
+        border-style: solid !important;
+        border-color: #3474e1 !important;
+    }
+
+    .segment-button.segment-activated {
+        background-color: #387ef5 !important;
+        color: white !important;
+    }
+
+    .searchbar-input{
+        padding-right:0px !important;
+        padding-left:0px !important;
+    }
+
+    .at{
+        text-align:center !important;
+    }
+
+    ion-searchbar{
+        padding:1px !important;
+        min-height:inherit !important;
+    }  
+
+    .list-md > .item-block:last-child, .list-md > .item-wrapper:last-child .item-block {
+         border-bottom: 0px; 
+    }
+
+    .list-ios > .item-block:last-child, .list-ios > .item-wrapper:last-child .item-block {
+        border-bottom: 0px;
+    }
+}

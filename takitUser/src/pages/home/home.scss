@@ -1,0 +1,28 @@
+page-home {
+    //[padding], [padding] scroll-content{
+    //    padding:0px !important;
+    //}
+
+    ion-card{
+      margin:0px !important;
+      width:calc(100%) !important;
+    }
+
+    .cardImage{
+      margin:0px !important;
+      padding:0px;
+      height:30vw !important;
+      overflow: hidden !important;
+
+      background-color: gray !important;
+    }
+
+    .iconRemove{
+      color:gray !important; 
+    }
+
+    .takitId{
+      color:gray !important;
+      font-size:2.2rem !important;  
+    }
+}

@@ -1,0 +1,55 @@
+page-signup_submit{
+    ion-col{
+        padding: 0px;
+    }
+
+    .textarea{
+        border-style: solid;
+        border-color:#eeeeee;
+        border-width: 1px;
+    }
+
+    .icon-parent{
+        position: relative;
+    }
+
+    .icon-child{
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 50%;
+        height: 30%;
+        margin: auto;
+    }
+
+
+    .onOff>div.toggle-icon{
+        height:20px;
+    }
+
+    .onOff>div.toggle-icon.toggle-checked{
+        height:20px;
+    }
+
+    .onOff>div.toggle-icon.toggle-checked>div.toggle-inner{
+        width:19px;
+        height:19px;
+        top:0px;
+    }
+
+    .onOff>div.toggle-icon>div.toggle-inner{
+        width:19px;
+        height:19px;
+        top:0px;
+    }
+
+    .orderOption{
+        width : 95%;
+        font-size: 1.3rem;
+        margin-top:1%;
+        margin-bottom:1%;
+    }
+}
+

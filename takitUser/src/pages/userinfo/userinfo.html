@@ -1,0 +1,50 @@
+<ion-header>
+  <ion-navbar >
+    <ion-title>회원 정보</ion-title>
+  </ion-navbar>
+</ion-header>
+
+<ion-content padding >
+<ion-row>
+<p>{{loginMethod}} 로그인 </p>  
+</ion-row>
+<ion-row>
+  <ion-col width-70>
+    <ion-input type="tel" [(ngModel)]="phone"></ion-input> 
+  </ion-col>
+  <ion-col width-30>
+    <button ion-button full (click)="smsRequest()" >인증문자 요청 보내기</button>
+  </ion-col>
+</ion-row>
+<ion-row>
+  <ion-col width-70>
+  <ion-input type="tel" [(ngModel)]="verfiicationCode" placeholder="인증번호"></ion-input> 
+  </ion-col>
+  <ion-col full width-30>
+  <button ion-button full (click)="smsVerification()"> 인증하기 </button>
+  </ion-col>
+</ion-row>
+<ion-item>
+    <ion-label fixed>이메일 </ion-label>
+    <ion-input  [(ngModel)]="email" type="email"></ion-input> 
+</ion-item>
+
+<ion-item>
+    <ion-label fixed>이름</ion-label>
+    <ion-input  [(ngModel)]="name"  type="text"></ion-input>  
+</ion-item>
+<div [hidden]="loginMethod!='이메일'">
+<ion-item>
+    <ion-input [focuser]="focusPassword" type="password" (focus)="scrollUpForKeypad()" placeholder="비밀번호" [(ngModel)]="password" ></ion-input>
+</ion-item>
+<p [hidden]="paswordGuideHide">{{paswordGuide}}</p>
+<ion-item>
+    <ion-input [focuser]="focusPasswordCheck" type="password"  (focus)="scrollUpForKeypad()" placeholder="비밀번호확인" [(ngModel)]="passwordCheck"></ion-input>
+</ion-item>
+<p [hidden]="passwordMatch">비밀번호가 일치하지 않습니다.</p> 
+</div>
+</ion-content>
+
+<ion-footer>
+    <button ion-button full (click)="modify()" >수정</button>
+</ion-footer>

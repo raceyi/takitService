@@ -1,0 +1,48 @@
+page-cashid{
+    .explain{
+    text-align: justify;
+    white-space: pre-line; //normal
+    color:#7F7F7F;
+    font-size: 1.3rem; 
+    }
+    .cashIdValue{
+    color:#387ef5;
+    border:1px solid #BEBEBE;
+    border-radius: 4px;
+    height:38px;
+    }
+
+    .cashIdValue>.text-input {
+        margin: 8px 8px 8px 8px;
+    }
+
+    .cashId.item.item-input>.item-inner{
+    padding-right:2px;
+    }
+
+    .list-md > .item-block:first-child, .list-md > .item-wrapper:first-child .item-block {
+        border-top: 0px !important;
+    }
+
+    .list-ios > .item-block:first-child {
+        border-top: 0px !important;
+    }
+
+    .list-md > .item-block:last-child, .list-md > .item-wrapper:last-child .item-block {
+        border-top: 0px !important;
+    }
+
+    .list-ios > .item-block:last-child {
+        border-top: 0px !important;
+    }
+
+    .list-ios .item-block .item-inner {
+        border-bottom: 0px !important;
+    }
+
+    .list-md .item-block .item-inner {
+        border-bottom: 0px !important;
+    }
+
+}
+

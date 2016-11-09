@@ -1,0 +1,61 @@
+<ion-header>
+  <ion-navbar hideBackButton>
+  </ion-navbar>
+</ion-header>
+
+<!--
+<ion-content padding class="ocr" (swipe)="swipeSearch($event)">
+  -->
+<ion-content #searchContent class="ocr">
+<ion-segment  [(ngModel)]="inputType">
+ <ion-segment-button color="primary" value="keypad" (ionSelect)="keypad()">
+   <ion-icon name="keypad"></ion-icon>
+  </ion-segment-button>
+  <ion-segment-button color="primary" value="image" (ionSelect)="gallery()">
+   <ion-icon name="image"></ion-icon>
+  </ion-segment-button>
+  <ion-segment-button color="primary" value="camera" (ionSelect)="camera()">
+  <ion-icon name="camera"></ion-icon>
+  </ion-segment-button>
+</ion-segment>
+
+<ion-list>
+<ion-item>
+
+
+<ion-row>
+  <ion-col width-45>
+  <ion-searchbar [(ngModel)]="serviceQuery" autocomplete="on" placeholder="서비스" (ionClear)="serviceClear($event)" (ionFocus)="getFocusServices($event)" (ionInput)="getServices($event)" ></ion-searchbar>
+  <ion-list>
+    <ion-item class="searchBarItems" *ngFor="let item of servicesShown">
+     <button ion-button (click)="selectTakitService(item)">
+      {{ item }}
+    </button>
+    </ion-item>
+  </ion-list>
+  </ion-col>
+
+  <ion-col  width-10>
+   @
+  </ion-col>
+
+  <ion-col width-45>
+  <ion-searchbar class="searchBarItems" [(ngModel)]="brandQuery"  autocomplete="on" placeholder="브랜드" (ionClear)="brandClear($event)" (ionFocus)="getFocusBrands($event)" (ionInput)="getBrands($event)"></ion-searchbar>
+  <ion-list>
+    <ion-item *ngFor="let item of brandsShown">
+     <button ion-button (click)="selectTakitBrand(item)">
+      {{ item }}
+    </button>
+    </ion-item>
+  </ion-list>
+  </ion-col>
+</ion-row>
+<ion-row>
+<button ion-button full (click)="goToShop()">상점들어가기</button>
+</ion-row>
+</ion-item>
+</ion-list>
+</ion-content>
+
+
+

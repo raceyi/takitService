@@ -1,0 +1,67 @@
+page-cashconfirm{
+.cashIn-check{
+    margin-left: 10px;
+    margin-right:10px;
+    margin-top:20px;
+    background-color: #EEEEEE;
+    //border: 2px solid #387ef5;
+    border: 0px;
+    }
+
+    .checkInfo{
+    text-align: justify;
+    white-space: pre-line;
+    font-size: 1.4rem;
+    }
+
+    .cashIn-check-table{
+    text-align: center;
+    font-size: 1.4rem;
+    }
+
+    .cashIn-check-table>ion-row>ion-col:last-child{
+    background-color: #ffffff;
+    border-left: 1px solid #bebebe;
+    }
+
+    .cashIn-check-table>ion-row{
+    background-color: #EEEEEE;
+    font-weight: bold;
+    border-bottom: 1px solid #bebebe;
+    }
+
+    .cashIn-check-table>ion-row:last-child{
+    border-bottom: 0px;
+    }
+
+    .cashIn-check-inputBox{
+    border:1px solid #BEBEBE;
+    border-radius: 4px;
+    height:30px;
+    font-size: 1.3rem;
+    }
+
+    .cashIn-check-inputBox>.text-input{
+        margin: 8px 8px 8px 8px;
+        padding: 0;
+        width: calc(100% - 8px - 8px);
+    }    
+
+    ion-list .item .item-inner{
+    border-bottom:0px !important;
+    }
+
+    ion-list > .item:last-child{
+    border-bottom:0px;
+    }
+
+    .item-input.input-has-focus::after{
+    border-bottom-color: transparent;
+    }
+
+    .item-block .item-inner {
+    padding-right: 8px;
+    border-bottom: 0px !important;
+    }
+}
+

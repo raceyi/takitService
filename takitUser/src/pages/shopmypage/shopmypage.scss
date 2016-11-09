@@ -1,0 +1,102 @@
+page-shopmypage{
+    ion-header {
+         position: relative !important; 
+     }
+
+    ion-content.segmentButton{
+        position:relative !important;
+        height:min-content !important;
+        > .scroll-content{
+            position:relative !important;
+        }
+    }
+
+    ion-content.infiniteScroll{
+        position: relative !important; 
+        ion-label {
+            margin: 0px 0px 0px 0px !important;
+        }
+        .status{
+            text-align:right !important;
+            color: #000000 !important;
+            font-size: 1.2rem !important;
+        }
+
+        >.scroll-content {
+            margin-top: 0px !important; 
+            margin-bottom: 0px !important; 
+        }
+        item-inner{
+            border-bottom: 0px !important;
+        }
+        .detail{
+            text-align: left !important;
+            color: #7f7f7f !important;
+            font-size: 1.2rem !important;
+        }
+    }
+
+    ion-content.couponHistory{
+        position:relative !important;
+        >.scroll-content {
+            margin-top: 0px !important; 
+            margin-bottom: 0px !important; 
+        }
+    }
+
+    .updateButton{
+        height:1.7rem !important;
+    }
+
+    .updateButtonText{
+        font-size: 1.2rem;
+    }
+
+    .cancelButton{
+        height:1.5rem !important;
+    }
+
+    .cancelButtonText{
+        font-size: 1.2rem;
+    }
+
+    .segment-md>.segment-button {
+        border-width: 2px !important;
+        border-style: solid !important;
+        border-color: #3474e1 !important;
+        padding:0px !important;
+    }
+
+    .segment-md>.segment-activated {
+        background-color: #387ef5 !important;
+        color: white !important;
+    }
+
+    div.dummy{
+        height:50vh;
+    }
+    ////////////////////////////////////////////
+    ion-col.dropdown{
+        padding: 0px;
+    }
+
+    .cardHeader{
+        font-size: 1.7rem;
+        width: 100%;
+        font-weight: bold;
+    }
+
+    ion-card {
+        position: relative;
+        text-align: center;
+    }
+
+    .cardContent {
+        font-size: 1.3rem;
+        width: 100%;
+    }
+
+    .explain{
+        font-size:1.2rem;
+    }
+}

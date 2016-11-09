@@ -1,0 +1,144 @@
+<ion-header>
+  <ion-navbar >
+    <ion-title>
+       {{shopname}}
+    </ion-title>
+  </ion-navbar>
+</ion-header>
+
+<ion-content padding #shopcartPage class="shopcart">
+  <!--
+  <ion-row>    
+    <ion-label></ion-label>
+    <button outline><span style="color:black">전체삭제</span>
+	  </button>
+  </ion-row>
+-->
+   <div [hidden]="nonEmptyCart()">
+    장바구니가 비었습니다.
+  </div>
+  <div [hidden]="emptyCart()">
+  <ion-item class="order5" *ngFor="let menu of cart.menus">
+    <ion-label class="orderInfo">
+    <ion-row class="order2">
+    <ion-item ion-col class="orderDelete">
+      <button ion-button outline (click)="deleteMenu(menu)">
+        <span style="color:black">삭제</span>
+      </button>
+    </ion-item>
+    <ion-col class="textSet">
+      <ion-row>
+        <ion-col>
+        {{menu.menuName}}
+        </ion-col>
+        <ion-col class="price">
+        {{menu.price*menu.quantity}}원
+        </ion-col>
+      </ion-row>
+      <ion-row>
+      <ion-col>  
+        수량 : {{menu.quantity}}
+      </ion-col>
+      <ion-col>
+      </ion-col>  
+      </ion-row>  
+      <ion-row *ngFor="let option of menu.options" >  
+      <ion-col>  
+      {{option.name}}(+{{option.price}}) <span *ngIf="option.select!=undefined">{{option.select}}</span>
+      </ion-col>
+      <ion-col class="price">
+       {{menu.quantity*option.price}} 원 
+      </ion-col>    
+      </ion-row>   
+    </ion-col>
+    </ion-row>
+    <ion-row>
+    <ion-col></ion-col>
+    <ion-col class="price">{{menu.amount}}원
+    </ion-col>
+    </ion-row>
+    </ion-label>
+  </ion-item>
+
+    <div class="box" #takeoutDiv [hidden]="!takeoutAvailable">
+    <ion-item class="orderToggle">
+      <ion-label class="orderOption">테이크아웃</ion-label>
+      <ion-toggle class="onOff" [(ngModel)]="takeout"></ion-toggle>
+    </ion-item>
+  </div>
+
+<div id = "payDiv">
+   <div id ="grayDiv">
+    <ion-row class="textrow">
+      <ion-col width-33 class="center">주문금액</ion-col>
+      <ion-col width-33 class="center">할인금액(0.5%)</ion-col>
+      <ion-col width-33 class="center">최종결제금액</ion-col>
+    </ion-row>
+
+    <ion-row class="textrow">
+      <ion-col width-33 class="right">{{cart.total}}원</ion-col>
+      <ion-col width-33 class="right">{{cart.total*0.005}}원</ion-col>
+      <ion-col width-33 class="right"><span style="color:#387ef5">{{cart.total*0.995}}</span>원</ion-col>
+    </ion-row>
+
+      <ion-row>
+        <ion-col class="cash">사용가능한 캐쉬</ion-col>
+        <ion-col class="cash">15,000원</ion-col>
+      </ion-row>
+
+      <ion-row class="textrow">
+        <ion-col class="password">캐쉬 비밀번호</ion-col>
+        <ion-col class="password0">
+          <ion-item class="cashPassword">
+          <ion-input (focus)="onFocusPassword($event)" type="password" class="passwordinput"></ion-input>
+          </ion-item>
+        </ion-col>
+      </ion-row>
+    </div>    
+    <div>
+      <div class="orderInfo cancelNoti">
+      주문접수전에는 MyPage에서 주문 취소가 가능합니다. <br>
+    </div>
+      <ion-row>
+        <ion-col width-10 class="collapse">
+          <!--
+        <button [hidden]="!userNotiHidden" (click)="expand($event)" ><ion-icon name="add-circle"></ion-icon></button>
+        <button [hidden]="userNotiHidden" (click)="collapse($event)"><ion-icon name="remove-circle"></ion-icon></button>
+        -->
+        <ion-icon name="add-circle" [hidden]="!userNotiHidden" (click)="expand($event)" ></ion-icon>
+        <ion-icon name="remove-circle" [hidden]="userNotiHidden" (click)="collapse($event)"></ion-icon>
+        </ion-col>
+        <ion-col class="orderInfo title" width-90>
+        원활한 주문을 위해 판매자에게 주문정보가 제공됩니다.
+        </ion-col>
+      </ion-row>
+      <div [hidden]="userNotiHidden">
+          <ion-row>
+            <ion-col width-33 class="orderInfo">제공받는자</ion-col>
+            <ion-col width-66 class="orderInfo1">{{shopname}}</ion-col>
+          </ion-row>
+          <ion-row>
+            <ion-col width-33 class="orderInfo">목적</ion-col>
+            <ion-col width-66 class="orderInfo1">판매자와 구매자의 거래의 원활한 진행, 본인 의사의 확인, 고객상담 및 불만처리 등</ion-col>
+          </ion-row>
+          <ion-row>
+            <ion-col width-33 class="orderInfo">항목</ion-col>
+            <ion-col width-66 class="orderInfo1">휴대폰번호</ion-col>
+          </ion-row>
+          <ion-row>
+            <ion-col width-33 class="orderInfo">보유기간</ion-col>
+            <ion-col width-66 class="orderInfo1">거래종료시점</ion-col>
+          </ion-row>
+      </div>
+    </div>
+  </div>
+  </div>
+</ion-content>
+<ion-footer class="shopcart" [hidden]="emptyCart()">
+    <ion-segment>
+    <ion-segment-button (click)="deleteAll()">전체삭제</ion-segment-button>
+    <ion-segment-button (click)="order()">주문결제하기</ion-segment-button>
+    </ion-segment>
+</ion-footer>
+
+

@@ -1,0 +1,13 @@
+<ion-header>
+  <ion-navbar>
+    <button ion-button menuToggle>
+      <ion-icon name="menu"></ion-icon>
+    </button>
+    <ion-title>타킷</ion-title>
+  </ion-navbar>
+</ion-header>
+<ion-tabs>
+  <ion-tab [root]="tabHome" tabTitle="홈" (ionSelect)="home($event)" tabIcon="home"></ion-tab>
+  <ion-tab [root]="tabSearch" tabTitle="상점인식" (ionSelect)="search($event)" tabIcon="search"></ion-tab>
+  <ion-tab [root]="tabCash" tabTitle="캐쉬" (ionSelect)="cash($event)" tabIcon="cash"></ion-tab>
+</ion-tabs>
