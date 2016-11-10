@@ -215,12 +215,12 @@ License: GPL
  강의 장소 섭외 도움주실분 연락주세요~~ 
 
  kalen.lee@takit.biz
- 
+
 # Ionic2 주말 유료 강의(4주, 매회 4시간) 
 
  Takit open source기반 실제 앱/서비스 개발 교육  
 
- 1주차(개발환경 설정,기초) 
+1.주차(개발환경 설정,기초) 
 
   환경 설정:  node, ionic2, 해킨토시, Android, iPhone App빌드/실행
 
@@ -231,7 +231,7 @@ License: GPL
   ionic UI 컴포넌트 및 theme설정  (ionic serve)
 
 
- 2주차(plugin사용)
+2.주차(plugin사용)
 
   ionic2에서 주요 plugin사용하기.  plugin 만들기. 
 
@@ -242,7 +242,7 @@ License: GPL
   ionic UI컴포넌트
 
 
- 3주차(서버와 통신)
+3.주차(서버와 통신)
 
   node server만들기(aws EC2 사용,기초 aws사용법)
 
@@ -259,7 +259,7 @@ License: GPL
   ionic UI컴포넌트(infinite scroll)
 
 
- 4주차(그외 사항들)
+4.주차(그외 사항들)
 
   directive 정의
 
