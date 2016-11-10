@@ -3,6 +3,7 @@ Takit App source based on ionic2 and Server source based on node
 
 License: GPL 
   참조 코드로 공개합니다.
+
   특허 요소가 있는 일부 기능은 GPL로도 사용불가합니다.
 
 # takitUser
@@ -206,37 +207,64 @@ License: GPL
  12월5일   아이폰앱 승인 완료 
 
 # Ionic2 무료 강의 
+
  2시간으로 구성된 Ionic2 소개 강의 
+
  (타킷 오픈 소스 소개 포함)
+
  강의 장소 섭외 도움주실분 연락주세요~~ 
+
  kalen.lee@takit.biz
  
 # Ionic2 주말 유료 강의(4주, 매회 4시간) 
+
  Takit open source기반 실제 앱/서비스 개발 교육  
 
  1주차(개발환경 설정,기초) 
+
   환경 설정:  node, ionic2, 해킨토시, Android, iPhone App빌드/실행
+
   javascript 구조(promise, async call)
+
   ionic2 기본 코드(앵귤러 기본 문법포함),디렉토리 구조 설명
+
   ionic UI 컴포넌트 및 theme설정  (ionic serve)
 
+
  2주차(plugin사용)
+
   ionic2에서 주요 plugin사용하기.  plugin 만들기. 
+
   로그인(카카오, 페이스북) plugin 
+
   카메라, 파일  upload plugin등
+
   ionic UI컴포넌트
 
+
  3주차(서버와 통신)
+
   node server만들기(aws EC2 사용,기초 aws사용법)
+
   http를 통한 서버와 통신 코드 작성(서버&클라이언트)
+
   file전송하기(upload,download, 서버&클라이언트)
+
   gcm구현하기(앱, server) 및 notification 특성(background,forground, 앱종료시)
+
   gcm설정하기(apple developer, google firebase)
+
   휴대폰 본인 인증 연동 예시(inAppBrowser 사용)
+
   ionic UI컴포넌트(infinite scroll)
 
+
  4주차(그외 사항들)
+
   directive 정의
+
   그외 코드(back key handler, zone, emitter사용을 통한 event전달)
+
   app스토어 등록방법 
+
   Q&A,보충설명등
