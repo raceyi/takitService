@@ -1,0 +1,114 @@
+page-shoptable {
+    #optionRow{
+        margin-top : 3%;
+        margin-left : 5%;
+        font-size: 1.3rem;
+        text-align: center;
+    }
+
+    .orderManagement>div.item-inner{
+        border-bottom: 0px;
+    }
+
+    .orderManagement{
+        padding-left: 0px; 
+        .item-inner{
+            padding-right:0px;
+        }
+        ion-label {
+             margin: 0px 0px 0px 0; 
+        }
+        .item-button {
+            padding: 0px;
+        }
+
+        border-bottom-style: solid;
+        border-bottom-color: #dedede;
+        border-bottom-width: 1px;
+    }
+
+    .TableButton1{
+    width: 100px;
+    height: 30px;
+    font-size: 1.4rem;
+    }
+
+    .bottomLine{
+        border-bottom : 1px solid black;
+        margin-bottom : -2%;
+        margin-top : -2%;
+    }
+
+    .TableButton2{
+    width: 100px;
+    height: 30px;
+    font-size: 1.4rem;
+    background-color: #bebebe;
+    }
+
+    .TableButton3{
+    width: 100px;
+    height: 30px;
+    font-size: 1.4rem;
+    border: 1px dotted #bebebe;
+    }
+
+    .MenuName{
+        padding-left: 15px;
+        text-align: left;
+    }
+
+    .detail{
+        text-align: left;
+        color: #7f7f7f;
+        font-size: 1.2rem;
+    }
+
+    .orderManagementTable{
+        text-align: center;
+        font-size: 1.4rem;
+        white-space: pre-line;
+    }
+
+    .orderManagementTable>ion-row:first-child{
+        background-color: #eeeeee;
+        color: #7f7f7f;
+        font-weight: bold;
+    }
+
+    .orderManagementTable>ion-row{
+        border-bottom: 1px solid #bebebe;
+    }
+
+    .orderManagementTable>ion-row>ion-col{
+        margin: 3px 0px 3px 0px;
+    }
+
+    ion-col.dropdown{
+        padding: 0px;
+    }
+
+    .option{
+        color: black !important;  
+    }    
+
+    .orderName{
+        color: #7f7f7f !important;  
+        align-items: center;
+        display: flex;
+    }
+
+    .verticalAlign{
+        align-items: center;
+        display: flex;
+    }
+
+
+    .ios{
+        ion-radio{
+                    border-color: black !important;
+                    border-style: solid !important;
+                    border-width: 1px !important;
+        }
+    }
+}

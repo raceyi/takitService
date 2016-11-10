@@ -18,8 +18,7 @@ License: GPL
 
  $ionic plugin add https://github.com/taejaehan/cordova-kakaotalk.git --variable KAKAO_APP_KEY={takitUser.kakao.appId}
 
- =>takitUser/plugins/cordova-plugin-htj-kakaotalk/src/android/kakao.gradle, 
-   takitUser/platforms/android/cordova-plugin-htj-kakaotalk/user-kakao.gradle 파일에 sdk version수정 
+  =>takitUser/platforms/android/cordova-plugin-htj-kakaotalk/user-kakao.gradle 파일에 sdk version수정 
    현재 SDK버전: com.kakao.sdk:kakaotalk:1.1.21  
 
  $ionic plugin add https://github.com/loicknuchel/cordova-device-accounts.git
@@ -62,8 +61,6 @@ License: GPL
 
  $git checkout takitUser/platforms/android/src/com/htj/plugin/kakao/KakaoTalk.java
 
- $git checkout takitUser/plugins/cordova-plugin-htj-kakaotalk/src/android/KakaoTalk.java
-
  $ionic build android 
 
  takitUser/platforms/ios/타킷/타킷-Info.plist 수정  
@@ -73,8 +70,10 @@ License: GPL
         <string>kakaotalk</string>
      </array>
 
- xcode에서 옵션 수정및 코드 수정(참조 kakao plugin git)
-    open platforms/ios/*.xcodeproj Build Settings > Linking > Other Linker Flags > add '-all_load'
+ xcode에서 옵션 수정
+    open platforms/ios/타킷.xcodeproj 
+    Build Settings > Linking > Other Linker Flags > add '-all_load' (kakao plugin git)
+    Capabilities->Push Notifications -> ON
 
  $cd ..
 
@@ -125,10 +124,8 @@ License: GPL
   $ionic platform add ios
 
   $ionic plugin add https://github.com/taejaehan/cordova-kakaotalk.git --variable KAKAO_APP_KEY={takitShop.kakao.appId} 
-   => takitShop/plugins/cordova-plugin-htj-kakaotalk/src/android/kakao.gradle, 
-      takitShop/platforms/android/cordova-plugin-htj-kakaotalk/shop-kakao.gradle 파일에 sdk version수정 
+     =>takitShop/platforms/android/cordova-plugin-htj-kakaotalk/shop-kakao.gradle 파일에 sdk version수정 
       현재 SDK버전: com.kakao.sdk:kakaotalk:1.1.21 (KakaoTalk.java파일 수정=>git checkout takitShop이수행함) 
-      takitUser/platforms/android/build삭제 (재빌드를 위해)
 
  $ionic plugin add cordova-plugin-facebook4 --save --variable APP_ID="{takitShop.facebook.appId}" --variable APP_NAME="takitShop"
 
@@ -154,13 +151,25 @@ License: GPL
 
  $npm install @types/crypto-js --save
 
- $ionic build android
+ $ionic g directive focuser
 
  $ionic build ios
 
- $ionic run android
+ $git checkout takitShop/platforms/android/src/com/htj/plugin/kakao/KakaoTalk.java
 
- $ionic run ios
+ $ionic build android
+
+ takitShop/platforms/ios/타킷운영자/타킷운영자-Info.plist
+
+     <key>LSApplicationQueriesSchemes</key>
+     <array>
+        <string>kakaotalk</string>
+     </array>
+
+ xcode에서 옵션 수정및 코드 수정(참조 kakao plugin git)
+    open platforms/ios/타킷운영자.x
+    Build Settings > Linking > Other Linker Flags > add '-all_load' (kakao plugin git)
+    Capabilities->Push Notifications -> ON
 
  $git checkout takitShop
 

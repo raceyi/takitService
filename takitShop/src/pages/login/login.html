@@ -1,0 +1,28 @@
+<ion-content #loginPage padding class="loginPage" >
+  <div padding> 
+     <div class="companyName"> 타킷 </div>
+     <br>
+     <div class="companyslogan"> Takit it as usual</div>
+     <br>
+  </div>   
+  <div padding>
+    <button ion-button full color="facebook"  (click)="facebookLogin($event)"> 페이스북 </button>
+    <button ion-button full color="kakao" (click)="kakaoLogin($event)"> 카카오톡 </button> 
+     <button ion-button full color="email"(click)="emailLoginSelect($event)"> 이메일 </button> 
+        <ion-list [hidden]="emailHide">
+          <ion-item>
+             <ion-label fixed>이메일</ion-label>
+            <ion-input type="email" [focuser]="focusEmail" (focus)="scrollUpForKeypad($event)" [(ngModel)]="email"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label fixed>비밀번호</ion-label>
+            <ion-input type="password" full [focuser]="focusPassword" (focus)="scrollUpForKeypad($event)" [(ngModel)]= "password" ></ion-input>
+          </ion-item>
+            <ion-row>
+            <ion-col>
+            <button ion-button  color="email" full (click)="emailLogin($event)">로그인</button>
+            </ion-col>
+            </ion-row>
+        </ion-list>
+  </div>   
+</ion-content>

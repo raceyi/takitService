@@ -1,0 +1,74 @@
+<ion-header>
+  <ion-navbar>
+    <button ion-button menuToggle>
+      <ion-icon name="menu"></ion-icon>
+    </button>
+    <ion-title>타킷</ion-title>
+  </ion-navbar>
+</ion-header>
+
+<ion-content class="shoptable">
+<ion-list radio-group [(ngModel)]="Option" (ionChange)="changeValue(Option)">
+   <ion-row>
+        <ion-col><ion-radio value="today" checked ></ion-radio> 오늘</ion-col> 
+        <ion-col><ion-radio value="week"></ion-radio> 일주일 </ion-col>
+        <ion-col><ion-radio value="month"></ion-radio> 한달 </ion-col>
+        <ion-col><ion-radio value="period"></ion-radio> 기간설정</ion-col>
+   </ion-row>
+</ion-list>
+
+<ion-row [hidden]="Option!='period'">
+<ion-item ion-col width-40>
+ <ion-label>시작</ion-label>
+ <ion-datetime displayFormat="YYYY M DD" min="2016" (ionChange)="startPicker(startDate)" [(ngModel)]="startDate"></ion-datetime>
+</ion-item>
+<ion-item ion-col width-40> 
+ <ion-label>종료</ion-label>
+ <ion-datetime displayFormat="YYYY M DD" min="2016" (ionChange)="endPicker(endDate)" [(ngModel)]="endDate"></ion-datetime>
+</ion-item>
+<ion-item ion-col width-20>
+  <button ion-button (click)="searchPeriod()">검색</button>
+</ion-item>
+</ion-row>
+<!--
+ <ion-input type="email" [(ngModel)]="email"></ion-input>
+-->
+<ion-list>
+<ion-item class="orderManagement" id="parent" *ngFor="let order of orders">
+                <ion-row (click)="toggleOrder(order)">
+                    <ion-col width-10 class="verticalAlign">[{{order.orderNO}}]</ion-col>
+                    <ion-col class="orderName" width-60 >{{order.orderName}}</ion-col>
+                    <ion-col class="verticalAlign" width-20>
+                      <button ion-button full *ngIf="order.statusString!='종료'" (click)="updateOrder(order)" >{{order.statusString}}</button>
+                      <p  *ngIf="order.statusString=='종료'"> {{order.statusString}}<p>
+                    </ion-col>
+                    <ion-col width-10><button ion-button full  (click)="cancel(order)" [hidden]="order.orderStatus=='cancelled'">취소</button></ion-col>
+                </ion-row>
+                     <ion-row [hidden]="order.hidden" *ngFor="let menu of order.orderListObj.menus">
+                                <ion-col width-10></ion-col>
+                                <ion-col width-30>{{menu.menuName}}({{menu.quantity}})</ion-col>
+                                <ion-col width-60> 
+                                  <p class="option" *ngFor="let option of menu.options">{{option.name}} &nbsp;<span *ngIf="option.select!=undefined">{{option.select}}</span> </p>
+                                </ion-col>
+                      </ion-row>
+                      <ion-row [hidden]="order.takeout=='0'">
+                        <ion-col width-10></ion-col>
+                        <ion-col width-90>Takeout</ion-col>
+                      </ion-row>
+                 <ion-row  [hidden]="order.hidden">
+                    <ion-col width-10></ion-col>
+                    <ion-col width-90 class="detail">주문시간 &nbsp;{{order.localOrderedTime}}</ion-col>
+                </ion-row>
+                 <ion-row  [hidden]="order.hidden">
+                    <ion-col width-10></ion-col>
+                    <ion-col width-90 class="detail">결제금액 &nbsp;{{order.amount}}원</ion-col>
+                </ion-row>
+
+</ion-item>
+</ion-list>
+
+<ion-row>
+  <ion-col width-50><button ion-button>이전</button></ion-col>
+  <ion-col width-50><button ion-button>다음</button></ion-col>
+</ion-row>
+</ion-content>

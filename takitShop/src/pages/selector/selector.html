@@ -1,0 +1,19 @@
+<ion-header>
+  <ion-navbar>
+    <button ion-button menuToggle>
+      <ion-icon name="menu"></ion-icon>
+    </button>
+    <ion-title>타킷</ion-title>
+  </ion-navbar>
+</ion-header>
+<ion-content>
+ <ion-list>
+  <ion-item>
+    <ion-label>샵선택</ion-label>
+    <ion-select [(ngModel)]="takitId"  (ionChange)="selectShop(takitId)">
+      <ion-option *ngFor="let shop of shoplist" [value]="shop.takitId">{{shop.takitId}}</ion-option>
+    </ion-select>
+  </ion-item>
+</ion-list>
+
+</ion-content>
