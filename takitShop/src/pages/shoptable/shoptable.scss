@@ -1,4 +1,55 @@
 page-shoptable {
+    ion-header {
+         position: relative !important; 
+     }
+
+    ion-content.segmentButton{
+        position:relative !important;
+        height:min-content !important;
+        > .scroll-content{
+            position:relative !important;
+        }
+    }
+
+    ion-content.infiniteScroll{
+        position: relative !important; 
+        ion-label {
+            margin: 0px 0px 0px 0px !important;
+        }
+    }
+
+    .segment-md>.segment-button {
+            border-width: 2px !important;
+            border-style: solid !important;
+            border-color: #3474e1 !important;
+            padding:0px !important;
+    }
+
+    .segment-md>.segment-activated {
+        background-color: #387ef5 !important;
+        color: white !important;
+    }
+
+    .updateButton{
+        height:1.7rem !important;
+    }
+
+    .updateButtonText{
+        font-size: 1.2rem;
+    }
+
+    .statusButton{
+        height:1.8rem !important;
+    }
+
+    .statusButtonText{
+        font-size: 1.5rem;
+    }
+
+    div.dummy{ //workaround solution for infinite scroll
+        height:50vh;
+    }
+
     #optionRow{
         margin-top : 3%;
         margin-left : 5%;
@@ -96,6 +147,10 @@ page-shoptable {
         color: #7f7f7f !important;  
         align-items: center;
         display: flex;
+    }
+
+    span.orderName{
+        font-size: 1.5rem;
     }
 
     .verticalAlign{

@@ -22,4 +22,9 @@ page-menu{
     button.menu{
         color:gray !important; //Why should I use important here ?
     }
+
+    on-nav, ion-tab, ion-tabs {
+    z-index: -1 !important;
+    }
+
 }

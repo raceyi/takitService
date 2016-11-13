@@ -247,8 +247,8 @@ ionViewWillUnload(){
                 console.log("[home.ts]pushNotification.on-data.title:"+JSON.stringify(data.title));
                 
                 var additionalData:any=data.additionalData;
-                this.storageProvider.messageEmitter.emit(additionalData.custom);//  만약 shoptab에 있다면 주문목록을 업데이트 한다. 만약 tab이라면 메시지를 보여준다. 
                 if(additionalData.GCMType==="order"){
+                this.storageProvider.messageEmitter.emit(JSON.parse(additionalData.custom));//  만약 shoptab에 있다면 주문목록을 업데이트 한다. 만약 tab이라면 메시지를 보여준다. 
                   let alert = this.alertController.create({
                         title: data.title,
                         subTitle: data.message,

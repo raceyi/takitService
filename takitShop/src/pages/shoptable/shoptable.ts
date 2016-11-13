@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import {Component,EventEmitter,NgZone} from '@angular/core';
 import {NavController,App,AlertController} from 'ionic-angular';
 import {ConfigProvider} from '../../providers/ConfigProvider';
 import 'rxjs/add/operator/map';
@@ -7,6 +7,7 @@ import {StorageProvider} from '../../providers/storageProvider';
 import {Push,PushNotification} from 'ionic-native';
 import {Http,Headers} from '@angular/http';
 import {ErrorPage} from '../../pages/error/error';
+import {Splashscreen} from 'ionic-native';
 
 @Component({
   selector:'page-shoptable',
@@ -21,9 +22,12 @@ export class ShopTablePage {
   currTime;
   orders=[];
   pushNotification:PushNotification;
+  infiniteScroll:any=undefined;
+  messageEmitterSubscription;
+  public messageEmitter= new EventEmitter();
 
   constructor(public navController: NavController,private app:App,private storageProvider:StorageProvider,
-      private http:Http,private alertController:AlertController) {
+      private http:Http,private alertController:AlertController,private ngZone:NgZone) {
     console.log("ShopTablePage constructor");
     
     this.registerPushService();
@@ -38,7 +42,35 @@ export class ShopTablePage {
     console.log("startDate:"+this.startDate);
     console.log("endDate:"+this.endDate);
 
+        this.messageEmitterSubscription= this.messageEmitter.subscribe((order)=> {
+                console.log("[ShopMyPage]message comes "+JSON.stringify(order)); 
+                console.log("order.orderId:"+order.orderId);
+                this.ngZone.run(()=>{
+                    var i;
+                    for(i=0;i<ConfigProvider.OrdersInPage && i<this.orders.length;i++){  // if new order comes, add it at the front. otherwise, cange status.
+                      //console.log(" "+ this.orders[i].orderId+" "+order.orderId);
+                        if(parseInt(this.orders[i].orderId)==parseInt(order.orderId) && this.orders[i].orderStatus!=order.orderStatus){
+                              //update order statusString
+                              this.orders[i].orderStatus=order.orderStatus;
+                              this.orders[i].statusString=this.getStatusString(order.orderStatus);
+                              console.log("orderId are same");
+                              break;
+                        }
+                    }
+                    if(i==ConfigProvider.OrdersInPage || i==this.orders.length){// new one
+                        console.log("add new one at the front");
+                        this.orders.unshift(this.convertOrderInfo(order)); 
+                    }
+                });
+        });
+
+        this.getOrders(-1);
      /////////////////////////////////////////////////////////////////
+  }
+
+  onPageDidEnter() {
+        console.log("SelectorPage did enter");
+        Splashscreen.hide();
   }
 
     convertOrderInfo(orderInfo){
@@ -86,13 +118,17 @@ export class ShopTablePage {
          console.log("body:"+JSON.stringify(body));
          this.http.post(ConfigProvider.serverAddress+"/shop/getOrders",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
             console.log("!!!getOrders-res:"+JSON.stringify(res));
-            if(Array.isArray(res.orders)){
+            var result:string=res.result;
+            if(result==="success" &&Array.isArray(res.orders)){
               console.log("res.length:"+res.orders.length);
               res.orders.forEach(order=>{
                   this.orders.push(this.convertOrderInfo(order));
                   console.log("orders:"+JSON.stringify(this.orders));
-                  resolve();
               });
+              resolve(true);
+            }else if(res.orders=="0" || result==="failure"){ //Please check if it works or not
+              console.log("no more orders");
+              resolve(false);
             }
          },(err)=>{
            console.log("서버와 통신에 문제가 있습니다");
@@ -127,10 +163,14 @@ export class ShopTablePage {
 
   changeValue(option){
     console.log("changeValue:"+option);
+    this.orders=[];
+    if(this.infiniteScroll!=undefined)
+        this.infiniteScroll.enable(true);
+
     if(option!="period"){
-      //send getOrders request and update orders
-        this.orders=[];
         this.getOrders(-1);
+    }else{
+        // user select search button
     }
   }
 
@@ -171,6 +211,23 @@ export class ShopTablePage {
      order.hidden=(!order.hidden);
   }
 
+    confirmMsgDelivery(messageId){
+        return new Promise((resolve,reject)=>{
+            let headers = new Headers();
+            headers.append('Content-Type', 'application/json');
+            console.log("messageId:"+messageId);
+            console.log("!!!server:"+ ConfigProvider.serverAddress);
+            let body = JSON.stringify({messageId:messageId});
+
+            this.http.post(encodeURI(ConfigProvider.serverAddress+"/successGCM"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                  console.log("res:"+JSON.stringify(res));
+                  resolve();
+            },(err)=>{
+                reject("http error");  
+            });
+      });   
+    }
+
       registerPushService(){ // Please move this code into tabs.ts
             this.pushNotification=Push.init({
                 android: {
@@ -208,19 +265,30 @@ export class ShopTablePage {
               console.log("!!! shoporder-data.custom:"+JSON.stringify(data.additionalData.custom));
                 if(this.Option!="period" ||(this.Option=="period" && true/* it has today */ )){
                      //Please check if order is new or existing one and then add it or modify it into orders.
-                     var incommingOrder=data.additionalData.custom;
-                     var i=0;
-                     for(;i<this.orders.length;i++){
-                            console.log(this.orders[i].orderId+incommingOrder.orderId);
-                            if(this.orders[i].orderId == incommingOrder.orderId)
-                                  break;
-                     }
-                     if(i==this.orders.length)
-                        this.orders.unshift(this.convertOrderInfo(data.additionalData.custom));
-                     //else
-                     //   this.orders[i]=this.convertOrderInfo(incommingOrder);   
-                     console.log("orders update:"+JSON.stringify(this.orders));
-                     //this.focusEmail.emit(true);
+                    var additionalData:any=data.additionalData;
+                    if(additionalData.GCMType==="order"){
+                        var incommingOrder=data.additionalData.custom;
+                        var i=0;
+                        for(;i<this.orders.length;i++){
+                                console.log(this.orders[i].orderId+incommingOrder.orderId);
+                                if(this.orders[i].orderId == incommingOrder.orderId)
+                                      break;
+                        }
+                        if(i==this.orders.length)
+                            this.orders.unshift(this.convertOrderInfo(data.additionalData.custom));
+                        //else
+                        //   this.orders[i]=this.convertOrderInfo(incommingOrder);   
+                        console.log("orders update:"+JSON.stringify(this.orders));
+                    }
+                    this.confirmMsgDelivery(additionalData.messageId).then(()=>{
+                          console.log("confirmMsgDelivery success");
+                    },(err)=>{
+                        let alert = this.alertController.create({
+                            title: "서버와 통신에 문제가 있습니다.",
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                    });
                 }
                 console.log("[shoptable.ts]pushNotification.on-data:"+JSON.stringify(data));
                 console.log("first view name:"+this.navController.first().name);
@@ -338,4 +406,35 @@ export class ShopTablePage {
          });
       });
      }
+
+     doInfinite(infiniteScroll){
+        var lastOrderId=this.orders[this.orders.length-1].orderId;
+        this.getOrders(lastOrderId).then((more)=>{
+          if(more)
+              infiniteScroll.complete();
+          else{
+              infiniteScroll.enable(false); //stop infinite scroll
+              this.infiniteScroll=infiniteScroll;
+          }
+        });
+     }
+
+
+     getOrderColor(order){
+       if(order.orderStatus==='completed'){
+          return 'gray';
+       }else{
+         return 'primary';
+       }
+     }
+
+  AfterOnedayComplete(order){
+    if(order.completedTime!=undefined){
+        let completedTime=new Date(order.completedTime);
+        let now=new Date();
+        if(now.getTime()>completedTime.getTime()+24*60*60*1000)
+            return true;
+    }
+    return false;  
+  }
 }

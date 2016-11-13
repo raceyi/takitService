@@ -1,26 +1,26 @@
 <ion-menu [content]="content" class="menuList">
-  <ion-content>
-      <button menuClose ion-item>
-        <ion-row>
-        <ion-col width-90>
-          
-        </ion-col>
-        <ion-col width-10>
-          <span>X</span>
-        </ion-col>  
-        </ion-row> 
-      </button>  
-      <button menuClose ion-item>
-        <ion-icon name="person"></ion-icon>&nbsp;&nbsp;비밀번호변경 
+<ion-content>
+      <button class="menu" color="white" ion-button full menuClose>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X  
       </button>
-      <button menuClose ion-item>
+      <button class="menu" color="white" ion-button icon-left full  menuClose >
+        <ion-icon name="print"></ion-icon>&nbsp;&nbsp;프린터설정
+      </button>
+      <button class="menu" color="white" ion-button icon-left full menuClose >
+        <ion-icon name="cash"></ion-icon>&nbsp;&nbsp;출금하기  
+      </button>
+      <button class="menu" color="white" ion-button icon-left full menuClose>
+        <ion-icon name="person"></ion-icon>&nbsp;&nbsp;비밀번호 
+      </button>
+      <button class="menu" color="white" ion-button icon-left full menuClose>
         <ion-icon name="information-circle"></ion-icon>&nbsp;&nbsp;서비스정보 
       </button>
-      <button menuClose ion-item>
+      <button class="menu" color="white" ion-button icon-left full menuClose>
         <ion-icon name="log-out"></ion-icon>&nbsp;&nbsp;로그아웃 
       </button>
   </ion-content>
-
 </ion-menu>
 
 <!-- Disable swipe-to-go-back because it's poor UX to combine STGB with side menus -->

@@ -162,7 +162,7 @@ export class ShopMyPage{
          this.http.post(ConfigProvider.serverAddress+"/cancelOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
             console.log("cancelOrder-res:"+JSON.stringify(res));
             var result:string=res.result;
-            if(result=="success"){
+            if(result==="success"){
               let alert = this.alertController.create({
                     title: '주문 취소가 정상 처리 되었습니다.',
                     buttons: ['OK']
