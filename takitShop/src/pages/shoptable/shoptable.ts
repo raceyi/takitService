@@ -68,7 +68,7 @@ export class ShopTablePage {
      /////////////////////////////////////////////////////////////////
   }
 
-  onPageDidEnter() {
+    ionViewDidEnter(){
         console.log("SelectorPage did enter");
         Splashscreen.hide();
   }

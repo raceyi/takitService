@@ -148,6 +148,8 @@ License: GPL
 
  $ionic plugin add cordova-plugin-appavailability
 
+ $ionic plugin add https://github.com/srehanuddin/Cordova-Plugin-Bluetooth-Printer.git
+
  $npm install crypto-js
 
  $npm install @types/crypto-js --save

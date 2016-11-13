@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { Platform } from 'ionic-angular';
+import { Platform,App } from 'ionic-angular';
 import { StatusBar,Splashscreen ,Network} from 'ionic-native';
 
 import {StorageProvider} from '../providers/storageProvider';
@@ -12,6 +12,7 @@ import {LoginPage} from '../pages/login/login';
 import {ErrorPage} from '../pages/error/error';
 import {ShopTablePage} from '../pages/shoptable/shoptable';
 import{SelectorPage} from '../pages/selector/selector';
+import{PrinterPage} from '../pages/printer/printer';
 
 @Component({
   selector:'page-menu',
@@ -22,7 +23,7 @@ export class MyApp {
   // private disconnectSubscription;
   // private connectSubscription;
 
-   constructor(private platform:Platform,
+   constructor(private platform:Platform,public app:App,
                 private fbProvider:FbProvider,private emailProvider:EmailProvider,
                 private kakaoProvider:KakaoProvider,private storageProvider:StorageProvider,
                 public storage:Storage) {
@@ -173,5 +174,9 @@ export class MyApp {
              }
         }
   }
+
+   openPrint(){
+        this.app.getRootNav().push(PrinterPage);
+   }
 }
 

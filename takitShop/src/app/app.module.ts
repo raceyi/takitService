@@ -8,6 +8,7 @@ import {StorageProvider} from '../providers/storageProvider';
 import {Storage} from '@ionic/storage';
 import {LoginPage} from '../pages/login/login';
 import {ErrorPage} from '../pages/error/error';
+import {PrinterPage} from '../pages/printer/printer';
 import {SelectorPage} from '../pages/selector/selector';
 import {ShopTablePage} from '../pages/shoptable/shoptable';
 import {UserSecretPage} from '../pages/usersecret/usersecret';
@@ -21,6 +22,7 @@ import{Focuser} from '../components/focuser/focuser';
     SelectorPage,
     ShopTablePage,
     UserSecretPage,
+    PrinterPage,
     Focuser
   ],
   imports: [
@@ -33,7 +35,8 @@ import{Focuser} from '../components/focuser/focuser';
     ErrorPage,
     SelectorPage,
     ShopTablePage,
-    UserSecretPage
+    UserSecretPage,
+    PrinterPage
   ],
   providers: [
     FbProvider,

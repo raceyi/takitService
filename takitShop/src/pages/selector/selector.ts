@@ -15,20 +15,18 @@ import {StorageProvider} from '../../providers/storageProvider';
 
 export class SelectorPage {
     takitId:string;
-    shoplist;
+    shoplist=[];
 
   constructor(private navController: NavController, private navParams: NavParams,
                 private storageProvider:StorageProvider){
            console.log("SelectorPage construtor:"+JSON.stringify(this.storageProvider.myshoplist));
-           /*
+
            this.storageProvider.myshoplist.forEach((shop) => {
-               this.shoplist.push(JSON.parse(shop));
+               this.shoplist.push(shop);
            });
-           */
-           this.shoplist=this.storageProvider.myshoplist;
+           //this.shoplist=this.storageProvider.myshoplist;
   }
- 
-  onPageDidEnter() {
+   ionViewDidEnter(){
         console.log("SelectorPage did enter");
         Splashscreen.hide();
   }

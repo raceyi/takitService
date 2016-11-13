@@ -18,6 +18,9 @@ export class ErrorPage{
          this.reason=this.storageProvider.errorReason;
      }
 
+    ionViewDidEnter(){
+
+    }
      terminate(event){
         console.log("terminate");
         this.platform.exitApp();
