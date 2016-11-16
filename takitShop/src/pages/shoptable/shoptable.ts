@@ -23,8 +23,6 @@ export class ShopTablePage {
   orders=[];
   pushNotification:PushNotification;
   infiniteScroll:any=undefined;
-  messageEmitterSubscription;
-  public messageEmitter= new EventEmitter();
 
   constructor(public navController: NavController,private app:App,private storageProvider:StorageProvider,
       private http:Http,private alertController:AlertController,private ngZone:NgZone) {
@@ -42,29 +40,7 @@ export class ShopTablePage {
     console.log("startDate:"+this.startDate);
     console.log("endDate:"+this.endDate);
 
-        this.messageEmitterSubscription= this.messageEmitter.subscribe((order)=> {
-                console.log("[ShopMyPage]message comes "+JSON.stringify(order)); 
-                console.log("order.orderId:"+order.orderId);
-                this.ngZone.run(()=>{
-                    var i;
-                    for(i=0;i<ConfigProvider.OrdersInPage && i<this.orders.length;i++){  // if new order comes, add it at the front. otherwise, cange status.
-                      //console.log(" "+ this.orders[i].orderId+" "+order.orderId);
-                        if(parseInt(this.orders[i].orderId)==parseInt(order.orderId) && this.orders[i].orderStatus!=order.orderStatus){
-                              //update order statusString
-                              this.orders[i].orderStatus=order.orderStatus;
-                              this.orders[i].statusString=this.getStatusString(order.orderStatus);
-                              console.log("orderId are same");
-                              break;
-                        }
-                    }
-                    if(i==ConfigProvider.OrdersInPage || i==this.orders.length){// new one
-                        console.log("add new one at the front");
-                        this.orders.unshift(this.convertOrderInfo(order)); 
-                    }
-                });
-        });
-
-        this.getOrders(-1);
+    this.getOrders(-1);
      /////////////////////////////////////////////////////////////////
   }
 
@@ -231,8 +207,7 @@ export class ShopTablePage {
       registerPushService(){ // Please move this code into tabs.ts
             this.pushNotification=Push.init({
                 android: {
-                    senderID: ConfigProvider.userSenderID,
-                },
+                    senderID: ConfigProvider.userSenderID                },
                 ios: {
                     senderID: ConfigProvider.userSenderID,
                     "gcmSandbox": "true",
@@ -245,7 +220,7 @@ export class ShopTablePage {
                         
             this.pushNotification.on('registration',(response)=>{
               console.log("registration..."+response.registrationId);
-              let body = JSON.stringify({registrationId:response.registrationId});
+              let body = JSON.stringify({registrationId:response.registrationId,takitId:this.storageProvider.myshop.takitId});
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
               console.log("server:"+ ConfigProvider.serverAddress);
@@ -266,8 +241,12 @@ export class ShopTablePage {
                 if(this.Option!="period" ||(this.Option=="period" && true/* it has today */ )){
                      //Please check if order is new or existing one and then add it or modify it into orders.
                     var additionalData:any=data.additionalData;
+                    console.log("additionalData");
                     if(additionalData.GCMType==="order"){
+                      console.log("order is comming "+data.additionalData.custom);
+                       this.ngZone.run(()=>{
                         var incommingOrder=data.additionalData.custom;
+                        console.log("incommingOrder:"+ incommingOrder);
                         var i=0;
                         for(;i<this.orders.length;i++){
                                 console.log(this.orders[i].orderId+incommingOrder.orderId);
@@ -275,10 +254,11 @@ export class ShopTablePage {
                                       break;
                         }
                         if(i==this.orders.length)
-                            this.orders.unshift(this.convertOrderInfo(data.additionalData.custom));
-                        //else
-                        //   this.orders[i]=this.convertOrderInfo(incommingOrder);   
+                            this.orders.unshift(this.convertOrderInfo(incommingOrder));
+                        else
+                           this.orders[i]=this.convertOrderInfo(incommingOrder);   
                         console.log("orders update:"+JSON.stringify(this.orders));
+                       });
                     }
                     this.confirmMsgDelivery(additionalData.messageId).then(()=>{
                           console.log("confirmMsgDelivery success");
@@ -436,5 +416,14 @@ export class ShopTablePage {
             return true;
     }
     return false;  
+  }
+
+  update(){
+    /*
+    if(  ){
+
+    }else{
+
+    }*/
   }
 }
