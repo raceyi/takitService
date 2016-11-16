@@ -1,0 +1,25 @@
+<ion-header>
+  <ion-navbar>
+    <button ion-button menuToggle>
+      <ion-icon name="menu"></ion-icon>
+    </button>
+    <ion-title>타킷</ion-title>
+  </ion-navbar>
+</ion-header>
+<ion-content>
+  <button ion-button (click)="scanPrinter()">프린터 검색하기</button>
+ <ion-list>
+  <ion-item>
+    <ion-label>BT프린터 선택</ion-label>
+    <ion-select [(ngModel)]="printer"  (ionChange)="selectPrinter(printer)">
+      <ion-option *ngFor="let printer of printerlist" [value]="printer">{{printer}}</ion-option>
+    </ion-select>
+  </ion-item>
+  <ion-item [hidden]="printer==undefined">
+    {{printer}}
+  </ion-item>
+</ion-list>
+  <button ion-button [hidden]="this.printerStatus=='connected'" (click)="connectPrinter()">연결</button>
+  <button ion-button [hidden]="this.printerStatus!='connected'"(click)="testPrinter()">테스트</button>
+  <button ion-button [hidden]="this.printerStatus!='connected'"(click)="disconnectPrinter()"> 해제</button>
+</ion-content>
