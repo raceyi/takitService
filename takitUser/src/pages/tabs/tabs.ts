@@ -221,7 +221,16 @@ ionViewWillUnload(){
             this.pushNotification.on('registration',(response)=>{
               console.log("registration:"+JSON.stringify(response));
               console.log("registration..."+response.registrationId);
-              let body = JSON.stringify({registrationId:response.registrationId});
+              var platform
+              if(this.platform.is("android")){
+                  platform="android";
+              }else if(this.platform.is("ios")){
+                  platform="ios";
+              }else{
+                  platform="unknown";
+              }
+
+              let body = JSON.stringify({registrationId:response.registrationId, platform: platform});
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
               console.log("server:"+ ConfigProvider.serverAddress);
@@ -261,7 +270,7 @@ ionViewWillUnload(){
                   cashConfirmModal.present();
                 */
                 }
-                this.confirmMsgDelivery(additionalData.messageId).then(()=>{
+                this.confirmMsgDelivery(additionalData.notId).then(()=>{
                       console.log("confirmMsgDelivery success");
                 },(err)=>{
                      let alert = this.alertController.create({

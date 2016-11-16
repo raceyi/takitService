@@ -1,5 +1,5 @@
 import {Component,EventEmitter,NgZone} from '@angular/core';
-import {NavController,App,AlertController} from 'ionic-angular';
+import {NavController,App,AlertController,Platform} from 'ionic-angular';
 import {ConfigProvider} from '../../providers/ConfigProvider';
 import 'rxjs/add/operator/map';
 //import {Content} from 'ionic-angular';
@@ -25,7 +25,7 @@ export class ShopTablePage {
   infiniteScroll:any=undefined;
 
   constructor(public navController: NavController,private app:App,private storageProvider:StorageProvider,
-      private http:Http,private alertController:AlertController,private ngZone:NgZone) {
+      private http:Http,private alertController:AlertController,private ngZone:NgZone,private platform:Platform) {
     console.log("ShopTablePage constructor");
     
     this.registerPushService();
@@ -207,6 +207,7 @@ export class ShopTablePage {
       registerPushService(){ // Please move this code into tabs.ts
             this.pushNotification=Push.init({
                 android: {
+                    //forceShow: true, // Is it necessary?
                     senderID: ConfigProvider.userSenderID                },
                 ios: {
                     senderID: ConfigProvider.userSenderID,
@@ -220,7 +221,15 @@ export class ShopTablePage {
                         
             this.pushNotification.on('registration',(response)=>{
               console.log("registration..."+response.registrationId);
-              let body = JSON.stringify({registrationId:response.registrationId,takitId:this.storageProvider.myshop.takitId});
+              var platform;
+              if(this.platform.is("android")){
+                  platform="android";
+              }else if(this.platform.is("ios")){
+                  platform="ios";
+              }else{
+                  platform="unknown";
+              }
+              let body = JSON.stringify({registrationId:response.registrationId,takitId:this.storageProvider.myshop.takitId,platform:platform});
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
               console.log("server:"+ ConfigProvider.serverAddress);
@@ -260,15 +269,15 @@ export class ShopTablePage {
                         console.log("orders update:"+JSON.stringify(this.orders));
                        });
                     }
-                    this.confirmMsgDelivery(additionalData.messageId).then(()=>{
-                          console.log("confirmMsgDelivery success");
-                    },(err)=>{
-                        let alert = this.alertController.create({
-                            title: "서버와 통신에 문제가 있습니다.",
-                            buttons: ['OK']
-                        });
-                        alert.present();
-                    });
+                      this.confirmMsgDelivery(additionalData.notId).then(()=>{
+                            console.log("confirmMsgDelivery success");
+                      },(err)=>{
+                          let alert = this.alertController.create({
+                              title: "서버와 통신에 문제가 있습니다.",
+                              buttons: ['OK']
+                          });
+                          alert.present();
+                      });
                 }
                 console.log("[shoptable.ts]pushNotification.on-data:"+JSON.stringify(data));
                 console.log("first view name:"+this.navController.first().name);
