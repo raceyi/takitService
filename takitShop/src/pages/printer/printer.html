@@ -11,15 +11,16 @@
  <ion-list>
   <ion-item>
     <ion-label>BT프린터 선택</ion-label>
-    <ion-select [(ngModel)]="printer"  (ionChange)="selectPrinter(printer)">
-      <ion-option *ngFor="let printer of printerlist" [value]="printer">{{printer}}</ion-option>
+    <ion-select [(ngModel)]="printerProvider.printer"  (ionChange)="selectPrinter(printerProvider.printer)">
+      <ion-option *ngFor="let one of printerlist" [value]="one">{{one}}</ion-option>
     </ion-select>
   </ion-item>
-  <ion-item [hidden]="printer==undefined">
-    {{printer}}
+  <ion-item [hidden]="printerProvider.printer==undefined">
+    {{printerProvider.printer}}
   </ion-item>
 </ion-list>
-  <button ion-button [hidden]="this.printerStatus=='connected'" (click)="connectPrinter()">연결</button>
-  <button ion-button [hidden]="this.printerStatus!='connected'"(click)="testPrinter()">테스트</button>
-  <button ion-button [hidden]="this.printerStatus!='connected'"(click)="disconnectPrinter()"> 해제</button>
+  <button ion-button [hidden]="printerStatus=='connected'" (click)="connectPrinter()">연결</button>
+  <button ion-button [hidden]="printerStatus!='connected'"(click)="testPrinter()">테스트</button>
+  <button ion-button [hidden]="printerStatus!='connected'"(click)="disconnectPrinter()"> 해제</button>
+  <button ion-button [hidden]="printerStatus!='connected'"(click)="savePrinter()"> 저장</button>
 </ion-content>

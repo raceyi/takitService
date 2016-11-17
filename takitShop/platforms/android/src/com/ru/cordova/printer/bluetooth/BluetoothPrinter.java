@@ -34,8 +34,7 @@ import android.graphics.Bitmap.Config;
 import android.util.Xml.Encoding;
 import android.util.Base64;
 
-import com.hoin.btsdk.BluetoothService;
-import com.hoin.btsdk.PrintPic;
+import zj.com.command.sdk.PrinterCommand;
 
 public class BluetoothPrinter extends CordovaPlugin {
 	private static final String LOG_TAG = "BluetoothPrinter";
@@ -52,7 +51,12 @@ public class BluetoothPrinter extends CordovaPlugin {
 
 	Bitmap bitmap;
 
-        // kalen.lee@takit.biz -begin
+	private static final String CHINESE = "GBK";
+	private static final String THAI = "CP874";
+	private static final String KOREAN = "EUC-KR";
+	private static final String BIG5 = "BIG5";
+
+	// kalen.lee@takit.biz -begin
         BluetoothService mService = null;
         CallbackContext mCallbackContext=null;
  
@@ -303,46 +307,35 @@ public class BluetoothPrinter extends CordovaPlugin {
 		}
 	}
 
-	//This will send data to bluetooth printer
-	boolean printText(CallbackContext callbackContext,String msg) throws IOException {
-
-		byte[] cmd = new byte[3];
-		cmd[0] = 0x1b;
-		cmd[1] = 0x21;
-
-		String lang="en";
-
-		if(lang.equals("en")){
-			cmd[2] |= 0x10;
-			mService.write(cmd);
-			mService.sendMessage("Congratulations!\n", "GBK");
-			cmd[2] &= 0xEF;
-			mService.write(cmd);
-			/*
-			msg = "  You have sucessfully created communications between your device and our bluetooth printer.\n\n"
-					+"  Our company is a high-tech enterprise which specializes" +
-					" in R&D,manufacturing,marketing of thermal printers and barcode scanners.\n\n";
-			*/
-		}else if((lang.equals("ch"))){
-			cmd[2] |= 0x10;
-			mService.write(cmd);
-			mService.sendMessage("��ϲ����\n", "GBK");
-			cmd[2] &= 0xEF;
-			mService.write(cmd);
-			/*
-			msg = "  ���Ѿ��ɹ��������������ǵ�������ӡ����\n\n"
-					+ "  ���ǹ�˾��һ��רҵ�����з�����������������Ʊ�ݴ�ӡ��������ɨ���豸��һ��ĸ߿Ƽ���ҵ.\n\n";
-			*/
+	private boolean SendDataByte(byte[] data) {
+		if (mService.getState() != BluetoothService.STATE_CONNECTED) {
+			return false;
 		}
-
 		try {
-			mService.sendMessage(msg,"GBK");
-
-		} catch (Exception e) {
+			mService.write(data);
+		}catch(Exception e){
 			String errMsg = e.getMessage();
 			Log.e(LOG_TAG, errMsg);
 			e.printStackTrace();
-			callbackContext.error(errMsg);
+			return false;
+		}
+		return true;
+	}
+
+
+	//This will send data to bluetooth printer
+	boolean printText(CallbackContext callbackContext,String msg) throws IOException {
+		String strs[]=msg.split(",");
+		String msgTitle = "\n\n"+strs[0]+"\n\n";
+		String data = strs[1]+"\n\n\n\n";//"성공적으로 우리의 휴대용 블루투스 프린터에 연결 한! \n우리는 하이테크 기업 중 하나에서 개발, 생산 및 상업 영수증 프린터와 바코드 스캐닝 장비 판매 전문 회사입니다.\n\n\n\n\n\n\n";
+
+		if(SendDataByte(PrinterCommand.POS_Print_Text(msgTitle, KOREAN, 0, 1, 1, 0)) &&
+			SendDataByte(PrinterCommand.POS_Print_Text(data, KOREAN, 0, 1, 1, 0))){
+			SendDataByte(PrinterCommand.POS_Set_Cut(1));
+			SendDataByte(PrinterCommand.POS_Set_PrtInit());
+			callbackContext.success();
+		}else{
+			callbackContext.error("fail to print out");
 		}
 		return false;
 	}
@@ -444,21 +437,6 @@ public class BluetoothPrinter extends CordovaPlugin {
     private static byte charToByte(char c) {
 		return (byte) "0123456789abcdef".indexOf(c);
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 	public byte[] getImage(Bitmap bitmap) {

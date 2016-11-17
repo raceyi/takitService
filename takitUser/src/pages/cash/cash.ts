@@ -6,7 +6,7 @@ import 'rxjs/add/operator/map';
 import {ConfigProvider} from '../../providers/ConfigProvider';
 import {ViewChild} from '@angular/core';
 import {Content} from 'ionic-angular';
-import {Device} from 'ionic-native';
+import {Device,InAppBrowserEvent,InAppBrowser} from 'ionic-native';
 import {CashIdPage} from '../cashid/cashid';
 
 @Component({
@@ -17,6 +17,7 @@ export class CashPage {
   cashMenu: string = "cashIn";
   available: string ="15000";
   isAndroid: boolean = false;
+  browserRef:InAppBrowser;
 
   //minVersion:boolean=(this.platform.is('android') && parseInt(Device.device.version[0])<=4);
 
@@ -76,8 +77,37 @@ export class CashPage {
   }
   
   configureCashId(){
-      // move into CertPage and then 
-    this.app.getRootNav().push(CashIdPage);
+      this.mobileAuth().then(()=>{ // success
+          this.navController.push(CashIdPage);
+      },()=>{ //failure
+
+      });
   }
 
+  mobileAuth(){
+    return new Promise((resolve,reject)=>{
+      // move into CertPage and then 
+      //this.browserRef=new InAppBrowser("http://52.79.192.237/TakitNHPintech/kcpcert_start.jsp","_blank");
+      this.browserRef=new InAppBrowser("http://192.168.0.99:8080/TakitNHPintech/kcpcert_start.jsp","_blank",'location=no,toolbar=no');
+              this.browserRef.on("exit").subscribe((event)=>{
+                  console.log("InAppBrowserEvent(exit):"+JSON.stringify(event)); 
+                  this.browserRef.close();
+              });
+              this.browserRef.on("loadstart").subscribe((event:InAppBrowserEvent)=>{
+                  console.log("InAppBrowserEvent(loadstart):"+String(event.url));
+                  if(event.url=="http://52.79.192.237:8080/oauth"){ // Just testing. Please add success and failure into server 
+                        console.log("cert failure");
+                        this.browserRef.close();
+                        reject();
+                        return;
+                  }else if(event.url=="http://success"){
+                        console.log("cert success");
+                        this.browserRef.close();
+                         resolve();
+                        return;
+                  }
+                      
+              });
+    });
+  }
 }

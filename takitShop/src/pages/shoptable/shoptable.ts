@@ -8,6 +8,7 @@ import {Push,PushNotification} from 'ionic-native';
 import {Http,Headers} from '@angular/http';
 import {ErrorPage} from '../../pages/error/error';
 import {Splashscreen} from 'ionic-native';
+import {PrinterProvider} from '../../providers/printerProvider';
 
 @Component({
   selector:'page-shoptable',
@@ -25,7 +26,8 @@ export class ShopTablePage {
   infiniteScroll:any=undefined;
 
   constructor(public navController: NavController,private app:App,private storageProvider:StorageProvider,
-      private http:Http,private alertController:AlertController,private ngZone:NgZone,private platform:Platform) {
+      private http:Http,private alertController:AlertController,private ngZone:NgZone,
+      private printerProvider:PrinterProvider,private platform:Platform) {
     console.log("ShopTablePage constructor");
     
     this.registerPushService();
@@ -57,7 +59,7 @@ export class ShopTablePage {
 
           //console.log("local ordered time:"+ date.toLocaleString());//date.toLocaleDateString('ko-KR')
           order.statusString=this.getStatusString(order.orderStatus);
-          if(order.orderStatus=="completed")
+          if(order.orderStatus=="completed" || order.orderStatus=="cancelled")
             order.hidden=true;
           else  
             order.hidden=false;
@@ -159,8 +161,13 @@ export class ShopTablePage {
   }
 
   searchPeriod(){
-    if(startDate==undefined || endDate==undefined){
+    if(this.startDate==undefined || this.endDate==undefined){
       // 시작일과 종료일을 설정해 주시기 바랍니다. 
+      let alert = this.alertController.create({
+                    title: '시작일과 종료일을 설정해 주시기 바랍니다',
+                    buttons: ['OK']
+                });
+                alert.present();
       return;
     }
     //check the validity of startDate and endDate
@@ -171,9 +178,20 @@ export class ShopTablePage {
     console.log(endDate.getTime());
     if(startDate.getTime()>endDate.getTime()){
          // 시작일은 종료일보다 늦을수 없습니다.  
+          let alert = this.alertController.create({
+              title: '시작일은 종료일보다 늦을수 없습니다',
+              buttons: ['OK']
+          });
+          alert.present();
          return;
     }
     if(endDate.getTime()>currDate.getTime()){
+         // 시작일은 종료일보다 늦을수 없습니다.  
+          let alert = this.alertController.create({
+              title: '종료일은 현재시점보다 늦을수 없습니다.',
+              buttons: ['OK']
+          });
+          alert.present();
          return;
          // 종료일은 현재시점보다 늦을수 없습니다.
     }
@@ -203,11 +221,61 @@ export class ShopTablePage {
             });
       });   
     }
+    
+    printOrder(order){
+      if(!this.platform.is("android")){ //Not yet supported
+        return;
+      }
+      var title,message="";
+
+      if(order.orderStatus=="paid"){
+          title="주문["+order.orderNO+"]";
+          if(order.takeout!='0')          
+            title+="Takeout";
+          order.orderListObj.menus.forEach((menu)=>{
+              message+="-------------\n";
+              message+=" "+menu.menuName+"("+menu.quantity+")\n"; 
+              menu.options.forEach((option)=>{
+                message+=" "+option.name;
+                if(option.select!=undefined){
+                  message+="("+option.select+")";
+                }
+                message+="\n";
+              });
+              
+          });
+      }else if(order.orderStatus=="cancelled"){
+          title="**주문취소["+order.orderNO+"]";
+          order.orderListObj.menus.forEach((menu)=>{
+              message+="-------------\n";
+              message+=" "+menu.menuName+"("+menu.quantity+")\n"; 
+              menu.options.forEach((option)=>{
+                message+=" "+option.name;
+                if(option.select!=undefined){
+                   message+="("+option.select+")";
+                }
+                message+="\n";
+              });
+          });
+      }else
+        return;
+
+      this.printerProvider.print(title,message).then(()=>{
+             console.log("print successfully");
+      },()=>{
+            let alert = this.alertController.create({
+              title: '주문출력에 실패했습니다.',
+              subTitle: '프린터상태를 확인해주시기바랍니다.',
+              buttons: ['OK']
+          });
+          alert.present();
+      });
+    }
 
       registerPushService(){ // Please move this code into tabs.ts
             this.pushNotification=Push.init({
                 android: {
-                    //forceShow: true, // Is it necessary?
+                    //forceShow: true, // Is it necessary?vibration
                     senderID: ConfigProvider.userSenderID                },
                 ios: {
                     senderID: ConfigProvider.userSenderID,
@@ -262,10 +330,18 @@ export class ShopTablePage {
                                 if(this.orders[i].orderId == incommingOrder.orderId)
                                       break;
                         }
-                        if(i==this.orders.length)
-                            this.orders.unshift(this.convertOrderInfo(incommingOrder));
-                        else
+                        if(i==this.orders.length){
+                            var newOrder=this.convertOrderInfo(incommingOrder);
+                            this.orders.unshift(newOrder);
+                            if(newOrder.orderStatus=="paid"){
+                                  this.printOrder(newOrder);
+                            }
+                        }else{
                            this.orders[i]=this.convertOrderInfo(incommingOrder);   
+                           if(this.orders[i].orderStatus=="cancelled"){
+                                  this.printOrder(this.orders[i]);
+                           }
+                        }
                         console.log("orders update:"+JSON.stringify(this.orders));
                        });
                     }
@@ -419,11 +495,16 @@ export class ShopTablePage {
 
   AfterOnedayComplete(order){
     if(order.completedTime!=undefined){
-        let completedTime=new Date(order.completedTime);
+        let completedTime=new Date(order.completedTime+" GMT");
         let now=new Date();
-        if(now.getTime()>completedTime.getTime()+24*60*60*1000)
+        //console.log("now:"+now.getTime());
+        //console.log(" completedTime:"+(completedTime.getTime()+ 24*60*60*1000));
+        if(now.getTime()>(completedTime.getTime()+24*60*60*1000)){
+            //console.log("orderNo:"+order.orderNO +" hide is true ");
             return true;
+        }
     }
+    //console.log("order hide is false");
     return false;  
   }
 
