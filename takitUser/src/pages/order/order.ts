@@ -7,6 +7,7 @@ import {ConfigProvider} from '../../providers/ConfigProvider';
 import {StorageProvider} from '../../providers/storageProvider';
 //import {Focuser} from "../../components/focuser/focuser";
 //import {Keyboard} from 'ionic-native';
+declare var cordova:any;
 
 @Component({
   selector:'page-order',  
@@ -60,11 +61,13 @@ export class OrderPage {
          this.takeoutAvailable=true;
          this.takeout=false;
       }
-      if(this.menu.hasOwnProperty("options") && this.menu.options!=null && this.menu.options.length>0){
+      if(this.menu.hasOwnProperty("options") 
+      //&& Array.isArray(this.menu.options)
+      && this.menu.options!=null && this.menu.options.length>0){
           this.hasOptions=true;         
           this.options=JSON.parse(this.menu.options);
           this.options.forEach((option)=>{
-              if(option.hasOwnProperty("choice")){
+              if(option.hasOwnProperty("choice") && Array.isArray(option.choice)){
                   option.flags=[];
                   var i;
                   for(i=0;i<option.choice.length;i++){
@@ -135,15 +138,46 @@ export class OrderPage {
                  console.log(JSON.stringify(res)); 
                  var result:string=res.result;
                  if(result=="success"){
-                        this.storageProvider.messageEmitter.emit(res.order);                                                
-                        let alert = this.alertController.create({
+                    this.storageProvider.messageEmitter.emit(res.order);
+                    console.log("storageProvider.run_in_background: "+this.storageProvider.run_in_background);
+                    if(this.storageProvider.run_in_background==false){
+                        let confirm = this.alertController.create({
                             title: '주문에 성공하였습니다.'+'주문번호['+res.order.orderNO+']',
-                            subTitle: '[주의]주문 완료 전에 앱을 종료하시면 주문알림을 못받을수 있습니다.' ,
-                            buttons: ['OK']
+                            message: '[주의]앱을 종료하시면 주문알림을 못받을수 있습니다. 주문알림을 받기 위해 앱을 계속 실행하시겠습니까?',
+                            buttons: [
+                            {
+                                text: '아니오',
+                                handler: () => {
+                                    console.log('Disagree clicked');
+                                    // report it to tabs page
+                                    this.storageProvider.tabMessageEmitter.emit("stopEnsureNoti"); 
+                                    this.app.getRootNav().pop();
+                                    return;
+                                }
+                            },
+                            {
+                                text: '네',
+                                handler: () => {
+                                    console.log('cordova.plugins.backgroundMode.enable');
+                                    this.storageProvider.tabMessageEmitter.emit("backgroundEnable");
+                                    cordova.plugins.backgroundMode.enable(); //takitShop always runs in background Mode
+                                    this.app.getRootNav().pop();
+                                    return;
+                                }
+                            }
+                            ]
+                        });
+                        confirm.present();
+                    }else{
+                        let alert = this.alertController.create({
+                                title: '주문에 성공하였습니다.'+'주문번호['+res.order.orderNO+']',
+                                subTitle: '[주의]앱을 종료하시면 주문알림을 못받을수 있습니다.' ,
+                                buttons: ['OK']
                         });
                         alert.present().then(()=>{
                             this.app.getRootNav().pop();
-                        });                        
+                        });  
+                    }
                  }else{
                     let alert = this.alertController.create({
                         title: '주문에 실패하였습니다.',
@@ -167,7 +201,7 @@ export class OrderPage {
      return new Promise((resolve, reject)=>{
             var i;
             console.log("options:"+JSON.stringify(this.options));
-            if(this.options!=undefined){
+            if(this.options!=undefined && this.options!=null && Array.isArray(this.options)){
                 for(i=0;i<this.options.length;i++){
                         var option=this.options[i];
                         if(option.hasOwnProperty("choice")==true && option.flag){
@@ -242,7 +276,7 @@ export class OrderPage {
   saveShopcart(){    
     this.storageProvider.getCartInfo(this.takitId).then((result:any)=>{
         var cart;
-        if(result.length==1){
+        if(Array.isArray(result) && result.length==1){
             cart=JSON.parse(result[0].cart);
         }else{
             console.log("no cart info");
@@ -312,16 +346,18 @@ export class OrderPage {
   }
 
   optionChange(option){
-      //console.log("flag:"+option.flag);
+      console.log("flag:"+option.flag);
       if(option.flag==true){
           this.price=this.price+option.price*this.quantity;    
           // workaround solution as option.flags[i] is not updated when it is disabled.
-          // Please move below codes into option.flag==false...      
-            var i;
-            for(i=0;i<option.flags.length;i++){
-                    console.log("choice:"+option.choice[i]+"flags:"+option.flags[i]);
-                    option.flags[i]=false;
-                    console.log("choice:"+option.choice[i]+"flags:"+option.flags[i]);
+          // Please move below codes into option.flag==false... 
+            if(Array.isArray(option.flags)){     
+                var i;
+                for(i=0;i<option.flags.length;i++){
+                        console.log("choice:"+option.choice[i]+"flags:"+option.flags[i]);
+                        option.flags[i]=false;
+                        console.log("choice:"+option.choice[i]+"flags:"+option.flags[i]);
+                }
             }
       }else{
           this.price=this.price-option.price*this.quantity;
@@ -352,7 +388,7 @@ export class OrderPage {
         }
         ////////debug-end
         */
-        if(flag==true){
+        if(flag==true && Array.isArray(option.flags)){
             option.select=option.choice[idx];
             option.flag=true;
             // other flags become false
@@ -437,7 +473,7 @@ collapse($event){
 
     hasChoice(option){
         //console.log("option:"+option.hasOwnProperty("choice"));
-        if(option.hasOwnProperty("choice")==true){
+        if(option.hasOwnProperty("choice")==true && Array.isArray(option.choice)){
             return option.choice.length;
         }
         return 0;

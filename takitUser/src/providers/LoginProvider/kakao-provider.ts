@@ -40,7 +40,39 @@ export class KakaoProvider {
           console.log("unknown platform");
       }
       
-/*   Verified InAppBrowser code
+      AppAvailability.check(scheme).then(
+          ()=> {  // Success callback
+              console.log(scheme + ' is available. call KakaoTalk.login ');
+              KakaoTalk.login(
+                    (userProfile)=>{
+                        console.log("userProfile:"+JSON.stringify(userProfile));
+                        var id;
+                        if(typeof userProfile === "string"){
+                                id=userProfile;
+                        }else{ // humm... userProfile data type changes. Why?
+                                id=userProfile.id;
+                        }
+                        console.log('Successful kakaotalk login with'+id);
+                        handler(id,kakaoProvider).then(
+                        (result:any)=>{
+                                    console.log("result comes:"+JSON.stringify(result)); 
+                                    result.id="kakao_"+id;
+                                    resolve(result);
+                        },serverlogin_err=>{
+                                    console.log("error comes:"+serverlogin_err);
+                                    let reason={stage:"serverlogin_err",msg:serverlogin_err};
+                                    reject(reason);
+                        });
+                    },
+                    (err)=> {
+                        console.log('Error logging in');
+                        console.log(JSON.stringify(err));
+                        let reason={stage:"login_err",msg:err}; 
+                        reject(reason);
+                    }
+              ); 
+          },
+          ()=>{  // Error callback
               console.log(scheme + ' is not available');
               this.browserRef=new InAppBrowser("https://kauth.kakao.com/oauth/authorize?client_id="+ConfigProvider.kakaoTakitUser+"&redirect_uri="+ConfigProvider.kakaoOauthUrl+"&response_type=code","_blank");
               this.browserRef.on("exit").subscribe((event)=>{
@@ -83,84 +115,7 @@ export class KakaoProvider {
                               console.log("getKakaoToken err "+JSON.stringify(err));
                           });
                   }
-              }); 
-*/              
-
-      AppAvailability.check(scheme).then(
-          ()=> {  // Success callback
-              console.log(scheme + ' is available. call KakaoTalk.login ');
-              KakaoTalk.login(
-                    (userProfile)=>{
-                        console.log("userProfile:"+JSON.stringify(userProfile));
-                        var id;
-                        if(typeof userProfile === "string"){
-                                id=userProfile;
-                        }else{ // humm... userProfile data type changes. Why?
-                                id=userProfile.id;
-                        }
-                        console.log('Successful kakaotalk login with'+id);
-                        handler(id,kakaoProvider).then(
-                        (result:any)=>{
-                                    console.log("result comes:"+JSON.stringify(result)); 
-                                    result.id="kakao_"+id;
-                                    resolve(result);
-                        },serverlogin_err=>{
-                                    console.log("error comes:"+serverlogin_err);
-                                    let reason={stage:"serverlogin_err",msg:serverlogin_err};
-                                    reject(reason);
-                        });
-                    },
-                    (err)=> {
-                        console.log('Error logging in');
-                        console.log(JSON.stringify(err));
-                        let reason={stage:"login_err",msg:err}; 
-                        reject(reason);
-                    }
-              ); 
-          },
-          ()=>{  // Error callback
-                           console.log(scheme + ' is not available');
-              this.browserRef=new InAppBrowser("https://kauth.kakao.com/oauth/authorize?client_id="+ConfigProvider.kakaoTakitUser+"&redirect_uri="+ConfigProvider.kakaoOauthUrl+"&response_type=code","_blank");
-              this.browserRef.on("exit").subscribe((event)=>{
-                  console.log("InAppBrowserEvent(exit):"+JSON.stringify(event)); 
-                  this.browserRef.close();
-              });
-              this.browserRef.on("loadstart").subscribe((event:InAppBrowserEvent)=>{
-                  console.log("InAppBrowserEvent(loadstart):"+String(event.url)); 
-                  var url=String(event.url);
-                  if(url.startsWith(ConfigProvider.kakaoOauthUrl+"?code=")){
-                      console.log("success to get code");
-                      this.browserRef.close();
-                      let authorize_code=event.url.substr(event.url.indexOf("code=")+5);
-                      console.log("authorize_code:"+authorize_code);
-                      // get token and then get user profile info
-                      // request server login with authorize_code.                      
-                      this.getKakaoToken( ConfigProvider.kakaoTakitUser,ConfigProvider.kakaoOauthUrl,authorize_code).then(
-                          (token:any)=>{ 
-                              console.log("access_token:"+token.access_token); 
-                              this.getKakaoMe(token.access_token).then((profile:any)=>{
-                                    console.log("getKakaoMe profile:"+JSON.stringify(profile)); 
-                                    console.log('Successful kakaotalk login with'+profile.id);
-                                    handler(profile.id,kakaoProvider).then(
-                                        (result:any)=>{
-                                                    console.log("result comes:"+result);
-                                                    result.id="kakao_"+profile.id; 
-                                                    resolve(result);
-                                        },serverlogin_err=>{
-                                                    console.log("error comes:"+serverlogin_err);
-                                                    let reason={stage:"serverlogin_err",msg:serverlogin_err};
-                                                    reject(reason);
-                                        });
-                              },(err)=>{
-                                 console.log("getKakaoMe err"+JSON.stringify(err)); 
-                                 let reason={stage:"getKakaoMe_err",msg:err}; 
-                                 reject(reason);
-                              });
-                          },
-                          (err)=>{
-                              console.log("getKakaoToken err "+JSON.stringify(err));
-                          });
-                  }
+                  // Please add code for login failure here!
               });    
           });     
       });

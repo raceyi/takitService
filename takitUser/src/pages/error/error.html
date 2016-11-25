@@ -6,41 +6,35 @@
 </ion-navbar>
 
 <ion-content class="errorPage">
-     <ion-grid>
-
-      <ion-row >
-      </ion-row>
-
-      <ion-row >
-        <div>
-        &nbsp;&nbsp;&nbsp;<ion-icon class="icon" name="sad"></ion-icon>
-        {{reason}}
-        </div>
-      </ion-row>
-      <ion-row>  
-        <div>
-        &nbsp;&nbsp;&nbsp;Takit 종료후 다시 실행시켜 주십시오.
-        </div>
-      </ion-row>
-
-      <ion-row >
-      </ion-row>
-
-    </ion-grid>
-<!--    
-    <div> 
-    <ion-icon class="icon" name="sad"></ion-icon>
-    </div>
-    <div>
-    {{reason}}
-    </div>
-    <div>
-    Takit 종료후 다시 실행시켜 주십시오.
-    </div>
-    -->
+<div class="upper">
+</div>
+<ion-row>
+  <ion-col width-33></ion-col>
+  <ion-col width-33><span class="reason">데이터 요청 실패</span></ion-col>
+  <ion-col width-33></ion-col>
+</ion-row>
+<ion-row>
+  <ion-col width-25></ion-col>
+  <ion-col width-50>잠시후 다시 시도해 주세요</ion-col>
+  <ion-col width-25></ion-col>
+</ion-row>
+<ion-row  *ngIf="android_platform">
+  <ion-col width-25></ion-col>
+  <ion-col width-25>
+    <button ion-button color="white" (click)="terminate($event)" full><ion-icon class="exitIcon" name="exit"></ion-icon>종료</button> 
+  </ion-col>
+  <ion-col width-25>
+    <button ion-button color="white" (click)="tryLogin($event)" full>데이터요청</button> 
+  </ion-col>
+  <ion-col width-25></ion-col>
+ </ion-row>   
+ <ion-row  *ngIf="!android_platform">
+  <ion-col width-33></ion-col>
+  <ion-col width-33>
+    <button ion-button color="white" (click)="tryLogin($event)" full>데이터요청</button> 
+  </ion-col>
+  <ion-col width-33></ion-col>
+ </ion-row>   
 </ion-content>
-<ion-footer class="errorPage" [hidden]="!android_platform">
- <button ion-button full (click)="terminate($event)"><ion-icon class="exitIcon" name="exit"> </ion-icon></button> 
-</ion-footer>
 
 

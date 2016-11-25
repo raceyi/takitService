@@ -87,21 +87,20 @@ export class CashPage {
   mobileAuth(){
     return new Promise((resolve,reject)=>{
       // move into CertPage and then 
-      //this.browserRef=new InAppBrowser("http://52.79.192.237/TakitNHPintech/kcpcert_start.jsp","_blank");
-      this.browserRef=new InAppBrowser("http://192.168.0.99:8080/TakitNHPintech/kcpcert_start.jsp","_blank",'location=no,toolbar=no');
+      this.browserRef=new InAppBrowser("https://takit.biz:8443/NHPintech/kcpcert_start.jsp?uid=3","_blank",'toolbar=no');
               this.browserRef.on("exit").subscribe((event)=>{
                   console.log("InAppBrowserEvent(exit):"+JSON.stringify(event)); 
                   this.browserRef.close();
               });
               this.browserRef.on("loadstart").subscribe((event:InAppBrowserEvent)=>{
                   console.log("InAppBrowserEvent(loadstart):"+String(event.url));
-                  if(event.url=="http://52.79.192.237:8080/oauth"){ // Just testing. Please add success and failure into server 
-                        console.log("cert failure");
+                  if(event.url=="https://takit.biz/oauthSuccess"){ // Just testing. Please add success and failure into server 
+                        console.log("cert success");
                         this.browserRef.close();
                         reject();
                         return;
-                  }else if(event.url=="http://success"){
-                        console.log("cert success");
+                  }else if(event.url=="https://takit.biz/oauthFailure"){
+                        console.log("cert failure");
                         this.browserRef.close();
                          resolve();
                         return;

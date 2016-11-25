@@ -213,4 +213,12 @@ export class ShopMyPage{
             // refresh status of orders at front 
             console.log("refresh orders");
      }
+
+    update(){
+        console.log("update");
+        this.orders=[];
+        if(this.infiniteScroll!=undefined)
+            this.infiniteScroll.enable(true);
+        this.getOrders(-1);
+    }
 }

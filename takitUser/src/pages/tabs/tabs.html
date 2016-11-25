@@ -3,7 +3,12 @@
     <button ion-button menuToggle>
       <ion-icon name="menu"></ion-icon>
     </button>
+    <ion-row>
     <ion-title>타킷</ion-title>
+    <button ion-button class="buttonsInHeader"  (click)="configureBackgrondMode()">
+      <ion-icon [color]="getColorBackgroundMode()" name="notifications"></ion-icon>
+    </button>
+    </ion-row>
   </ion-navbar>
 </ion-header>
 <ion-tabs>

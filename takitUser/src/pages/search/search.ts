@@ -1,7 +1,7 @@
 import {Component,ViewChild} from '@angular/core';
 import {NavController,Platform,Tabs,AlertController,Content} from 'ionic-angular';
 //import {Camera} from 'ionic-native';
-import {Transfer} from 'ionic-native';
+import {Transfer,Splashscreen} from 'ionic-native';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
 import {ConfigProvider} from '../../providers/ConfigProvider';
@@ -46,14 +46,10 @@ export class SearchPage {
       }*/
   }
 
-/*
-    ionViewDidEnter(){
-        let dimensions=this.contentRef.getContentDimensions();
-        let height=this.contentRef.getNativeElement().parentElement.offsetHeight-dimensions.contentTop;
-        console.log("pageHeight:"+this.contentRef.getNativeElement().parentElement.offsetHeight+"top:"+dimensions.contentTop+"menusHeight:"+height);
-        this.contentRef.getScrollElement().setAttribute("style","height:"+height+"px;margin-top:0px;");
-    }
-*/
+  ionViewDidEnter(){
+    console.log("SearchPage did enter");
+    Splashscreen.hide();
+  }
 
   keypad(){
      console.log("keypad");  

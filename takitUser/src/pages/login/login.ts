@@ -1,5 +1,5 @@
 import {Component,EventEmitter,ViewChild} from "@angular/core";
-import {Content,Platform,AlertController} from 'ionic-angular';
+import {Content,Platform,AlertController,IonicApp,MenuController} from 'ionic-angular';
 import {NavController,NavParams} from 'ionic-angular';
 import {FbProvider} from '../../providers/LoginProvider/fb-provider';
 import {KakaoProvider} from '../../providers/LoginProvider/kakao-provider';
@@ -33,7 +33,8 @@ export class LoginPage {
                 private fbProvider:FbProvider,private emailProvider:EmailProvider,
                 private kakaoProvider:KakaoProvider, public storage:Storage,
                 private storageProvider:StorageProvider,private platform:Platform,
-                private alertController:AlertController){
+                private alertController:AlertController,private ionicApp: IonicApp,
+                private menuCtrl: MenuController){
       console.log("LoginPage construtor");
   }
  
@@ -44,6 +45,43 @@ export class LoginPage {
         this.scrollTop=dimensions.scrollTop;
         this.storageProvider.login=true;
         this.storageProvider.navController=this.navController;
+       
+        let ready = true;
+
+    this.platform.registerBackButtonAction(()=>{
+               console.log("[loginPage]Back button action called");
+               let activePortal = this.ionicApp._loadingPortal.getActive() ||
+               this.ionicApp._modalPortal.getActive() ||
+               this.ionicApp._toastPortal.getActive() ||
+               this.ionicApp._overlayPortal.getActive();
+
+            if (activePortal) {
+               ready = false;
+               activePortal.dismiss();
+               activePortal.onDidDismiss(() => { ready = true; });
+
+               console.log("handled with portal");
+               return;
+            }
+
+            if (this.menuCtrl.isOpen()) {
+               this.menuCtrl.close();
+
+               console.log("closing menu");
+               return;
+            }
+
+            let view = this.navController.getActive();
+            let page = view ? this.navController.getActive().instance : null;
+
+            if (this.navController.canGoBack() || view && view.isOverlay) {
+               console.log("popping back");
+               this.navController.pop();
+            }else{
+                console.log("What can I do here? which page is shown now? Error or LoginPage?");
+                this.platform.exitApp();
+            }
+         }, 1);
   }
 
   emailLoginSelect(event){

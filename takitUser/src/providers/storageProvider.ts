@@ -18,6 +18,7 @@ export class StorageProvider{
     public cart:any;
     public id:string;
     public messageEmitter= new EventEmitter();
+    public tabMessageEmitter = new EventEmitter();
     public shopTabRef:Tabs;
     public login:boolean=false;
     public navController:NavController;
@@ -25,6 +26,7 @@ export class StorageProvider{
     public name:string="";
     public phone:string="";
     public shopResponse:any;
+    public run_in_background=false;
 
     constructor(private platform:Platform,private http:Http){
         console.log("StorageProvider constructor"); 

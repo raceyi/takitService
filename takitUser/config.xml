@@ -27,7 +27,7 @@
     <preference name="AutoHideSplashScreen" value="false" />
     <preference name="FadeSplashScreen" value="false" />
     <preference name="FadeSplashScreenDuration" value="0" />
-    <preference name="SplashScreenBackgroundColor" value="0xFFFFFFFF" />
+    <preference name="SplashScreenBackgroundColor" value="0x3270B7" />
     <feature name="StatusBar">
         <param name="ios-package" onload="true" value="CDVStatusBar" />
     </feature>
@@ -43,4 +43,5 @@
     </plugin>
     <allow-navigation href="https://*.kakao.com/*" />
     <allow-navigation href="https://takit.biz/*" />
+    <allow-navigation href="https://takit.biz:8443/*" />
 </widget>

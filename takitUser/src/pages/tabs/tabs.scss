@@ -1,0 +1,16 @@
+page-tabs {
+    ion-header {
+         .buttonsInHeader{
+            background-color: transparent;
+            //color: #424242;
+            box-shadow: inherit;
+        }
+        .button-md:hover:not(.disable-hover) {
+            background-color: transparent;
+        }
+        .button-md.activated {
+            background-color: transparent;
+            box-shadow: inherit;
+        }
+    }
+}

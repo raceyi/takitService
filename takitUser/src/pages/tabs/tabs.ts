@@ -1,4 +1,5 @@
-import {Component,EventEmitter} from '@angular/core'
+import {Component,EventEmitter,NgZone} from '@angular/core'
+
 import {HomePage} from '../home/home';
 import {CashPage} from '../cash/cash';
 import {SearchPage} from '../search/search';
@@ -11,8 +12,14 @@ import {Http,Headers} from '@angular/http';
 import {StorageProvider} from '../../providers/storageProvider';
 import {ConfigProvider} from '../../providers/ConfigProvider';
 
+import 'rxjs/add/operator/timeout';
+import 'rxjs/add/operator/map';
+
+declare var cordova:any;
+
 @Component({
-  templateUrl: 'tabs.html'
+  templateUrl: 'tabs.html',
+  selector:'page-tabs'  
 })
 export class TabsPage {
 
@@ -25,7 +32,7 @@ export class TabsPage {
 
   constructor(public modalCtrl: ModalController,private navController: NavController,private app:App,private platform:Platform,public viewCtrl: ViewController,
     private storageProvider:StorageProvider,private http:Http, private alertController:AlertController,private ionicApp: IonicApp,
-    private menuCtrl: MenuController) {
+    private menuCtrl: MenuController,public ngZone:NgZone) {
     // this tells the tabs component which Pages
     // should be each tab's root Page
     this.tabHome = HomePage;
@@ -36,33 +43,36 @@ export class TabsPage {
     this.registerPushService(); 
   }
 
- ionViewDidEnter(){
-   /*  So far, no way to handle backbutton clearly T.T*/
-    let ready = true;
+ ionViewDidLoad(){ 
+   //open database file
+    this.storageProvider.open().then(()=>{
 
+    },()=>{
+        console.log("move into errorpage");
+
+        this.storageProvider.errorReasonSet("디바이스 문제로 인해 앱을 정상적으로 실행할수 없습니다.");
+        this.app.getRootNav().push(ErrorPage);
+    })
+
+    this.storageProvider.tabMessageEmitter.subscribe((cmd)=>{
+        if(cmd=="stopEnsureNoti"){
+              this.stopEnsureNoti().then(()=>{
+                    console.log("stopEnsureNoti was sent to Server");
+              },(err)=>{
+                    console.log("stopEnsureNoti error");
+              });
+        }else if(cmd=="backgroundEnable"){
+              this.ngZone.run(()=>{
+                    this.storageProvider.run_in_background=true;
+                    //change color of notification button
+              });
+        }
+    }); 
+
+   // register backbutton handler
+    let ready = true;
+   //refer to https://github.com/driftyco/ionic/issues/6982
     this.platform.registerBackButtonAction(()=>{
-      /*
-      console.log("TabsPage backbutton comes"+" nav:"+this.navController +" active:"+this.app.getActiveNav()+" rootNav:"+this.app.getRootNav());
-      if(this.app.getRootNav().getActive()==this.viewCtrl){
-        console.log("TabsPage get backbutton. Ask user Do you want to exit App?");
-        this.platform.exitApp();
-      }else{
-          // Why doesn't selector disappear?
-          
-          console.log("child nav:"+this.app.getActiveNav().getActiveChildNav());
-          if(this.app.getActiveNav().getActiveChildNav()!=undefined)
-              this.app.getActiveNav().getActiveChildNav().pop(); // it doesn't work
-          else
-              this.app.getActiveNav().pop();   
-          
-          console.log("how can it work? noway");
-          this.navController.pop();     
-      } 
-    }); //priority
-    */
-   /*
-   //refer to https://github.com/driftyco/ionic/issues/6982*/
-   
                console.log("Back button action called");
 
             let activePortal = this.ionicApp._loadingPortal.getActive() ||
@@ -103,7 +113,20 @@ export class TabsPage {
                      {
                         text: '네',
                         handler: () => {
-                           this.platform.exitApp();
+                          console.log("call stopEnsureNoti");
+                          console.log("cordova.plugins.backgroundMode.disable");
+                          cordova.plugins.backgroundMode.disable();
+                          this.ngZone.run(()=>{
+                              this.storageProvider.run_in_background=false;
+                              //change color of notification button
+                          });
+                          this.stopEnsureNoti().then(()=>{
+                                console.log("success stopEnsureNoti()");
+                                this.platform.exitApp();
+                          },(err)=>{
+                                console.log("fail in stopEnsureNoti() - Whan can I do here? nothing");
+                                this.platform.exitApp();
+                          });
                         }
                      }
                   ]
@@ -113,82 +136,100 @@ export class TabsPage {
                console.log("popping back");
                this.navController.pop();
             }else{
-                console.log("What can I do here?");
+                console.log("What can I do here? which page is shown now? Error or LoginPage");
+                this.platform.exitApp();
             }
-         }, 1);
+         }, 100/* high priority rather than login page */);
+  
+    /////////////////////////////////////// 
+    this.platform.pause.subscribe(()=>{
+        console.log("pause event comes");
+    }); //How about reporting it to server?
+    this.platform.resume.subscribe(()=>{
+        console.log("resume event comes");
+    }); //How about reporting it to server?
+
+    cordova.plugins.backgroundMode.onactivate(()=>{
+        console.log("background mode has been activated");
+    });
+
+    cordova.plugins.backgroundMode.ondeactivate (()=> {
+       console.log("background mode has been deactivated");
+    });
+
+    cordova.plugins.backgroundMode.setDefaults({
+        title:  '타킷이 실행중입니다',
+        ticker: '주문알림 대기',
+        text:   '타킷이 실행중입니다'
+    });
+
+    //get the orders in progress within 24 hours from server
+    this.getOrdersInProgress().then((orders)=>{
+        if(orders==undefined || orders==null){
+            console.log('cordova.plugins.backgroundMode.disable');
+            cordova.plugins.backgroundMode.disable(); 
+            this.ngZone.run(()=>{
+                    this.storageProvider.run_in_background=false;
+                    //change color of notification button
+            });
+            // report it to server
+            this.stopEnsureNoti().then(()=>{
+                console.log("stopEnsureNoti success"); 
+            },(err)=>{
+                console.log(" stopEnsureNot failure-What should I do here?");
+            }); 
+            return;
+        }else{
+                let confirm = this.alertController.create({
+                    title: '24시간이내에 진행중인 주문이 있습니다.주문알림을 받기 위해 앱을 계속 실행하시겠습니까?',
+                    message: '[주의]주문 완료 전에 앱이 중지되면 주문알림을 못받을수 있습니다.',
+                    buttons: [
+                      {
+                        text: '아니오',
+                        handler: () => {
+                          console.log('cordova.plugins.backgroundMode.disable');
+                          cordova.plugins.backgroundMode.disable(); 
+                          this.ngZone.run(()=>{
+                                    this.storageProvider.run_in_background=false;
+                                    //change color of notification button
+                          });
+                          // report it to server
+                          this.stopEnsureNoti().then(()=>{
+                             console.log("stopEnsureNoti success"); 
+                          },(err)=>{
+                             console.log(" stopEnsureNot failure-What should I do here?");
+                          }); 
+                          return;
+                        }
+                      },
+                      {
+                        text: '네',
+                        handler: () => {
+                          console.log('cordova.plugins.backgroundMode.enable');
+                          cordova.plugins.backgroundMode.enable(); 
+                              this.ngZone.run(()=>{
+                                    this.storageProvider.run_in_background=true;
+                                    //change color of notification button
+                              });
+                        }
+                      }
+                    ]
+                  });
+                  confirm.present();
+                }
+            },(err)=>{
+                console.log("getOrdersInProgress error-What should I do here?");
+            });
+}
+
+  
+  ionViewWillLeave(){
+
   }
 
-/*
-  askExit(){
-     this.askExitAlert = this.alertController.create({
-      title: '타킷을 종료합니다.',
-      message: '거래중인 주문이 있을 경우 반드시 타킷을 실행해 주시기 바랍니다.',
-      buttons: [
-        {
-          text: '바로 종료',
-          handler: () => {
-            console.log('agree clicked');
-             this.platform.exitApp();
-          }
-        },
-        {
-          text: '종료 취소',
-          handler: () => {
-            console.log('disagree clicked');
-            this.askExitAlert=undefined;
-          }
-        }]
-      });
-      this.askExitAlert.present();
+  ionViewWillUnload(){
+    console.log("ionViewWillUnload-tabs");
   }
-
-  ionViewCanLeave(): boolean{
-   // here we can either return true or false
-   // depending on if we want to leave this view
-   console.log("ionViewCanLeave");
-   if(this.platform.is("android")){
-      if(this.askExitAlert!=undefined)
-          return true;
-      else{    
-          this.askExit();
-          return false;
-      }   
-   }else{
-      // Should I give alert here?
-      return true;
-   }
-}
-*/
-
-ionViewWillLeave(){
-  /*
-  console.log("ionViewWillLeave"); // it isn't fired, when app exit.
-     this.askExitAlert = this.alertController.create({
-      title: '타킷을 종료합니다.',
-      message: '거래중인 주문이 있을 경우 반드시 타킷을 실행해 주시기 바랍니다.',
-      buttons: [
-        {
-          text: '바로 종료',
-          handler: () => {
-            console.log('agree clicked');
-             this.platform.exitApp();
-          }
-        },
-        {
-          text: '종료 취소',
-          handler: () => {
-            console.log('disagree clicked');
-            this.askExitAlert=undefined;
-          }
-        }]
-      });
-      this.askExitAlert.present();
-   */
-}
-
-ionViewWillUnload(){
-  console.log("ionViewWillUnload-tabs");
-}
 
   home(event){
     console.log("home tab selected"); 
@@ -257,13 +298,29 @@ ionViewWillUnload(){
                 
                 var additionalData:any=data.additionalData;
                 if(additionalData.GCMType==="order"){
-                this.storageProvider.messageEmitter.emit(JSON.parse(additionalData.custom));//  만약 shoptab에 있다면 주문목록을 업데이트 한다. 만약 tab이라면 메시지를 보여준다. 
-                  let alert = this.alertController.create({
+                    this.storageProvider.messageEmitter.emit(JSON.parse(additionalData.custom));//  만약 shoptab에 있다면 주문목록을 업데이트 한다. 만약 tab이라면 메시지를 보여준다. 
+
+                    let alert = this.alertController.create({
                         title: data.title,
                         subTitle: data.message,
                         buttons: ['OK']
                     });
                     alert.present();
+                    // check if order in progress exists or not
+                    this.getOrdersInProgress().then((orders)=>{
+                          if(orders==undefined || orders==null){
+                              // off run_in_background 
+                              console.log("no more order in progress within 24 hours");
+                              console.log("cordova.plugins.backgroundMode.disable");
+                              cordova.plugins.backgroundMode.disable();
+                              this.ngZone.run(()=>{
+                                    this.storageProvider.run_in_background=false;
+                                    //change color of notification button
+                              });
+                          }
+                    },()=>{
+
+                    });
                 }else if(additionalData.GCMType==="cash"){
                 /*
                   let cashConfirmModal = this.modalCtrl.create(CashConfirmPage, { userId: 8675309 });
@@ -311,5 +368,107 @@ ionViewWillUnload(){
             });
       });   
     }
+
+  configureBackgrondMode(){
+    console.log("[configureBackgrondMode]");
+    // give notification on to off
+    if(this.storageProvider.run_in_background){
+      this.alertController.create({
+                  title: '주문 알림모드를 종료하시겠습니까?',
+                  message: '진행중인 주문에 대해 주문알림을 받지 못할수 있습니다.',
+                  buttons: [
+                     {
+                        text: '아니오',
+                        handler: () => {
+                        }
+                     },
+                     {
+                        text: '네',
+                        handler: () => {
+                                console.log('cordova.plugins.backgroundMode.disable');
+                                cordova.plugins.backgroundMode.disable(); //takitShop always runs in background Mode
+                                this.ngZone.run(()=>{
+                                    this.storageProvider.run_in_background=false;
+                                    //change color of notification button
+                              });
+                        }
+                     }
+                  ]
+               }).present();
+    }else {
+      // please ask server the current orders in progress and then show user this notification. 
+      this.alertController.create({
+                  title: '주문 알림 모드를 실행하시겠습니까?',
+                  message: '진행중인 주문 종료시까지 타킷이 계속 실행됩니다.',
+                  buttons: [
+                     {
+                        text: '아니오',
+                        handler: () => {
+                        }
+                     },
+                     {
+                        text: '네',
+                        handler: () => {
+                                console.log('enable background mode');
+                                cordova.plugins.backgroundMode.enable(); 
+                                this.ngZone.run(()=>{
+                                    this.storageProvider.run_in_background=true;
+                                    //change color of notification button
+                              });
+                        }
+                     }
+                  ]
+               }).present();
+    }
+  }
+
+  getColorBackgroundMode(){
+    if(this.storageProvider.run_in_background){
+      return "primary";
+    }else{
+      return "gray";
+    }
+  }
+
+
+  getOrdersInProgress(){
+        return new Promise((resolve,reject)=>{
+            let headers = new Headers();
+            headers.append('Content-Type', 'application/json');
+            console.log("!!!server:"+ ConfigProvider.serverAddress+"/orderNotiMode");
+            let body = JSON.stringify({});
+
+            this.http.post(encodeURI(ConfigProvider.serverAddress+"/orderNotiMode"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                  console.log("res:"+JSON.stringify(res));
+                  if(res.result=="success"){
+                    resolve(res.order);
+                  }else{
+                    reject("server error");
+                  }
+            },(err)=>{
+                reject("http error");  
+            });
+      });         
+  }
+
+  stopEnsureNoti(){
+        return new Promise((resolve,reject)=>{
+            let headers = new Headers();
+            headers.append('Content-Type', 'application/json');
+            console.log("!!!server:"+ ConfigProvider.serverAddress+"/sleepMode");
+            let body = JSON.stringify({});
+
+            this.http.post(encodeURI(ConfigProvider.serverAddress+"/sleepMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res)=>{
+                  console.log("res:"+JSON.stringify(res));
+                  if(res.result=="success"){
+                    resolve();
+                  }else{
+                    reject("server error");
+                  }
+            },(err)=>{
+                reject("http error");  
+            });
+      });    
+  }
 
 }

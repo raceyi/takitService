@@ -182,17 +182,7 @@ export class HomePage{
          },(err)=>{
 
          });
-    }
-    
-    swipeHome(event){
-        //DIRECTION_LEFT = 2
-        //DIRECTION_RIGHT = 4
-        console.log("event.direction:"+event.direction);
-        if(event.direction==2){
-            var t: Tabs = this.navController.parent;
-            t.select(1);
-        }
-    }
+    }    
 }
 
 
