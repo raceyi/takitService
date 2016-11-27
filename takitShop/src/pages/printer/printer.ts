@@ -126,7 +126,8 @@ export class PrinterPage {
   }    
 
 
-  printerConnectChange(){
-
+  printOffChange(){
+      //save it into localstorage
+      //this.storageProvider.printOff
   }
 }

@@ -16,6 +16,7 @@ export class StorageProvider{
     public printerConnect=true;
     public navController:NavController;
     public login:boolean=false;
+    public printOff:boolean=false;
 
     constructor(private platform:Platform){
         console.log("StorageProvider constructor"); 

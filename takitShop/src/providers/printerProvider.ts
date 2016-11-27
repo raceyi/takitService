@@ -118,16 +118,21 @@ export class PrinterProvider{
                     reject("printerUndefined");
                 }else{
                     this.connectPrinter().then(()=>{
-                        BTPrinter.printText((data)=>{
-                            console.log("print Success");
-                            console.log(data);
-                            resolve();
-                        },(err)=>{
-                            console.log("Error");
-                            //console.log(err);
-                            reject(err);
-                        }, title+','+message+"\n\n\n\n ************"); // format: title, message
-                            },()=>{
+                        // give one second
+                        setTimeout(() => {
+                            BTPrinter.printText((data)=>{
+                                console.log("print Success");
+                                console.log(data);
+                                resolve();
+                            },(err)=>{
+                                console.log("Error!");
+                                //console.log(err);
+                                reject(err);
+                            }, title+','+message+"\n\n\n\n ************"); // format: title, message
+                        }, 1000); // 1 second after for connectPrinter
+                    },()=>{
+                        console.log("connect Error");
+                        reject();
                     });
                 }
             }

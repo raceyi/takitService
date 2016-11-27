@@ -333,6 +333,8 @@ export class ShopTablePage {
     }
     
     printOrder(order){
+      if(this.storageProvider.printOff==true)
+        return;
       if(!this.platform.is("android")){ //Not yet supported
         return;
       }
@@ -780,6 +782,14 @@ export class ShopTablePage {
   }
 
   testPrint(){
-
+     this.printerProvider.print("주문","프린터가 동작합니다").then(()=>{
+          console.log("프린트 명령을 보냈습니다. ");
+      },()=>{
+        let alert = this.alertController.create({
+            title: '프린트 명령을 보내는것에 실패했습니다.',
+            buttons: ['OK']
+        });
+        alert.present();
+      });
   }
 }
