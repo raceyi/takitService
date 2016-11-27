@@ -1,0 +1,48 @@
+page-cash{
+    ion-header {
+        position: relative !important; 
+    }
+
+    ion-content.cashInfo{
+        position:relative !important;
+        height:min-content !important;
+        > .scroll-content{
+            position:relative !important;
+        }
+    }
+
+    ion-content.infiniteScroll{
+        position: relative !important; 
+        ion-label {
+            margin: 0px 0px 0px 0px !important;
+        }
+    }
+
+    .textSet{
+    font-size: 1.4rem;
+    }
+
+    .cashId.item.item-input>.item-inner{
+    padding-right:2px;
+    }
+
+    .cashIdValue{
+   // color:#387ef5;
+    border:1px solid #BEBEBE;
+    border-radius: 4px;
+    height:38px;
+    }
+
+    .cashIdValue>.text-input {
+        margin: 8px 8px 8px 8px;
+    }
+
+    .config{
+    width:20%;
+    }
+
+    .button-outline{
+        border-color: #BEBEBE;
+    }
+}
+

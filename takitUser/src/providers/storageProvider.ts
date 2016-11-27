@@ -55,6 +55,26 @@ export class StorageProvider{
         });
     }
 
+    //delete an existing db and then open new one. Please check if it works or not. Hum.. it doesn't work 
+    reopen(){
+        return new Promise((resolve,reject)=>{
+             console.log("reopen()");
+             this.db.deleteDatabase({name: 'takit.db', location: 'default'}).then(()=>{
+                 console.log("deleteDatabase successfully");
+                 this.open().then(()=>{
+                     console.log("db open successfully");
+                     resolve();
+                 },()=>{
+                     console.log("db open failure");
+                     reject();
+                 });
+             },(err)=>{
+                 console.log("deleteDatabase failure");
+                 reject();
+             });
+        });
+    }
+
     getCartInfo(takitId){
         console.log("getCartInfo-enter");
         return new Promise((resolve,reject)=>{

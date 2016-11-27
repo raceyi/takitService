@@ -1,0 +1,58 @@
+<ion-header>
+  <ion-navbar>
+    <button ion-button menuToggle>
+      <ion-icon name="menu"></ion-icon>
+    </button>
+    <ion-title>타킷</ion-title>
+  </ion-navbar>
+</ion-header>
+
+<ion-content class="cashInfo">
+      <ion-item>
+        <ion-label class="textSet"><strong>인출 가능 금액 </strong></ion-label>
+        <ion-label ><span>{{available}}</span> 원</ion-label>
+    </ion-item>
+    <ion-row>
+    <ion-item ion-col class="cashId">
+        <ion-input class="cashIdValue" [(ngModel)]="withdrawAmount" type="number" placeholder="인출금액"></ion-input>
+    </ion-item>
+        <button ion-button class="config" (click)="withdrawCash()">
+            <span>인출</span>
+        </button>
+    </ion-row>
+    <ion-row padding>
+      <ion-col width-10 class="collapse">
+      <ion-icon name="add-circle" [hidden]="!bankAccountHidden" (click)="expand($event)"></ion-icon>
+      <ion-icon name="remove-circle" [hidden]="bankAccountHidden" (click)="collapse($event)"></ion-icon>
+      </ion-col>
+      <ion-col class="orderInfo title" width-90>
+      등록 계좌 정보 
+      </ion-col>
+    </ion-row>
+    <div padding [hidden]="bankAccountHidden">
+        <ion-row>
+          <ion-col width-33 class="orderInfo">은행 </ion-col>
+          <ion-col width-66 class="orderInfo1">농협</ion-col>
+        </ion-row>
+        <ion-row>
+          <ion-col width-33 class="orderInfo">계좌번호</ion-col>
+          <ion-col width-66 class="orderInfo1">1002330959***</ion-col>
+        </ion-row>
+        <ion-row>
+          <ion-col width-33 class="orderInfo">예금주</ion-col>
+          <ion-col width-66 class="orderInfo1">타킷주식회사</ion-col>
+        </ion-row>
+    </div>
+</ion-content>
+
+<ion-content padding class="infiniteScroll">
+  <ion-list>
+    <ion-item *ngFor="let trans of transactions">
+    </ion-item>
+  </ion-list>
+  <ion-infinite-scroll (ionInfinite)="doInfinite($event)" [hidden]="transactions.length==0">
+   <ion-infinite-scroll-content></ion-infinite-scroll-content>
+  </ion-infinite-scroll>
+  <div class="dummy">
+  </div>
+</ion-content>

@@ -38,7 +38,8 @@ export class LoginPage {
       console.log("LoginPage construtor");
   }
  
-  ionViewDidEnter() {
+  //ionViewDidEnter() {
+  ionViewDidLoad(){
         console.log("Login page did enter");
         Splashscreen.hide();
         let dimensions = this.loginPageRef.getContentDimensions();

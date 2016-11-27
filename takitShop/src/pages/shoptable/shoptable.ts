@@ -1,8 +1,8 @@
 import {Component,EventEmitter,NgZone} from '@angular/core';
-import {NavController,App,AlertController,Platform} from 'ionic-angular';
+import {NavController,App,AlertController,Platform,MenuController,IonicApp,ViewController} from 'ionic-angular';
 import {ConfigProvider} from '../../providers/ConfigProvider';
 import 'rxjs/add/operator/map';
-//import {Content} from 'ionic-angular';
+import 'rxjs/add/operator/timeout';
 import {StorageProvider} from '../../providers/storageProvider';
 import {Push,PushNotification} from 'ionic-native';
 import {Http,Headers} from '@angular/http';
@@ -10,11 +10,12 @@ import {ErrorPage} from '../../pages/error/error';
 import {Splashscreen} from 'ionic-native';
 import {PrinterProvider} from '../../providers/printerProvider';
 
+declare var cordova:any;
+
 @Component({
   selector:'page-shoptable',
   templateUrl: 'shoptable.html',
 })
-
 
 export class ShopTablePage {
   Option="today";
@@ -24,10 +25,12 @@ export class ShopTablePage {
   orders=[];
   pushNotification:PushNotification;
   infiniteScroll:any=undefined;
+  smsInboxPlugin;
 
   constructor(public navController: NavController,private app:App,private storageProvider:StorageProvider,
-      private http:Http,private alertController:AlertController,private ngZone:NgZone,
-      private printerProvider:PrinterProvider,private platform:Platform) {
+      private http:Http,private alertController:AlertController,private ngZone:NgZone,private ionicApp: IonicApp,
+      private printerProvider:PrinterProvider,private platform:Platform,private menuCtrl: MenuController,
+      public viewCtrl: ViewController) {
     console.log("ShopTablePage constructor");
     
     this.registerPushService();
@@ -46,10 +49,106 @@ export class ShopTablePage {
      /////////////////////////////////////////////////////////////////
   }
 
-    ionViewDidEnter(){
-        console.log("SelectorPage did enter");
-        Splashscreen.hide();
-  }
+    ionViewDidLoad(){
+          console.log("SelectorPage did enter");
+          Splashscreen.hide();
+          cordova.plugins.backgroundMode.setDefaults({
+              title:  '타킷운영자가 실행중입니다',
+              ticker: '주문알림 대기',
+              text:   '타킷운영자가 실행중입니다'
+          });
+          cordova.plugins.backgroundMode.enable(); //takitShop always runs in background Mode
+
+   // register backbutton handler
+    let ready = true;
+   //refer to https://github.com/driftyco/ionic/issues/6982
+    this.platform.registerBackButtonAction(()=>{
+               console.log("Back button action called");
+
+            let activePortal = this.ionicApp._loadingPortal.getActive() ||
+               this.ionicApp._modalPortal.getActive() ||
+               this.ionicApp._toastPortal.getActive() ||
+               this.ionicApp._overlayPortal.getActive();
+
+            if (activePortal) {
+               ready = false;
+               activePortal.dismiss();
+               activePortal.onDidDismiss(() => { ready = true; });
+
+               console.log("handled with portal");
+               return;
+            }
+
+            if (this.menuCtrl.isOpen()) {
+               this.menuCtrl.close();
+
+               console.log("closing menu");
+               return;
+            }
+
+            let view = this.navController.getActive();
+            let page = view ? this.navController.getActive().instance : null;
+
+            if (this.app.getRootNav().getActive()==this.viewCtrl){
+               console.log("Handling back button on  tabs page");
+               this.alertController.create({
+                  title: '앱을 종료하시겠습니까?',
+                  message: '주문요청전달도 종료됩니다.',
+                  buttons: [
+                     {
+                        text: '아니오',
+                        handler: () => {
+                        }
+                     },
+                     {
+                        text: '네',
+                        handler: () => {
+                          console.log("call stopEnsureNoti");
+                          console.log("cordova.plugins.backgroundMode.disable");
+                          cordova.plugins.backgroundMode.disable();
+                          this.stopEnsureNoti().then(()=>{
+                                console.log("success stopEnsureNoti()");
+                                this.platform.exitApp();
+                          },(err)=>{
+                                console.log("fail in stopEnsureNoti() - Whan can I do here? nothing");
+                                this.platform.exitApp();
+                          });
+                        }
+                     }
+                  ]
+               }).present();
+            }
+            else if (this.navController.canGoBack() || view && view.isOverlay) {
+               console.log("popping back");
+               this.navController.pop();
+            }else{
+                console.log("What can I do here? which page is shown now? Error or LoginPage");
+                this.platform.exitApp();
+            }
+         }, 100/* high priority rather than login page */);
+
+
+        if(this.platform.is("android")){
+            if(this.smsInboxPlugin==undefined)
+                this.smsInboxPlugin = cordova.require('cordova/plugin/smsinboxplugin');
+            this.smsInboxPlugin.isSupported((supported)=>{
+              console.log("supported :"+supported);
+              if(supported){
+                  ////////////////////////////////
+                  this.smsInboxPlugin.startReception ((msg)=> {
+                  console.log("sms "+msg);
+                  },(err)=>{
+                      console.log("startReception error:"+JSON.stringify(err));
+                  });
+              }else{
+                  console.log("SMS is not supported");
+              }
+            },(err)=>{
+              console.log("isSupported:"+JSON.stringify(err));
+            });
+        }
+
+    }
 
     convertOrderInfo(orderInfo){
           var order:any={};
@@ -64,7 +163,15 @@ export class ShopTablePage {
           else  
             order.hidden=false;
           order.orderListObj=JSON.parse(order.orderList);
+          order.userPhoneHref="tel:"+order.userPhone; 
           //console.log("order.orderListObj:"+JSON.stringify(order.orderListObj));
+
+          if(order.cancelReason!=undefined &&
+                order.cancelReason!=null &&
+                order.cancelReason!="")
+            order.cancelReasonString=order.cancelReason;
+          else
+            order.cancelReasonString=undefined;
           return order;
     }
 
@@ -202,7 +309,10 @@ export class ShopTablePage {
 
   toggleOrder(order){
     console.log("toggleOrder");
-     order.hidden=(!order.hidden);
+    if(order.orderStatus=="paid" ||  order.orderStatus=="checked")
+      order.hidden=false;
+    else
+      order.hidden=(!order.hidden);
   }
 
     confirmMsgDelivery(messageId){
@@ -262,13 +372,21 @@ export class ShopTablePage {
 
       this.printerProvider.print(title,message).then(()=>{
              console.log("print successfully");
-      },()=>{
-            let alert = this.alertController.create({
-              title: '주문출력에 실패했습니다.',
-              subTitle: '프린터상태를 확인해주시기바랍니다.',
-              buttons: ['OK']
-          });
-          alert.present();
+      },(err)=>{
+            if(err=="printerUndefined"){
+              let alert = this.alertController.create({
+                  title: '앱에서 프린터 설정을 수행해 주시기 바랍니다.',
+                  buttons: ['OK']
+              });
+              alert.present();
+            }else{
+              let alert = this.alertController.create({
+                  title: '주문출력에 실패했습니다.',
+                  subTitle: '프린터상태를 확인해주시기바랍니다.',
+                  buttons: ['OK']
+              });
+              alert.present();
+            }
       });
     }
 
@@ -379,6 +497,7 @@ export class ShopTablePage {
                this.updateStatus(order,"checkOrder").then(()=>{
                  order.orderStatus="checked";
                  order.statusString="완료"; 
+                 order.checkedTime=new Date().toISOString();
                },()=>{
                  console.log("주문 접수에 실패했습니다.");
                  //give Alert here
@@ -392,6 +511,8 @@ export class ShopTablePage {
                this.updateStatus(order,"completeOrder").then(()=>{
                  order.orderStatus="completed";
                  order.statusString="종료"; 
+                 order.completedTime=new Date().toISOString();
+                 order.hidden=true;
                },()=>{
                  console.log("주문 완료에 실패했습니다.");
                  let alert = this.alertController.create({
@@ -403,9 +524,8 @@ export class ShopTablePage {
         }
     }
 
-    cancelOrder(order){
+    cancelOrder(order,cancelReason:string){
       return new Promise((resolve,reject)=>{
-        var cancelReason="This is test";
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
         let body= JSON.stringify({ orderId: order.orderId,cancelReason:cancelReason});
@@ -414,6 +534,11 @@ export class ShopTablePage {
         this.http.post(ConfigProvider.serverAddress+"/shop/cancelOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
             console.log("res:"+JSON.stringify(res));
             if(res.result=="success"){
+                 order.orderStatus="cancelled";
+                 order.statusString="취소"; 
+                 order.cancelReasonString=cancelReason;
+                 order.cancelledTime=new Date().toISOString();
+                 order.hidden=true;
                 resolve();
             }else{
                 reject();
@@ -431,12 +556,39 @@ export class ShopTablePage {
     }
 
     cancel(order){
-        this.cancelOrder(order).then((result)=>{
-          console.log("cancel-order result:"+result);
-        },(err)=>{
-          console.log("cancel-order err:"+err);
-        });
+      console.log("order cancel comes");
+            let prompt = this.alertController.create({
+                title: '주문취소',
+                message: "주문을 취소하시겠습니까?",
+                inputs: [
+                  {
+                    name: 'reason',
+                    placeholder: '취소사유'
+                  },
+                ],
+                buttons: [
+                  {
+                    text: '아니오',
+                    handler: data => {
+                      console.log('Cancel clicked '+ JSON.stringify(data));
+                    }
+                  },
+                  {
+                    text: '네',
+                    handler: data => {
+                      console.log('Saved clicked '+ JSON.stringify(data));
+                      this.cancelOrder(order,data.reason).then((result)=>{
+                                console.log("cancel-order result:"+result);
+                              },(err)=>{
+                                console.log("cancel-order err:"+err);
+                              });
+                    }
+                  }
+                ]
+              });
+               prompt.present();
     }
+
     updateStatus(order,request){
       return new Promise((resolve,reject)=>{
         let headers = new Headers();
@@ -448,13 +600,11 @@ export class ShopTablePage {
         this.http.post(ConfigProvider.serverAddress+"/shop/"+request,body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
             console.log(request+"-res:"+JSON.stringify(res));
             if(res.result=="success"){
-                 order.orderStatus="cancelled";
-                 order.statusString="취소"; 
-                resolve("주문취소에 성공했습니다");
+                resolve("주문상태변경에 성공했습니다");
             }else{
-                resolve("주문취소에 실패했습니다");
+                resolve("주문상태변경에 실패했습니다");
                 let alert = this.alertController.create({
-                                title: '주문취소에 실패했습니다',
+                                title: '주문상태변경에 실패했습니다',
                                 buttons: ['OK']
                             });
                 alert.present();
@@ -508,12 +658,128 @@ export class ShopTablePage {
     return false;  
   }
 
+  AfterOnedayCompleteCancel(order){
+    if(order.orderStatus=="paid" ||  order.orderStatus=="checked"){
+        return false;
+    }else if(order.cancelledTime!=undefined && order.cancelledTime!=null){
+        //console.log("[AfterOnedayCompleteCancel]cancelledTime:"+order.cancelledTime);
+        let cancelledTime=new Date(order.cancelledTime+" GMT");
+        let now=new Date();
+        if(now.getTime()<(cancelledTime.getTime()+24*60*60*1000)){
+            return false;
+        }
+    }else if(order.completedTime!=undefined && order.completedTime!=null){
+        let completedTime=new Date(order.completedTime+" GMT");
+        let now=new Date();
+        if(now.getTime()<(completedTime.getTime()+24*60*60*1000)){
+            return false;
+        }
+    } 
+    return true;  
+  }
+
   update(){
+    this.orders=[];
+    if(this.infiniteScroll!=undefined)
+        this.infiniteScroll.enable(true);
+    this.getOrders(-1);
+  }
+
+  enableManager(){
+    // 현재 매니저가 아니라면 alert을 보여줌.
+    // 매니저라면 skip한다. 
+    let confirm = this.alertController.create({
+      title: '매니저가 되시겠습니까?',
+      message: '주문알림을 받게됩니다.',
+      buttons: [
+        {
+          text: '아니오',
+          handler: () => {
+            console.log('Disagree clicked');
+          }
+        },
+        {
+          text: '네',
+          handler: () => {
+            console.log('Agree clicked');
+            this.requestManager().then(()=>{
+                  let alert = this.alertController.create({
+                    title: '주문요청이 전달됩니다',
+                    buttons: ['OK']
+                  });
+                  alert.present();
+            },()=>{
+                  let alert = this.alertController.create({
+                    title: '주문알림 요청에 실패했습니다.',
+                    subTitle: '네트웍 연결 확인후 다시 시도해 주시기 바랍니다.',
+                    buttons: ['OK']
+                  });
+                  alert.present();
+            });
+          }
+        }
+      ]
+    });
+    confirm.present();
+  }
+
+  requestManager(){
+      return new Promise((resolve,reject)=>{
+        let headers = new Headers();
+        headers.append('Content-Type', 'application/json');
+        console.log("server:"+ ConfigProvider.serverAddress);
+        let body= JSON.stringify({ takitId: this.storageProvider.myshop.takitId });
+
+        console.log("body:"+JSON.stringify(body));
+        this.http.post(ConfigProvider.serverAddress+"/shop/todayManager",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+          console.log("res:"+JSON.stringify(res));
+          if(res.result=="success"){
+               resolve(); 
+          }else{
+                reject();
+          }
+        },(err)=>{
+                reject();
+        });
+
+      });
+  }
+
+  stopEnsureNoti(){
+        return new Promise((resolve,reject)=>{
+            let headers = new Headers();
+            headers.append('Content-Type', 'application/json');
+            console.log("!!!server:"+ ConfigProvider.serverAddress+"/sleepMode???");
+            let body = JSON.stringify({});
+
+            this.http.post(encodeURI(ConfigProvider.serverAddress+"/sleepMode???"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res)=>{
+                  console.log("res:"+JSON.stringify(res));
+                  if(res.result=="success"){
+                    resolve();
+                  }else{
+                    reject("server error");
+                  }
+            },(err)=>{
+                reject("http error");  
+            });
+      });    
+  }
+
+  configureStore(){
     /*
-    if(  ){
-
+    if(this.storageProvider.storeOpen){
+      return "primary";
     }else{
-
+      return "gray";
     }*/
+    return "gray";
+  }
+
+  getColorStore(){
+
+  }
+
+  testPrint(){
+
   }
 }

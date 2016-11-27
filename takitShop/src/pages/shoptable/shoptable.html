@@ -3,11 +3,26 @@
     <button ion-button menuToggle>
       <ion-icon name="menu"></ion-icon>
     </button>
+    <ion-row>
     <ion-title>타킷</ion-title>
+    <button ion-button class="buttonsInHeader"  (click)="configureStore()">
+      <ion-icon [color]="getColorStore()" name="bulb"></ion-icon>
+    </button>
+    <button ion-button class="buttonsInHeader" (click)="enableManager()" color="primary">
+      <ion-icon name="person"></ion-icon>
+    </button>
+    <button ion-button class="buttonsInHeader" (click)="testPrint()">
+      <ion-icon name="print"></ion-icon>
+    </button>
+    <button ion-button class="buttonsInHeader" (click)="update()">
+      <ion-icon name="refresh"></ion-icon>
+    </button>
+    </ion-row>
   </ion-navbar>
 </ion-header>
 
 <ion-content class="segmentButton">
+  <!--
     <ion-row>
     <ion-col width-75>
     </ion-col>
@@ -15,7 +30,7 @@
       <button ion-button  class="updateButton" color='gray' (click)="update()"><span class="updateButtonText">업데이트</span></button>
     </ion-col>    
   </ion-row>
-
+-->
     <div>
     <ion-segment [(ngModel)]="Option" (ionChange)="changeValue(Option)">
       <ion-segment-button  value="today">
@@ -50,7 +65,7 @@
 <ion-content padding class="infiniteScroll">
   <ion-list>
   <ion-item class="orderManagement" *ngFor="let order of orders">
-                <ion-row (click)="toggleOrder(order)">
+                <ion-row (click)="toggleOrder(order)">  
                     <ion-col width-10 class="verticalAlign">[{{order.orderNO}}]</ion-col>
                     <ion-col width-50 class="orderName"><span class="orderName">{{order.orderName}}</span></ion-col>
                     <ion-col width-20 class="verticalAlign" >
@@ -60,6 +75,10 @@
                     <ion-col width-20><button ion-button class="statusButton" [color]="getOrderColor(order)" (click)="cancel(order)" [hidden]="order.orderStatus=='cancelled' || AfterOnedayComplete(order)"><span class="statusButtonText">취소</span></button></ion-col>
                 </ion-row>
                 <div [hidden]="order.hidden">
+                <ion-row [hidden]="order.takeout=='0'"> 
+                  <ion-col width-10></ion-col>
+                  <ion-col width-90>Takeout</ion-col>
+                </ion-row>
                 <div *ngFor="let menu of order.orderListObj.menus">
                 <ion-row>
                           <ion-col width-10></ion-col>
@@ -72,18 +91,23 @@
                           </ion-col>
                 </ion-row>
                 </div>
-                <ion-row [hidden]="order.takeout=='0'"> 
+                <ion-row [hidden]="order.orderStatus!='cancelled' || order.cancelReasonString==undefined">
                   <ion-col width-10></ion-col>
-                  <ion-col width-90>Takeout</ion-col>
+                  <ion-col width-20>취소사유</ion-col>
+                  <ion-col width-70>{{order.cancelReasonString}}</ion-col>
                 </ion-row>
                  <ion-row >
                     <ion-col width-10></ion-col>
-                    <ion-col width-90 class="detail">주문시간 &nbsp;{{order.localOrderedTime}}</ion-col>
+                    <ion-col width-70 class="detail">주문시간 &nbsp;{{order.localOrderedTime}}</ion-col>
+                    <ion-col width-20 class="detail"> 
+                    <a [href]="order.userPhoneHref" [hidden]="AfterOnedayCompleteCancel(order)" class="button button-positive">고객연락</a>
+                    </ion-col>
                 </ion-row>
                  <ion-row>
                     <ion-col width-10></ion-col>
                     <ion-col width-90 class="detail">결제금액 &nbsp;{{order.amount}}원</ion-col>
                 </ion-row>
+                
                 </div>
 </ion-item>
 </ion-list>

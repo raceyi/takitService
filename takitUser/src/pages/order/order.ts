@@ -181,7 +181,7 @@ export class OrderPage {
                  }else{
                     let alert = this.alertController.create({
                         title: '주문에 실패하였습니다.',
-                        subTitle: '죄송합니다. 다시 주문해주시기 바랍니다.',
+                        subTitle: '다시 주문해주시기 바랍니다.',
                         buttons: ['OK']
                     });
                     alert.present();

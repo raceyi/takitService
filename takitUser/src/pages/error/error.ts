@@ -40,7 +40,7 @@ export class ErrorPage{
         this.platform.exitApp();
      }
 
-    tryLogin(event){
+    loginWithExistingId(){
                 var id=this.storageProvider.id;
                 if(id=="facebook"){
                     this.fbProvider.login().then((res:any)=>{
@@ -118,5 +118,24 @@ export class ErrorPage{
                                 this.app.getRootNav().setRoot(LoginPage);
                         });
                 }
+    }
+
+    tryLogin(event){
+        if(this.storageProvider.id==undefined){
+                this.storage.get("id").then((value:string)=>{
+                        console.log("value:"+value);
+                        if(value==null){
+                            console.log("id doesn't exist");
+                            this.app.getRootNav().setRoot(LoginPage); 
+                            return;
+                        }else{
+                            var id=this.storageProvider.decryptValue("id",decodeURI(value));
+                            console.log("id:"+id);
+                            this.loginWithExistingId();
+                        }
+                });        
+        }else{
+            this.loginWithExistingId();
+        }
     }
 }

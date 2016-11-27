@@ -1,18 +1,21 @@
 import { Component } from '@angular/core';
-import { Platform,App } from 'ionic-angular';
+import { Platform,App,AlertController } from 'ionic-angular';
 import { StatusBar,Splashscreen ,Network} from 'ionic-native';
 
+import {PrinterProvider} from '../providers/printerProvider';
 import {StorageProvider} from '../providers/storageProvider';
 import {FbProvider} from '../providers/LoginProvider/fb-provider';
 import {KakaoProvider} from '../providers/LoginProvider/kakao-provider';
 import {EmailProvider} from '../providers/LoginProvider/email-provider';
 import {Storage} from '@ionic/storage';
-
 import {LoginPage} from '../pages/login/login';
 import {ErrorPage} from '../pages/error/error';
 import {ShopTablePage} from '../pages/shoptable/shoptable';
 import{SelectorPage} from '../pages/selector/selector';
 import{PrinterPage} from '../pages/printer/printer';
+import {ServiceInfoPage} from '../pages/serviceinfo/serviceinfo';
+import {CashPage} from '../pages/cash/cash';
+declare var cordova:any;
 
 @Component({
   selector:'page-menu',
@@ -20,13 +23,14 @@ import{PrinterPage} from '../pages/printer/printer';
 })
 export class MyApp {
    public rootPage:any;
-  // private disconnectSubscription;
+   private disconnectSubscription;
   // private connectSubscription;
 
    constructor(private platform:Platform,public app:App,
                 private fbProvider:FbProvider,private emailProvider:EmailProvider,
-                private kakaoProvider:KakaoProvider,private storageProvider:StorageProvider,
-                public storage:Storage) {
+                private kakaoProvider:KakaoProvider,public storageProvider:StorageProvider,
+                public storage:Storage,public printerProvider:PrinterProvider,
+                public alertCtrl:AlertController) {
     
     this.platform=platform;
     ////////////Test-begin//////////
@@ -38,7 +42,7 @@ export class MyApp {
     
     platform.ready().then(() => {
         console.log("platform ready comes");
-        this.storageProvider.open();
+        //this.storageProvider.open(); So far, DB is not necessary.
 
         if(Network.connection=="none"){
             this.storageProvider.errorReasonSet('네트웍 연결이 원할하지 않습니다'); 
@@ -52,19 +56,17 @@ export class MyApp {
             }       
         }else{
             console.log('network connected!');
-/*
             this.disconnectSubscription = Network.onDisconnect().subscribe(() => { // Why it doesn't work?
                 console.log('network was disconnected :-(');
                 this.storageProvider.errorReasonSet('네트웍 연결이 원할하지 않습니다'); 
                 //Please check current page and then move into ErrorPage!
                 console.log("rootPage:"+JSON.stringify(this.rootPage));
-                if(!this.rootPage)
+                if(this.rootPage==undefined){
+                    console.log("move into ErrorPage");
                     this.rootPage=ErrorPage;
-                else{
-                    console.log("show alert");
+                    return;
                 }   
             });
-*/
             //Please login if login info exists or move into login page
             this.storage.get("id").then((value:string)=>{
                 console.log("value:"+value);
@@ -83,9 +85,8 @@ export class MyApp {
                                     //save shoplist
                                     this.shoplistHandler(res.shopUserInfo);
                                 }else if(res.result=='invalidId'){
-                                    console.log("You have no right to access this app");
-                                    this.storageProvider.errorReasonSet('접근권한이 없습니다.');
-                                    this.rootPage=ErrorPage;
+                                    console.log("사용자 정보에 문제가 발생했습니다. 로그인 페이지로 이동합니다.");
+                                    this.rootPage=LoginPage; 
                                 }else{
                                     console.log("invalid result comes from server-"+JSON.stringify(res));
                                     this.storageProvider.errorReasonSet('로그인 에러가 발생했습니다');
@@ -104,9 +105,8 @@ export class MyApp {
                                     //save shoplist
                                     this.shoplistHandler(res.shopUserInfo);
                                 }else if(res.result=='invalidId'){
-                                    console.log("You have no right to access this app");
-                                    this.storageProvider.errorReasonSet('접근권한이 없습니다.');
-                                    this.rootPage=ErrorPage;
+                                    console.log("사용자 정보에 문제가 발생했습니다. 로그인 페이지로 이동합니다.");
+                                    this.rootPage=LoginPage; 
                                 }else{
                                     console.log("invalid result comes from server-"+JSON.stringify(res));
                                     this.storageProvider.errorReasonSet('로그인 에러가 발생했습니다');
@@ -127,8 +127,8 @@ export class MyApp {
                                     this.shoplistHandler(res.shopUserInfo);
                                 }else if(res.result=='invalidId'){
                                     //console.log("You have no right to access this app");
-                                    this.storageProvider.errorReasonSet('접근권한이 없습니다.');
-                                    this.rootPage=ErrorPage;
+                                    console.log("사용자 정보에 문제가 발생했습니다. 로그인 페이지로 이동합니다.");
+                                    this.rootPage=LoginPage; 
                                 }else{
                                     //console.log("invalid result comes from server-"+JSON.stringify(res));
                                     this.storageProvider.errorReasonSet('로그인 에러가 발생했습니다'); 
@@ -173,10 +173,81 @@ export class MyApp {
                 this.rootPage=SelectorPage;
              }
         }
+        this.storage.get("printer").then((value:string)=>{
+            this.storageProvider.printerName=value;
+            this.printerProvider.setPrinter(value);
+        },()=>{
+
+        });
   }
 
    openPrint(){
         this.app.getRootNav().push(PrinterPage);
    }
+
+   openServiceInfo(){
+        this.app.getRootNav().push(ServiceInfoPage);
+   }
+
+   openCash(){
+        this.app.getRootNav().push(CashPage);
+   }
+
+   openLogout(){
+      let confirm = this.alertCtrl.create({
+      title: '로그아웃하시겠습니까?',
+      buttons: [
+        {
+          text: '아니오',
+          handler: () => {
+            console.log('Disagree clicked');
+            return;
+          }
+        },
+        {
+          text: '네',
+          handler: () => {
+            console.log('Logout Agree clicked');
+            console.log("cordova.plugins.backgroundMode.disable");
+            cordova.plugins.backgroundMode.disable();
+            
+            //facebook logout, kakao logout
+            if(this.storageProvider.id=="facebook"){
+                this.fbProvider.logout().then((result)=>{
+                    this.removeStoredInfo();
+                },(err)=>{
+                    this.removeStoredInfo();
+                });
+            }else if(this.storageProvider.id=="kakao"){
+                this.kakaoProvider.logout().then((res)=>{
+                    this.removeStoredInfo();
+                },(err)=>{
+                    this.removeStoredInfo();
+                });
+            }else{
+                this.emailProvider.logout().then(()=>{
+                    this.removeStoredInfo();
+                },(err)=>{
+                    this.removeStoredInfo();
+                });
+            }   
+          }
+        }
+      ]
+    });
+    confirm.present();
+   }
+
+   removeStoredInfo(){
+        this.storage.clear(); 
+        this.storage.remove("id"); //So far, clear() doesn't work. Please remove this line later
+        console.log("move into LoginPage"); //Please exit App and then restart it.
+        if(this.storageProvider.login==true){
+            console.log("call setRoot with LoginPage");
+            this.storageProvider.navController.setRoot(LoginPage);
+        }else{
+            this.rootPage=LoginPage;
+        }
+  }
 }
 

@@ -14,6 +14,8 @@ import {PrinterPage} from '../pages/printer/printer';
 import {SelectorPage} from '../pages/selector/selector';
 import {ShopTablePage} from '../pages/shoptable/shoptable';
 import {UserSecretPage} from '../pages/usersecret/usersecret';
+import {ServiceInfoPage} from '../pages/serviceinfo/serviceinfo';
+import {CashPage} from '../pages/cash/cash';
 import{Focuser} from '../components/focuser/focuser';
 
 
@@ -26,6 +28,8 @@ import{Focuser} from '../components/focuser/focuser';
     ShopTablePage,
     UserSecretPage,
     PrinterPage,
+    ServiceInfoPage,
+    CashPage,
     Focuser
   ],
   imports: [
@@ -39,7 +43,9 @@ import{Focuser} from '../components/focuser/focuser';
     SelectorPage,
     ShopTablePage,
     UserSecretPage,
-    PrinterPage
+    PrinterPage,
+    ServiceInfoPage,
+    CashPage,
   ],
   providers: [
     FbProvider,

@@ -42,8 +42,16 @@ export class MyApp {
             //Please check current page and then move into ErrorPage!
             //console.log("rootPage:"+JSON.stringify(this.rootPage));
             if(!this.rootPage==undefined){
-                this.rootPage=ErrorPage;
-                return;
+                this.storage.get("id").then((value:string)=>{
+                    console.log("value:"+value);
+                    if(value==null){
+                        this.rootPage=LoginPage;
+                    }else{    
+                        this.rootPage=ErrorPage;
+                    }
+                },(err)=>{
+                    this.rootPage=LoginPage;
+                });
             }else{
                 console.log("show alert");
             }       
@@ -55,9 +63,17 @@ export class MyApp {
                 console.log('network was disconnected :-( ');
                 console.log("rootPage:"+JSON.stringify(this.rootPage));
                 if(this.rootPage==undefined){
-                    console.log("move into ErrorPage");
-                    this.rootPage=ErrorPage;                 
-                    return; 
+                    this.storage.get("id").then((value:string)=>{
+                        console.log("value:"+value);
+                        if(value==null){
+                            this.rootPage=LoginPage;
+                        }else{    
+                            console.log("move into ErrorPage");
+                            this.rootPage=ErrorPage;
+                        }
+                    },(err)=>{
+                        this.rootPage=LoginPage;
+                    });
                 }       
             });
 

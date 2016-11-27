@@ -1,5 +1,5 @@
 import {Injectable} from '@angular/core';
-import {Platform } from 'ionic-angular';
+import {Platform ,NavController} from 'ionic-angular';
 import {SQLite} from 'ionic-native';
 //import * as CryptoJS from 'crypto-js';
 declare var CryptoJS:any;
@@ -12,6 +12,10 @@ export class StorageProvider{
     public shopInfo:any;   // current shopInfo. shopname:shopInfo.shopName
     public errorReason:string;
     public id:string;
+    public printerName; // printerName saved
+    public printerConnect=true;
+    public navController:NavController;
+    public login:boolean=false;
 
     constructor(private platform:Platform){
         console.log("StorageProvider constructor"); 
@@ -41,6 +45,7 @@ export class StorageProvider{
         var decrypted=CryptoJS.AES.decrypt(encrypt,key);
         if(identifier=="id"){ // not good idea to save id here. Please make a function like getId
             this.id=decrypted.toString(CryptoJS.enc.Utf8);
+            console.log("save id into storageProvider "+this.id);
         }
         return decrypted.toString(CryptoJS.enc.Utf8);
     }

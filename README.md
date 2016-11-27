@@ -52,6 +52,8 @@ License: GPL
 
  $ionic plugin add https://github.com/sidchilling/Phonegap-SMS-reception-plugin.git
 
+ $ionic plugin add https://github.com/katzer/cordova-plugin-background-mode.git 
+
  $npm install crypto-js
 
  $npm install @types/crypto-js --save 
@@ -150,6 +152,10 @@ License: GPL
 
  $ionic plugin add https://github.com/srehanuddin/Cordova-Plugin-Bluetooth-Printer.git
 
+ $ionic plugin add https://github.com/sidchilling/Phonegap-SMS-reception-plugin.git
+
+ $ionic plugin add https://github.com/katzer/cordova-plugin-background-mode.git 
+
  $npm install crypto-js
 
  $npm install @types/crypto-js --save
@@ -205,8 +211,8 @@ License: GPL
 
 
 # Schedule
- 11월20일  안드로이드 앱완료 
- 12월5일   아이폰앱 승인 완료 
+ 11월30일  안드로이드 앱완료 
+ 12월20일   아이폰앱 승인 완료 
 
 # Ionic2 무료 강의 
 

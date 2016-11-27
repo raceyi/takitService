@@ -48,10 +48,12 @@ export class TabsPage {
     this.storageProvider.open().then(()=>{
 
     },()=>{
-        console.log("move into errorpage");
+           let alert = this.alertController.create({
+                        title: "디바이스 문제로 인해 장바구니가 정상동작하지 않습니다.",
+                        buttons: ['OK']
+                    });
+           alert.present();
 
-        this.storageProvider.errorReasonSet("디바이스 문제로 인해 앱을 정상적으로 실행할수 없습니다.");
-        this.app.getRootNav().push(ErrorPage);
     })
 
     this.storageProvider.tabMessageEmitter.subscribe((cmd)=>{
@@ -137,6 +139,11 @@ export class TabsPage {
                this.navController.pop();
             }else{
                 console.log("What can I do here? which page is shown now? Error or LoginPage");
+                this.storageProvider.db.close(()=>{
+
+                },(err)=>{
+                    console.log("!!!fail to close db!!!");
+                });
                 this.platform.exitApp();
             }
          }, 100/* high priority rather than login page */);
@@ -228,7 +235,12 @@ export class TabsPage {
   }
 
   ionViewWillUnload(){
-    console.log("ionViewWillUnload-tabs");
+    console.log("!!!ionViewWillUnload-tabs!!!");
+    this.storageProvider.db.close(()=>{
+
+    },(err)=>{
+        console.log("!!!fail to close db!!!");
+    });
   }
 
   home(event){
@@ -298,8 +310,8 @@ export class TabsPage {
                 
                 var additionalData:any=data.additionalData;
                 if(additionalData.GCMType==="order"){
-                    this.storageProvider.messageEmitter.emit(JSON.parse(additionalData.custom));//  만약 shoptab에 있다면 주문목록을 업데이트 한다. 만약 tab이라면 메시지를 보여준다. 
-
+                    this.storageProvider.messageEmitter.emit(additionalData.custom);//  만약 shoptab에 있다면 주문목록을 업데이트 한다. 만약 tab이라면 메시지를 보여준다. 
+                    console.log("show alert");
                     let alert = this.alertController.create({
                         title: data.title,
                         subTitle: data.message,

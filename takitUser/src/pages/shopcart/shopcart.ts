@@ -1,9 +1,10 @@
 import {Component,ViewChild,ElementRef} from "@angular/core";
-import {NavController,NavParams,Content,AlertController} from 'ionic-angular';
+import {NavController,NavParams,Content,AlertController,Tabs} from 'ionic-angular';
 import {StorageProvider} from '../../providers/storageProvider';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
 import {ConfigProvider} from '../../providers/ConfigProvider';
+declare var cordova:any;
 
 @Component({
     selector:'page-shopcart',
@@ -106,20 +107,66 @@ export class ShopCartPage{
              this.http.post(ConfigProvider.serverAddress+"/saveOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                  console.log(res); 
                  var result:string=res.result;
-                 if(result=="success"){
+                  if(result=="success"){
+                    this.storageProvider.messageEmitter.emit(res.order);
+                    var cart={menus:[],total:0};
+                    this.storageProvider.saveCartInfo(this.storageProvider.takitId,JSON.stringify(cart)).then(()=>{
+                        
+                    },()=>{
+                            //move into shophome
+                            let alert = this.alertController.create({
+                                    title: '장바구니 정보 업데이트에 실패했습니다',
+                                    buttons: ['OK']
+                                });
+                                alert.present();
+                    });
+                    console.log("storageProvider.run_in_background: "+this.storageProvider.run_in_background);
+                    if(this.storageProvider.run_in_background==false){
+                        let confirm = this.alertController.create({
+                            title: '주문에 성공하였습니다.'+'주문번호['+res.order.orderNO+']',
+                            message: '[주의]앱을 종료하시면 주문알림을 못받을수 있습니다. 주문알림을 받기 위해 앱을 계속 실행하시겠습니까?',
+                            buttons: [
+                            {
+                                text: '아니오',
+                                handler: () => {
+                                    console.log('Disagree clicked');
+                                    // report it to tabs page
+                                    this.storageProvider.tabMessageEmitter.emit("stopEnsureNoti"); 
+                                    //move into shophome
+        +                           this.storageProvider.shopTabRef.select(3);
+                                    return;
+                                }
+                            },
+                            {
+                                text: '네',
+                                handler: () => {
+                                    console.log('cordova.plugins.backgroundMode.enable');
+                                    this.storageProvider.tabMessageEmitter.emit("backgroundEnable");
+                                    cordova.plugins.backgroundMode.enable(); 
+        +                           this.storageProvider.shopTabRef.select(3);
+                                    return;
+                                }
+                            }
+                            ]
+                        });
+                        confirm.present();
+                    }else{
                         let alert = this.alertController.create({
-                            title: '주문에 성공했습니다.',
-                            buttons: ['OK']
+                                title: '주문에 성공하였습니다.'+'주문번호['+res.order.orderNO+']',
+                                subTitle: '[주의]앱을 종료하시면 주문알림을 못받을수 있습니다.' ,
+                                buttons: ['OK']
                         });
                         alert.present().then(()=>{
-                        var cart={menus:[],total:0};
-                        this.storageProvider.saveCartInfo(this.storageProvider.takitId,JSON.stringify(cart)).then(()=>{
-                            this.navController.pop();   
-                        },(err)=>{
-                            console.log("saveCartInfo err");
-                            this.navController.pop();   
-                        });
-                        });
+                            this.storageProvider.shopTabRef.select(3);
+                        });  
+                    }
+                 }else{
+                    let alert = this.alertController.create({
+                        title: '주문에 실패하였습니다.',
+                        subTitle: '다시 주문해주시기 바랍니다.',
+                        buttons: ['OK']
+                    });
+                    alert.present();
                  }
              },(err)=>{
                  console.log("saveOrder err ");

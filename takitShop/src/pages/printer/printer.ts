@@ -2,8 +2,9 @@ import {Component,NgZone} from "@angular/core";
 import {NavController,NavParams,AlertController} from 'ionic-angular';
 import{ShopTablePage} from '../shoptable/shoptable';
 import {Splashscreen} from 'ionic-native';
-
 import {PrinterProvider} from '../../providers/printerProvider';
+import {StorageProvider} from '../../providers/storageProvider';
+import {Storage} from '@ionic/storage';
 
 @Component({
   selector: 'page-printer',
@@ -16,7 +17,8 @@ export class PrinterPage {
     printerEmitterSubscription;
 
   constructor(private navController: NavController, private navParams: NavParams,public printerProvider:PrinterProvider,
-                private alertController:AlertController,private ngZone:NgZone){
+                private alertController:AlertController,private ngZone:NgZone,public storage:Storage,
+                public storageProvider:StorageProvider){
            console.log("PrinterPage construtor");
   }
 
@@ -27,6 +29,7 @@ export class PrinterPage {
                 console.log("printer status:"+status);
                 this.ngZone.run(()=>{
                     this.printerStatus=status;
+                    console.log("ngZone=> change status into "+this.printerStatus);
                 });
         });
   }
@@ -116,4 +119,14 @@ export class PrinterPage {
                 alert.present();
             });
       }
+
+  savePrinter(){
+      this.storage.set('printer',this.printerProvider.printer);
+      this.storageProvider.printerName=this.printerProvider.printer;
+  }    
+
+
+  printerConnectChange(){
+
+  }
 }

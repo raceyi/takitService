@@ -8,16 +8,13 @@
       <button class="menu" color="white" ion-button icon-left full  menuClose (click)="openPrint()" >
         <ion-icon name="print"></ion-icon>&nbsp;&nbsp;프린터설정
       </button>
-      <button class="menu" color="white" ion-button icon-left full menuClose >
-        <ion-icon name="cash"></ion-icon>&nbsp;&nbsp;출금하기  
+      <button class="menu" color="white" ion-button icon-left full menuClose (click)="openCash()">
+        <ion-icon name="cash"></ion-icon>&nbsp;&nbsp;캐쉬관리  
       </button>
-      <button class="menu" color="white" ion-button icon-left full menuClose>
-        <ion-icon name="person"></ion-icon>&nbsp;&nbsp;비밀번호 
-      </button>
-      <button class="menu" color="white" ion-button icon-left full menuClose>
+      <button class="menu" color="white" ion-button icon-left full menuClose (click)="openServiceInfo()">
         <ion-icon name="information-circle"></ion-icon>&nbsp;&nbsp;서비스정보 
       </button>
-      <button class="menu" color="white" ion-button icon-left full menuClose>
+      <button class="menu" color="white" ion-button icon-left full menuClose (click)="openLogout()">
         <ion-icon name="log-out"></ion-icon>&nbsp;&nbsp;로그아웃 
       </button>
   </ion-content>

@@ -35,11 +35,14 @@ export class LoginPage {
       console.log("LoginPage construtor");
   }
  
-   ionViewDidEnter() {
+   //ionViewDidEnter() {
+  ionViewDidLoad(){
         console.log("Login page did enter");
         Splashscreen.hide();
         let dimensions = this.loginPageRef.getContentDimensions();
         this.scrollTop=dimensions.scrollTop;
+        this.storageProvider.login=true;
+        this.storageProvider.navController=this.navController;
   }
 
   shoplistHandler(userinfo){
@@ -70,22 +73,57 @@ export class LoginPage {
 
   facebookLogin(event){
       console.log('facebookLogin comes');
-          this.fbProvider.fblogin(this.dummyHandler,this.fbProvider).then((res:any)=>{
-              console.log("res:"+JSON.stringify(res));
-              var param:any={id:res.id};
-              if(res.hasOwnProperty("email")){
-                  param.email=res.email;
-              }
-              if(res.hasOwnProperty("id")){
-                  param.id=res.id;
-              }
-              if(res.hasOwnProperty("accessToken")){
-                  param.accessToken=res.accessToken;
-              }
-              this.navController.push(UserSecretPage,param);
-          },(err)=>{
-              console.log("facebook login failure");              
-          });    
+        // try facebook login
+        this.fbProvider.login().then((res:any)=>{
+                    console.log("...MyApp:"+JSON.stringify(res));
+                    console.log("res.shopUserInfo:"+JSON.stringify(res.shopUserInfo));
+                    if(res.result=="success"){
+                        //save shoplist
+                        this.shoplistHandler(res.shopUserInfo);
+                    }else if(res.result=='invalidId'){
+                        console.log("You have no right to access this app");
+                        //this.storageProvider.errorReasonSet('접근권한이 없습니다.');
+                        this.fbProvider.fblogin(this.dummyHandler,this.fbProvider).then((res:any)=>{
+                            console.log("res:"+JSON.stringify(res));
+                            var param:any={id:res.id};
+                            if(res.hasOwnProperty("email")){
+                                param.email=res.email;
+                            }
+                            if(res.hasOwnProperty("id")){
+                                param.id=res.id;
+                            }
+                            if(res.hasOwnProperty("accessToken")){
+                                param.accessToken=res.accessToken;
+                            }
+                            this.navController.push(UserSecretPage,param);
+                        },(err)=>{
+                            let alert = this.alertController.create({
+                                        title: '로그인 에러가 발생했습니다',
+                                        subTitle: '다시 시도해 주시기 바랍니다.',
+                                        buttons: ['OK']
+                                    });
+                            alert.present();
+                        });
+                    }else{
+                        console.log("invalid result comes from server-"+JSON.stringify(res));
+                        //this.storageProvider.errorReasonSet('로그인 에러가 발생했습니다');
+                        let alert = this.alertController.create({
+                                        title: '로그인 에러가 발생했습니다',
+                                        subTitle: '다시 시도해 주시기 바랍니다.',
+                                        buttons: ['OK']
+                                    });
+                        alert.present();
+                    }
+                },login_err =>{
+                    console.log(JSON.stringify(login_err));
+                    //this.storageProvider.errorReasonSet('로그인 에러가 발생했습니다'); 
+                    let alert = this.alertController.create({
+                        title: '로그인 에러가 발생했습니다',
+                        subTitle: '네트웍 상태를 확인하신후 다시 시도해 주시기 바랍니다.',
+                        buttons: ['OK']
+                    });
+                    alert.present();
+        });
   }
 
   dummyHandlerKakao(id){
@@ -97,13 +135,46 @@ export class LoginPage {
   }
 
   kakaoLogin(event){
-      console.log('kakaoLogin comes');
-                this.kakaoProvider.kakaologin(this.dummyHandlerKakao,this.kakaoProvider).then((res:any)=>{
-              var param:any={id:res.id};
-              this.navController.push(UserSecretPage,param);
-          },(err)=>{
-              console.log("kakao login failure");              
-          });   
+        console.log('kakaoLogin comes');
+      //try kakaoLogin
+        this.kakaoProvider.login().then((res:any)=>{
+                console.log("MyApp:"+JSON.stringify(res));
+                if(res.result=="success"){
+                    //save shoplist
+                    this.shoplistHandler(res.shopUserInfo);
+                }else if(res.result=='invalidId'){
+                    console.log("You have no right to access this app");
+                    this.kakaoProvider.kakaologin(this.dummyHandlerKakao,this.kakaoProvider).then((res:any)=>{
+                        var param:any={id:res.id};
+                        this.navController.push(UserSecretPage,param);
+                    },(err)=>{
+                        console.log("kakao login failure"); 
+                        let alert = this.alertController.create({
+                                        title: '로그인 에러가 발생했습니다',
+                                        subTitle: '다시 시도해 주시기 바랍니다.',
+                                        buttons: ['OK']
+                                    });
+                        alert.present();
+                    });  
+                }else{
+                    console.log("invalid result comes from server-"+JSON.stringify(res));
+                    this.storageProvider.errorReasonSet('로그인 에러가 발생했습니다');
+                    let alert = this.alertController.create({
+                                    title: '로그인 에러가 발생했습니다',
+                                    subTitle: '다시 시도해 주시기 바랍니다.',
+                                    buttons: ['OK']
+                                });
+                    alert.present();
+                }
+            },login_err =>{
+                //console.log(JSON.stringify(login_err));
+                let alert = this.alertController.create({
+                        title: '로그인 에러가 발생했습니다',
+                        subTitle: '네트웍 상태를 확인하신후 다시 시도해 주시기 바랍니다.',
+                        buttons: ['OK']
+                    });
+                    alert.present();
+        });
   }
 
   emailLogin(event){
@@ -142,18 +213,30 @@ export class LoginPage {
                                     this.storage.set('password',encodeURI(encrypted));
                                     this.shoplistHandler(res.shopUserInfo);   
                                 }else if(res.result=='invalidId'){
-                                    console.log("You have no right to access this app");
-                                    this.storageProvider.errorReasonSet('접근권한이 없습니다.');
-                                    this.navController.setRoot(ErrorPage);
+                                    let alert = this.alertController.create({
+                                                title: '회원 정보가 일치하지 않습니다.',
+                                                buttons: ['OK']
+                                            });
+                                            alert.present().then(()=>{
+                                              console.log("alert is done");
+                                            });
                                 }else{
                                     console.log("invalid result comes from server-"+JSON.stringify(res));
-                                    this.storageProvider.errorReasonSet('로그인 에러가 발생했습니다');
-                                    this.navController.setRoot(ErrorPage);
+                                    let alert = this.alertController.create({
+                                        title: '로그인 에러가 발생했습니다',
+                                        subTitle: '다시 시도해 주시기 바랍니다.',
+                                        buttons: ['OK']
+                                    });
+                                    alert.present();
                                 }
                             },login_err =>{
                                 console.log(JSON.stringify(login_err));
-                                this.storageProvider.errorReasonSet('로그인 에러가 발생했습니다');
-                                this.navController.setRoot(ErrorPage); 
+                                let alert = this.alertController.create({
+                                        title: '로그인 에러가 발생했습니다',
+                                        subTitle: '네트웍 상태를 확인하신후 다시 시도해 주시기 바랍니다.',
+                                        buttons: ['OK']
+                                    });
+                                    alert.present();
                     }); 
   }
 
