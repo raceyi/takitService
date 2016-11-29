@@ -5,7 +5,6 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const async = require('async');
 const mariaDB = require('./mariaDB');
-const dynamoDB = require('./dynamoDB');
 const http = require('http');
 const https = require('https');
 const config = require('../config');
@@ -455,6 +454,67 @@ router.passwordReset=function(req,res){
 	}
 	
 
+}
+
+/// 주문 알림 모드 -> user가 24시간 내의 주문 있으면, 앱 계속 실행 중이도록! 
+router.orderNotiMode=function(req,res){
+   console.log("comes orderNotiMode!!!");
+   /*1. 24시간 내의 주문을 보내주어야 함.
+      'paid', 'checked'*/
+
+   mariaDB.getOrdersNotiMode(req.session.uid,function(err,orders){
+      if(err){
+         console.log(err);
+         res.send(JSON.stringify({"result":"failure"}));
+      }else{
+         console.log("getOrdersNotiMode result:"+JSON.stringify(orders));
+         const response = {};
+         response.orders = orders;
+         response.result = "success";
+         res.send(JSON.stringify(response));
+      }
+   });
+};
+
+router.sleepMode=function(req,res){
+   console.log("sleepMode comes!!!!");
+
+	//1. SMS Noti 끄기
+	mariaDB.changeSMSNoti(req.session.uid,"off",function(err,result){
+      if(err){
+         res.send(JSON.stringify({"result":"failure"}));
+      }else{
+         console.log("SMS noti off success");
+      }
+   });
+
+   redisCli.keys(req.session.uid+"_gcm_*",function(err,result){
+      if(err){
+         console.log(err);
+         res.send(JSON.stringify({"result":"failure"}));
+      }else{
+         console.log(result);
+         for(let i=0; i<result.length; i++){
+            console.log(result[i]);
+            redisCli.del(result[i],function(err,reply){
+               if(err){
+                  console.log(err);
+                  res.send(JSON.stringify({"result":"failure"}));
+               }else{
+                  console.log(reply);
+               }
+            });
+
+            if(i === result.length-1){
+               res.send(JSON.stringify({"result":"success"}));
+            }
+         }
+
+         if(result[0] === null || result[0] === undefined){
+            res.send(JSON.stringify({"result":"success"}));
+         }
+      }
+   });
 }
 
 module.exports = router;

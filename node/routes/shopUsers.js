@@ -1,7 +1,6 @@
 var express = require('express');
 var router = express.Router();
 var request = require('request');
-var dynamoDB = require('./dynamoDB');
 var mariaDB=require('./mariaDB');
 var s3=require('./s3');
 var d3=require('d3-queue');
@@ -140,39 +139,50 @@ router.kakaoLogin=function(req,res){
 	});
 }
 
+
 router.emailLogin=function(req,res){
-	mariaDB.exShopUserEmail(req.referenceId,req.password,function(err,shopUserInfo){
+	mariaDB.existEmailAndPassword(req.body.email, req.body.password, function(err,result){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"failure","error":err}));
+			res.send(JSON.stringify({"result":"failure"}));
 		}else{
-			req.session.uid = shopUserInfo[0].userId;
-			const response={};
-         response.result="success";
+			mariaDB.existShopUser(req.body.referenceId,function(err,shopUserInfo){
+				if(err){
+					res.send(JSON.stringify({"result":"invalidId"}));
+				}else{
+					console.log("existShopUser function result:");
+					console.log(shopUserInfo);
+					req.session.uid = shopUserInfo[0].userId;
+			         //body.shopUserInfo={};
+		         const response={};
+		         response.result="success";
 
-         //delete secret info
-         for(let i=0; i<shopUserInfo.length; i++){
-            delete shopUserInfo[i].userId;
-            delete shopUserInfo[i].password;
-            delete shopUserInfo[i].salt;
-            delete shopUserInfo[i].shopPushId;
-         }
+		         //delete secret info
+		         for(let i=0; i<shopUserInfo.length; i++){
+		            delete shopUserInfo[i].userId;
+		            delete shopUserInfo[i].password;
+		            delete shopUserInfo[i].salt;
+		            delete shopUserInfo[i].shopPushId;
+		         }
 
-         response.shopUserInfo=shopUserInfo[0];
+		         response.shopUserInfo=shopUserInfo[0];
 
-         //여러개 shopList 하나로 합치기
-         let myShopList=[];
-         for(let i=0; i<shopUserInfo.length; i++){
-            let shopList = JSON.parse(shopUserInfo.myShopList[i]);
-            myShopList[i]=shopList[0];
+		         //여러개 shopList 하나로 합치기
+		         let myShopList=[];
+		         for(let i=0; i<shopUserInfo.length; i++){
+		            let shopList = JSON.parse(shopUserInfo.myShopList[i]);
+		            myShopList[i]=shopList[0];
 
-         }
-         response.shopUserInfo.myShopList=JSON.stringify(myShopList); 
-			console.log(JSON.stringify(response));
-         res.send(JSON.stringify(response));
+		         }
+		         response.shopUserInfo.myShopList=JSON.stringify(myShopList);
+		         console.log(JSON.stringify(response));
+		         res.send(JSON.stringify(response));
+				}
+			});
 		}
 	});
 }
+
 
 router.secretLogin=function(req,res){	
 	console.log("enter secretLogin");	
@@ -181,57 +191,182 @@ router.secretLogin=function(req,res){
 	//2. facebook 가입이면 token 확인
 			
 	//3. shopUserInfo에 존재하는 user인지 확인
-	mariaDB.insertShopUser(req.body.referenceId,req.body.email,req.body.password,function(err,shopUserInfos){
-		if(err){
-			res.end(JSON.stringify({"result":"failure"}));		
-		}else{
-			let referenceName=shopUserInfos[0].referenceId.substring(0,8);
-			
-			req.session.uid = shopUserInfos[0].userId;
-         const response={};
-         response.result="success";
 
-         //delete secret info
-         for(let i=0; i<shopUserInfos.length; i++){
-            delete shopUserInfos[i].userId;
-            delete shopUserInfos[i].password;
-            delete shopUserInfos[i].salt;
-            delete shopUserInfos[i].shopPushId;
-         }
-
-         response.shopUserInfo=shopUserInfos[0];
-
-         //여러개 shopList 하나로 합치기
-         let myShopList=[];
-         for(let i=0; i<shopUserInfos.length; i++){
-            let shopList = JSON.parse(shopUserInfos[i].myShopList);
-            myShopList[i]=shopList[0];
-
-         }
-         response.shopUserInfo.myShopList=JSON.stringify(myShopList);
-         console.log(JSON.stringify(response));
+	if(req.body.referenceId.substring(0,5) === 'email'){
+		console.log('secretLogin email!!');		
 		
-
-		/*	if(referenceName === 'facebook'){;
-				checkFacebookToken(FACEBOOK_SHOP_APP_TOKEN,req.body.token,function(err,result){
+		mariaDB.existEmailAndPassword(req.body.email, req.body.password, function(err,result){
+			if(err){
+				console.log(err);
+				res.send(JSON.stringify({"result":"failure"}));
+			}else{
+				console.log(result);
+				mariaDB.updateShopRefId(result.userId,req.body.referenceId, function(err,result){
 					if(err){
-						console.log(JSON.stringify(err));
-						res.send(JSON.stringify({'result':'facebook token err'}));
-					}else{		
-                  res.send(JSON.stringify(response));
-					} 
+						console.log(err);
+						res.send(JSON.stringify({"result":"failure"}));
+					}else{
+						console.log(result);
+					}
 				});
-			}else{*/
-				res.send(JSON.stringify(response));
-        // }
-		}
-	});
+
+				mariaDB.getShopUserInfo(result.userId,function(err,shopUserInfos){
+					if(err){
+						console.log(err);
+						res.send(JSON.stringify({"result":"failure"}));
+					}else{
+						console.log(result);		
+         			req.session.uid = shopUserInfos[0].userId;
+         			const response={};
+         			response.result="success";
+
+         			//delete secret info
+         			for(let i=0; i<shopUserInfos.length; i++){
+            			delete shopUserInfos[i].userId;
+            			delete shopUserInfos[i].password;
+            			delete shopUserInfos[i].salt;
+            			delete shopUserInfos[i].shopPushId;
+         			}
+
+         			response.shopUserInfo=shopUserInfos[0];
+						response.shopUserInfo.referenceId = req.body.referenceId;						
+
+         			//여러개 shopList 하나로 합치기
+         			let myShopList=[];
+         			for(let i=0; i<shopUserInfos.length; i++){
+            			let shopList = JSON.parse(shopUserInfos[i].myShopList);
+            			myShopList[i]=shopList[0];
+         			}
+         			response.shopUserInfo.myShopList=JSON.stringify(myShopList);
+         			console.log(JSON.stringify(response));
+
+            		res.send(JSON.stringify(response));
+					}
+				});
+			}
+		});
+	}else{
+		console.log('secretLogin facebook or kakaotalk');
+		router.existUserEmail(req.body.email,function(err,userInfo){
+	      if(err){
+   	      console.log(err);
+				res.send(JSON.stringify({"result":"failure"}));
+			}else{
+				router.getShopUserInfo(userInfo.userId,function(err,shopUserInfos){
+            	if(err){
+						console.log(err);
+               	res.send(JSON.stringify({"result":"failure"}));
+            	}else{
+						let secretPassword = crypto.createHash('sha256').update(password+shopUserInfos[0].salt).digest('hex');
+
+               	if(secretPassword === shopUserInfos[0].password){
+                  	console.log("password success!!");
+						
+							mariaDB.updateShopRefId(userInfo.userId,req.body.referenceId,function(err,result){
+								if(err){
+									console.log(err);
+									res.send(JSON.stringify({"result":"failure"}));
+								}else{
+									console.log(result);
+								}
+							});
+							
+							req.session.uid = shopUserInfos[0].userId;
+            			const response={};
+            			response.result="success";
+
+            			//delete secret info
+            			for(let i=0; i<shopUserInfos.length; i++){
+               			delete shopUserInfos[i].userId;
+               			delete shopUserInfos[i].password;
+               			delete shopUserInfos[i].salt;
+               			delete shopUserInfos[i].shopPushId;
+            			}
+
+            			response.shopUserInfo=shopUserInfos[0];
+							response.shopUserInfo.referenceId = req.body.referenceId;
+
+            			//여러개 shopList 하나로 합치기
+            			let myShopList=[];
+            			for(let i=0; i<shopUserInfos.length; i++){
+               			let shopList = JSON.parse(shopUserInfos[i].myShopList);
+               			myShopList[i]=shopList[0];
+            			}
+            			response.shopUserInfo.myShopList=JSON.stringify(myShopList);
+            			console.log(JSON.stringify(response));
+            			res.send(JSON.stringify(response));
+	
+						}
+					}
+				});
+			}
+		});
+		
+	}
 }
 
 
 
 
+router.todayManager=function(req,res){
 
+	console.log("todayManager comes!!!");
+	//1. mariaDB에서 이전 manager 찾기
+	mariaDB.getShopPushId(req.body.takitId,function(err,result){
+		//2.sendGCM - manager변경 된다는 내용
+		let title = "manager 변경 : "+req.body.takitId; 
+		let content = req.body.takitId+"의 manager가 변경됩니다."		
+
+		noti.sendGCM(config.SHOP_SERVER_API_KEY,title,content) //(API_KEY,title,content, custom, GCMType, messageId, pushId, platform, next)		
+		
+		mariaDB.changeManager(req.session.uid, req.body.takitId, function(err,result){
+      	if(err){
+         	console.log(err);
+         	res.send(JSON.stringify({"result":"failure"}));
+      	}else{
+         	console.log(result);
+         	res.send(JSON.stringify({"result":"success"}));
+
+
+      	}	
+   	});
+	}); 
+
+};
+
+router.sleepMode=function(req,res){
+   console.log("shop sleepMode comes!!!!");
+   redisCli.keys(req.session.uid+"_gcm_*",function(err,result){
+      if(err){
+         console.log(err);
+         res.send(JSON.stringify({"result":"failure"}));
+      }else{
+         console.log(result);
+         for(let i=0; i<result.length; i++){
+            console.log(result[i]);
+            redisCli.del(result[i],function(err,reply){
+               if(err){
+                  console.log(err);
+                  res.send(JSON.stringify({"result":"failure"}));
+               }else{
+                  console.log(reply);
+               }
+            });
+
+            if(i === result.length-1){
+               res.send(JSON.stringify({"result":"success"}));
+            }
+         }
+
+         if(result[0] === null || result[0] === undefined){
+            res.send(JSON.stringify({"result":"success"}));
+         }
+      }
+   });
+}
+
+
+/*
 //!!!Please check whether requestor is manager or not!!!
 router.removeMenu=function(req,res,next){ //remove a menu
 	var no= req.body.takitId+";"+req.body.categoryNumber;
@@ -240,15 +375,15 @@ router.removeMenu=function(req,res,next){ //remove a menu
 	console.log("no:"+no+" name:"+name);
 	dynamoDB.removeMenu(no,name,function(menu){
 		console.log("remove s3 menu image");
-		/* Please find the reason why fail to remove a file from S3 with Missing credentials in config
-		s3.remove_menu_image(menu.imagePath,function(){
-			console.log("return success");
-			return res.end(JSON.stringify({result:"success"}));
-		},function(err){
-			console.log("err:"+err);
-			return res.end(JSON.stringify({result:"failure"}));
-		});
-		*/
+		// Please find the reason why fail to remove a file from S3 with Missing credentials in config
+		//s3.remove_menu_image(menu.imagePath,function(){
+		//	console.log("return success");
+		//	return res.end(JSON.stringify({result:"success"}));
+		//},function(err){
+		//	console.log("err:"+err);
+		//	return res.end(JSON.stringify({result:"failure"}));
+		//});
+		//
 		console.log("return success");
 		return res.end(JSON.stringify({result:"success"}));
 	},function(err){
@@ -457,7 +592,7 @@ router.modifyCategory=function(req,res,next){
 		}
 	});
 };
-
+*/
 router.sendGMSCouponMsg=function(api_key,pushid,MSGcontents,custom,next){
 	var sender = new gcm.Sender(api_key);
 	var title="coupon";
@@ -507,6 +642,7 @@ router.sendGMSCouponMsg=function(api_key,pushid,MSGcontents,custom,next){
 //var local_hour=local_order_time.substring(11,13);
 //console.log("hour:"+local_hour);
 
+/*
 router.couponSend=function(req,res,next){
 	
 
@@ -632,7 +768,7 @@ router.customerSearch=function(req,res,next){
 	//+customer(빈도,구매액)
 };
 
-
+*/
 
 
 module.exports = router;
