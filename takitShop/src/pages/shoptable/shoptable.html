@@ -3,8 +3,27 @@
     <button ion-button menuToggle>
       <ion-icon name="menu"></ion-icon>
     </button>
-    <ion-row>
-    <ion-title>타킷</ion-title>
+    <ion-row  *ngIf="!isAndroid">
+       <ion-col width-20 class="title">
+        타킷
+       </ion-col>
+       <ion-col width-80>
+          <button ion-button class="buttonsInHeader"  (click)="configureStore()">
+            <ion-icon [color]="getColorStore()" name="bulb"></ion-icon>
+          </button>
+          <button ion-button class="buttonsInHeader" (click)="enableManager()" color="primary">
+            <ion-icon name="person"></ion-icon>
+          </button>
+          <button ion-button class="buttonsInHeader" (click)="testPrint()">
+            <ion-icon name="print"></ion-icon>
+          </button>
+          <button ion-button class="buttonsInHeader" (click)="update()">
+            <ion-icon name="refresh"></ion-icon>
+          </button>
+       </ion-col>
+    </ion-row>
+    <ion-row *ngIf="isAndroid">
+    <ion-title> 타킷 </ion-title>
     <button ion-button class="buttonsInHeader"  (click)="configureStore()">
       <ion-icon [color]="getColorStore()" name="bulb"></ion-icon>
     </button>

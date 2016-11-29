@@ -274,7 +274,7 @@ export class TabsPage {
             this.pushNotification.on('registration',(response)=>{
               console.log("registration:"+JSON.stringify(response));
               console.log("registration..."+response.registrationId);
-              var platform
+              var platform;
               if(this.platform.is("android")){
                   platform="android";
               }else if(this.platform.is("ios")){
@@ -286,7 +286,7 @@ export class TabsPage {
               let body = JSON.stringify({registrationId:response.registrationId, platform: platform});
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server:"+ ConfigProvider.serverAddress);
+              console.log("server:"+ ConfigProvider.serverAddress +" body:"+JSON.stringify(body));
               this.http.post(ConfigProvider.serverAddress+"/registrationId",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                   console.log("registrationId sent successfully");
                   var result:string=res.result;

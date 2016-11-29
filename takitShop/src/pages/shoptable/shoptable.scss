@@ -1,6 +1,16 @@
 page-shoptable {
     ion-header {
          position: relative !important; 
+
+         .title{
+            margin-top: auto !important;
+            margin-bottom: auto !important;
+            font-size: 1.4rem !important;
+         }
+         .toolbar-ios ion-title {
+            position:relative !important;
+         }
+
          .buttonsInHeader{
             background-color: transparent;
             color: #424242;

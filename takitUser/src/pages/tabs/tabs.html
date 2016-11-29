@@ -4,10 +4,14 @@
       <ion-icon name="menu"></ion-icon>
     </button>
     <ion-row>
+      <ion-col width-80 class="title">
     <ion-title>타킷</ion-title>
+    </ion-col>
+    <ion-col width-20>
     <button ion-button class="buttonsInHeader"  (click)="configureBackgrondMode()">
       <ion-icon [color]="getColorBackgroundMode()" name="notifications"></ion-icon>
     </button>
+    </ion-col>
     </ion-row>
   </ion-navbar>
 </ion-header>

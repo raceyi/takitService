@@ -26,13 +26,15 @@ export class ShopTablePage {
   pushNotification:PushNotification;
   infiniteScroll:any=undefined;
   smsInboxPlugin;
+  isAndroid;
 
   constructor(public navController: NavController,private app:App,private storageProvider:StorageProvider,
       private http:Http,private alertController:AlertController,private ngZone:NgZone,private ionicApp: IonicApp,
       private printerProvider:PrinterProvider,private platform:Platform,private menuCtrl: MenuController,
       public viewCtrl: ViewController) {
     console.log("ShopTablePage constructor");
-    
+    this.isAndroid=this.platform.is("android");
+
     this.registerPushService();
     
     var date=new Date();
@@ -50,15 +52,17 @@ export class ShopTablePage {
   }
 
     ionViewDidLoad(){
-          console.log("SelectorPage did enter");
+          console.log("shoptable page did enter");
           Splashscreen.hide();
           cordova.plugins.backgroundMode.setDefaults({
               title:  '타킷운영자가 실행중입니다',
               ticker: '주문알림 대기',
               text:   '타킷운영자가 실행중입니다'
           });
+          
           cordova.plugins.backgroundMode.enable(); //takitShop always runs in background Mode
 
+   if(this.platform.is("android")){
    // register backbutton handler
     let ready = true;
    //refer to https://github.com/driftyco/ionic/issues/6982
@@ -126,7 +130,7 @@ export class ShopTablePage {
                 this.platform.exitApp();
             }
          }, 100/* high priority rather than login page */);
-
+   }
 
         if(this.platform.is("android")){
             if(this.smsInboxPlugin==undefined)
@@ -420,7 +424,7 @@ export class ShopTablePage {
               let body = JSON.stringify({registrationId:response.registrationId,takitId:this.storageProvider.myshop.takitId,platform:platform});
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server:"+ ConfigProvider.serverAddress);
+              console.log("server:"+ ConfigProvider.serverAddress+" body:"+JSON.stringify(body));
               this.http.post(ConfigProvider.serverAddress+"/shop/registrationId",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                   console.log("registrationId sent successfully");
              },(err)=>{
@@ -444,6 +448,7 @@ export class ShopTablePage {
                        this.ngZone.run(()=>{
                         var incommingOrder=data.additionalData.custom;
                         console.log("incommingOrder:"+ incommingOrder);
+                        console.log("incomingOrder.orderStatus:"+ incommingOrder.orderStatus);
                         var i=0;
                         for(;i<this.orders.length;i++){
                                 console.log(this.orders[i].orderId+incommingOrder.orderId);
