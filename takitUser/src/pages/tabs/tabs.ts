@@ -124,9 +124,19 @@ export class TabsPage {
                           });
                           this.stopEnsureNoti().then(()=>{
                                 console.log("success stopEnsureNoti()");
+                                this.storageProvider.db.close(()=>{
+
+                                },(err)=>{
+                                    console.log("!!!fail to close db!!!");
+                                });
                                 this.platform.exitApp();
                           },(err)=>{
                                 console.log("fail in stopEnsureNoti() - Whan can I do here? nothing");
+                                this.storageProvider.db.close(()=>{
+
+                                },(err)=>{
+                                    console.log("!!!fail to close db!!!");
+                                });
                                 this.platform.exitApp();
                           });
                         }
@@ -171,8 +181,8 @@ export class TabsPage {
     });
 
     //get the orders in progress within 24 hours from server
-    this.getOrdersInProgress().then((orders)=>{
-        if(orders==undefined || orders==null){
+    this.getOrdersInProgress().then((orders:any)=>{
+        if(orders==undefined || orders==null ||orders.length==0){
             console.log('cordova.plugins.backgroundMode.disable');
             cordova.plugins.backgroundMode.disable(); 
             this.ngZone.run(()=>{
@@ -319,8 +329,8 @@ export class TabsPage {
                     });
                     alert.present();
                     // check if order in progress exists or not
-                    this.getOrdersInProgress().then((orders)=>{
-                          if(orders==undefined || orders==null){
+                    this.getOrdersInProgress().then((orders:any)=>{
+                          if(orders==undefined || orders==null || orders.length==0){
                               // off run_in_background 
                               console.log("no more order in progress within 24 hours");
                               console.log("cordova.plugins.backgroundMode.disable");
@@ -452,8 +462,9 @@ export class TabsPage {
 
             this.http.post(encodeURI(ConfigProvider.serverAddress+"/orderNotiMode"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                   console.log("res:"+JSON.stringify(res));
+                  console.log("res.result:"+res.result);
                   if(res.result=="success"){
-                    resolve(res.order);
+                    resolve(res.orders);
                   }else{
                     reject("server error");
                   }

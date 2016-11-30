@@ -4,6 +4,7 @@ import {StorageProvider} from '../../providers/storageProvider';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
 import {ConfigProvider} from '../../providers/ConfigProvider';
+declare var cordova:any;
 
 @Component({
     selector:'page-shopmypage', 
@@ -179,6 +180,21 @@ export class ShopMyPage{
                     }
                 }
               });
+                this.getOrdersInProgress().then((orders:any)=>{
+                        if(orders==undefined || orders==null || orders.length==0){
+                            // off run_in_background 
+                            console.log("no more order in progress within 24 hours");
+                            console.log("cordova.plugins.backgroundMode.disable");
+                            cordova.plugins.backgroundMode.disable();
+                            this.ngZone.run(()=>{
+                                this.storageProvider.run_in_background=false;
+                                //change color of notification button
+                            });
+                        }
+                },()=>{
+
+                });
+
             }else{
               //Please give user a notification
               let alert = this.alertController.create({
@@ -220,5 +236,26 @@ export class ShopMyPage{
         if(this.infiniteScroll!=undefined)
             this.infiniteScroll.enable(true);
         this.getOrders(-1);
+    }
+
+    getOrdersInProgress(){
+            return new Promise((resolve,reject)=>{
+                let headers = new Headers();
+                headers.append('Content-Type', 'application/json');
+                console.log("!!!server:"+ ConfigProvider.serverAddress+"/orderNotiMode");
+                let body = JSON.stringify({});
+
+                this.http.post(encodeURI(ConfigProvider.serverAddress+"/orderNotiMode"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                    console.log("res:"+JSON.stringify(res));
+                    console.log("res.result:"+res.result);
+                    if(res.result=="success"){
+                        resolve(res.orders);
+                    }else{
+                        reject("server error");
+                    }
+                },(err)=>{
+                    reject("http error");  
+                });
+        });         
     }
 }

@@ -396,6 +396,17 @@ export class ShopTablePage {
       });
     }
 
+      hasItToday(){
+        var endDate= new Date(this.endDate);
+        var currDate=new Date(); 
+        if(endDate.getFullYear()===currDate.getFullYear() 
+          && endDate.getMonth()===currDate.getMonth()
+          && endDate.getDate()===currDate.getDate()){
+            return true;
+        }else
+            return false;
+      }
+
       registerPushService(){ // Please move this code into tabs.ts
             this.pushNotification=Push.init({
                 android: {
@@ -439,14 +450,19 @@ export class ShopTablePage {
             this.pushNotification.on('notification',(data:any)=>{
               console.log("!!! shoporder-data:"+JSON.stringify(data));
               console.log("!!! shoporder-data.custom:"+JSON.stringify(data.additionalData.custom));
-                if(this.Option!="period" ||(this.Option=="period" && true/* it has today */ )){
+                if(this.Option!="period" ||(this.Option=="period" && this.hasItToday() )){
                      //Please check if order is new or existing one and then add it or modify it into orders.
                     var additionalData:any=data.additionalData;
                     console.log("additionalData");
                     if(additionalData.GCMType==="order"){
                       console.log("order is comming "+data.additionalData.custom);
                        this.ngZone.run(()=>{
-                        var incommingOrder=data.additionalData.custom;
+                        var incommingOrder; 
+                        //Please look for the reason why the format of custom fields are different.
+                        if(typeof data.additionalData.custom === 'string')
+                            incommingOrder=JSON.parse(data.additionalData.custom);
+                        else
+                            incommingOrder=data.additionalData.custom;
                         console.log("incommingOrder:"+ incommingOrder);
                         console.log("incomingOrder.orderStatus:"+ incommingOrder.orderStatus);
                         var i=0;

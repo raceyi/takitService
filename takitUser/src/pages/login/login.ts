@@ -15,6 +15,9 @@ import {PasswordPage} from '../password/password';
 import {StorageProvider} from '../../providers/storageProvider';
 import {Storage} from "@ionic/storage";
 
+import {ConfigProvider} from '../../providers/ConfigProvider';
+import {Http,Headers} from '@angular/http';
+
 @Component({
   selector:'page-login',
   templateUrl: 'login.html',
@@ -34,7 +37,7 @@ export class LoginPage {
                 private kakaoProvider:KakaoProvider, public storage:Storage,
                 private storageProvider:StorageProvider,private platform:Platform,
                 private alertController:AlertController,private ionicApp: IonicApp,
-                private menuCtrl: MenuController){
+                private menuCtrl: MenuController,private http:Http){
       console.log("LoginPage construtor");
   }
  
@@ -262,4 +265,26 @@ export class LoginPage {
             this.loginPageRef.scrollTo(0, dimensions.contentHeight);
   }
 
+  tour(){
+      console.log("tour");
+      /*
+      this.emailProvider.EmailServerLogin(ConfigProvider.tourEmail,ConfigProvider.tourPassword).then((res:any)=>{
+                console.log("emailLogin-login page:"+JSON.stringify(res));
+                if(res.result=="success"){
+
+                }else{
+
+                }
+      },(err)=>{
+                if(err.hasOwnProperty("status") && err.status==401)
+                    console.log("Please login again and then call http request with the same parameter");
+                });
+                let alert = this.alertController.create({
+                    title: '네트웍 상태를 확인하신후 다시 시도해 주시기 바랍니다.',
+                    buttons: ['OK']
+                });
+                alert.present();
+      });
+      */
+  }
 }

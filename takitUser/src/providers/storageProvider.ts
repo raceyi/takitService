@@ -4,6 +4,7 @@ import {SQLite} from 'ionic-native';
 import {ConfigProvider} from './ConfigProvider';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
+import 'rxjs/add/operator/timeout';
 
 declare var CryptoJS:any;
 
@@ -128,7 +129,7 @@ export class StorageProvider{
 
    dropCartInfo(){
        return new Promise((resolve,reject)=>{
-           this.db.executeSql("drop table if exists carts").then(
+           this.db.executeSql("drop table if exists carts").timeout(1000/* 1 second */).then(
                 (error)=>{
                     console.log("fail to drop cart table "+JSON.stringify(error));
                     reject();

@@ -230,37 +230,37 @@ export class MyApp {
             if(this.storageProvider.id=="facebook"){
                 this.fbProvider.logout().then((result)=>{
                     console.log("fbProvider.logout() result:"+JSON.stringify(result));
-                    this.removeStoredInfo();
                     console.log("cordova.plugins.backgroundMode.disable");
                     cordova.plugins.backgroundMode.disable();
+                    this.removeStoredInfo();
                 },(err)=>{
                     console.log("facebook-logout failure");
-                    this.removeStoredInfo();
                     console.log("cordova.plugins.backgroundMode.disable");
                     cordova.plugins.backgroundMode.disable();
+                    this.removeStoredInfo();
                 });
             }else if(this.storageProvider.id=="kakao"){
                 console.log("call kakaoProvider.logout");
                 this.kakaoProvider.logout().then((res)=>{
                     console.log("kakao logout success");
-                    this.removeStoredInfo();
                     console.log("cordova.plugins.backgroundMode.disable");
                     cordova.plugins.backgroundMode.disable();
+                    this.removeStoredInfo();
                 },(err)=>{
                     console.log("kakao-logout failure");
-                    this.removeStoredInfo();
                     console.log("cordova.plugins.backgroundMode.disable");
                     cordova.plugins.backgroundMode.disable();
+                    this.removeStoredInfo();
                 });
             }else{
                 this.emailProvider.logout().then(()=>{
-                    this.removeStoredInfo();
                     console.log("cordova.plugins.backgroundMode.disable");
                     cordova.plugins.backgroundMode.disable();
+                    this.removeStoredInfo();
                 },(err)=>{
-                    this.removeStoredInfo();
                     console.log("cordova.plugins.backgroundMode.disable");
                     cordova.plugins.backgroundMode.disable();
+                    this.removeStoredInfo();
                 });
             }   
           }

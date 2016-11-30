@@ -104,6 +104,9 @@ License: GPL
         public static kakaoTakitUser="xxxxx";////Rest API key
         public static kakaoOauthUrl="xxxx"; //return url
 
+        public static tourEmail="xxxxx";
+        public static tourPassword="xxxx";
+
         constructor(){
             console.log("ConfigProvider constructor"); 
         }

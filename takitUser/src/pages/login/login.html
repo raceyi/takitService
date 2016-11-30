@@ -34,7 +34,14 @@
   </div>   
   
   <div padding>
-    <button ion-button full color="primary" (click)="signup($event)"> 회원가입하기 </button>
+    <ion-row>
+      <ion-col width-50>
+        <button ion-button full color="primary" (click)="tour()"> <ion-icon name="information-circle"></ion-icon>둘러보기</button>
+      </ion-col>
+      <ion-col width-50>
+        <button ion-button full color="primary" (click)="signup($event)"> 회원가입하기 </button>
+      </ion-col>
+    </ion-row>
   </div>  
 </ion-content>
 
