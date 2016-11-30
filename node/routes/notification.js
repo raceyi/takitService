@@ -7,6 +7,8 @@ let nodemailer = require("nodemailer");
 let config = require('../config');
 
 router.sendSMS=function(content,receivers){
+	console.log("comes sendSMS : "+content);
+	console.log("phone number : "+receivers);
 
 	var credential = 'Basic '+new Buffer(config.SMS.APPID+':'+config.SMS.APIKEY).toString('base64');
 
@@ -50,29 +52,49 @@ router.sendSMS=function(content,receivers){
 	});
 }
 
-router.sendGCM=function(API_KEY,title,content, custom, GCMType, messageId, pushId,next){
+
+
+
+router.sendGCM=function(API_KEY,title,content, custom, GCMType, messageId, pushId, platform, next){
 
 	let sender = new gcm.Sender(API_KEY);
 
 	console.log("content:"+content);
 
-	const message = new gcm.Message({
-		//priority: 'high',
-	    collapseKey: 'takit',
-	    contentAvailable: true,
-	    delayWhileIdle: false,
-	    timeToLive: 3,
-	    data: {
-			sound:'default',
-	      custom: custom,
-			GCMType: GCMType,
-			messageId:messageId
-	    },
-	    notification: {
+	let message;
+	
+	if(platform === "ios"){
+		message = new gcm.Message({
+			//priority: 'high',
+	    	collapseKey: 'takit',
+	    	timeToLive: 3,
+			contentAvailable: true,
+	    	data: {	
+				sound:'default',
+	      	custom: custom,
+				GCMType: GCMType,
+				notId:messageId,
+	   	},
+	   	notification: {
 	        title: title,
 	        body: content
-	    }
-	});
+	    	}
+		});
+	}else{
+		message = new gcm.Message({
+			collapseKey: 'takit',
+         timeToLive: 3,
+			data : {
+      		title : title,
+      		message : content,
+      		GCMType : GCMType,
+      		custom  : custom,
+      		"content-available": 1,
+      		notId: messageId,
+				sound:'default',
+    		}
+		});
+	}
 
 	console.log("title:"+title);
 	console.log("content:"+content);
@@ -91,7 +113,6 @@ router.sendGCM=function(API_KEY,title,content, custom, GCMType, messageId, pushI
 		}
 	});
 }
-
 
 router.sendEmail=function(email,subject,content, next){
 	const smtpTransport = nodemailer.createTransport({
@@ -122,6 +143,5 @@ router.sendEmail=function(email,subject,content, next){
 		}
 	});
 }
-
 
 module.exports = router;

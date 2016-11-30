@@ -27,11 +27,12 @@ var bodyParser = require('body-parser');
 var routes = require('./routes/index');
 var users = require('./routes/users');
 var s3= require('./routes/s3');
-var dynamoDB=require('./routes/dynamoDB');
 var mariaDB=require('./routes/mariaDB');
 var order=require('./routes/order');
 var shopUsers= require('./routes/shopUsers');
+let cash = require('./routes/cash');
 var config=require('./config');
+let tomcatServer=require("./routes/tomcatServer");
 
 var app = express();
 
@@ -133,36 +134,40 @@ app.all('*',function(req,res,next){
         	}else{
             var url=req.url.toString();
 				if((req.url==="/signup" || req.url==="/kakaoLogin" || req.url==="/emailLogin" || req.url === "/facebooklogin" ||
-            	    req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || 
+            	req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || 
 					req.url ==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset") 
 					&& req.method === "POST"){
-               		next();
-            	}else if(url.startsWith("/oauth") && req.method==="GET"){ // just for kakaotalk login
+               	next();
+            }else if(url.startsWith("/oauth") && req.method==="GET"){ // just for kakaotalk login
                      next();
-               }else{
-                	res.statusCode=401;
-                	res.end("failure");
-            	}
+            }else{
+               res.statusCode=401;
+               res.end(JSON.stringify({"result":"failure"}));
+            }
 	    	}
         }else{
 	    	console.log("invalid session");
             var url=req.url.toString();
             if((req.url==="/signup" || req.url==="/kakaoLogin" || req.url==="/emailLogin" || req.url === "/facebooklogin" ||
-				req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || 
-				req.url==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset") 
-				&& req.method === "POST"){
-                next();  
+					req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || 
+					req.url==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset") 
+					&& req.method === "POST"){
+               	 next();  
             }else if(url.startsWith("/oauth") && req.method==="GET"){ // just for kakaotalk login
                 next(); 
             }else{
                 res.statusCode=401;
-                res.end("failure");
+                res.end(JSON.stringify({"result":"failure"}));
             }
         }
 });
 
 app.use('/', routes);
 //app.use('/users', users);
+
+app.get('/oauthSuccess',tomcatServer.oauthSuccess);
+app.get('/oauthFailure',tomcatServer.oauthFailure);
+
 app.post('/facebooklogin',users.facebooklogin);
 app.post('/kakaoLogin',users.kakaoLogin);
 app.post('/emailLogin', users.emailLogin);
@@ -173,6 +178,9 @@ app.post('/saveOrder',order.saveOrder);
 app.post('/cancelOrder',order.cancelOrderUser);
 app.post('/userPaymentInfo',users.getUserPaymentInfo);
 app.post('/unregister',users.unregister);
+app.post('/sleepMode', users.sleepMode);
+app.post('/orderNotiMode',users.orderNotiMode);
+
 app.post('/getOrders',order.getOrdersUser);
 app.post('/SMSCertification',users.SMSCertification);
 app.post('/checkSMSCode',users.checkSMSCode);
@@ -187,8 +195,12 @@ app.post('/shop/getOrders',order.getOrdersShop);
 app.post('/shop/checkOrder',order.checkOrder);
 app.post('/shop/completeOrder',order.completeOrder);
 app.post('/shop/cancelOrder',order.shopCancelOrder);
-app.post('/shop/couponSend', shopUsers.couponSend);
-app.post('/shop/customerSearch', shopUsers.customerSearch);
+app.post('/shop/todayManager',shopUsers.todayManager);
+app.post('/shop/sleepMode',shopUsers.sleepMode);
+//app.post('/shop/couponSend', shopUsers.couponSend);
+//app.post('/shop/customerSearch', shopUsers.customerSearch);
+
+app.post('/createCashId',cash.createCashId);
 
 app.get('/cafe/shopHome',mariaDB.queryCafeHome);
 
@@ -255,14 +267,14 @@ app.post('/saveCafeInfoWithFile',function(req,res){
 	});
 });
 
-app.post('/saveCafeInfo',shopUsers.saveCafeInfo);
+//app.post('/saveCafeInfo',shopUsers.saveCafeInfo);
 
-app.post('/addCategory',shopUsers.addCategory);
-app.post('/deleteCategory',shopUsers.removeCategory);
-app.post('/modifyCategory',shopUsers.modifyCategory);
+//app.post('/addCategory',shopUsers.addCategory);
+//app.post('/deleteCategory',shopUsers.removeCategory);
+//app.post('/modifyCategory',shopUsers.modifyCategory);
 
-app.post('/removeMenu',shopUsers.removeMenu);
-app.post('/modifyMenu',shopUsers.modifyMenu);
+//app.post('/removeMenu',shopUsers.removeMenu);
+//app.post('/modifyMenu',shopUsers.modifyMenu);
 app.post('/modifyMenuWithFile',function(req,res){
 	upload(req,res,function(err) {
 	    console.log(req.file);
@@ -290,7 +302,7 @@ app.post('/registrationId',function(req,res){
 	console.log("registrationId:"+req.body.registrationId);
 	console.log("session.id:"+req.session.uid);
 	
-	mariaDB.updatePushId(req.session.uid,req.body.registrationId,function(err,result){
+	mariaDB.updatePushId(req.session.uid,req.body.registrationId,req.body.platform,function(err,result){
 		if(err){
 			res.statusCode=500;
 			res.end(JSON.stringify(err));
@@ -310,7 +322,7 @@ app.post('/shop/registrationId',function(req,res){
 		console.log("registrationId:"+req.body.registrationId);
 		console.log("session.id:"+req.session.uid);
 		console.log("session.takitId"+req.session.takitId);
-		mariaDB.updateShopPushId(req.session.uid,req.session.takitId,req.body.registrationId,
+		mariaDB.updateShopPushId(req.session.uid,req.body.takitId,req.body.registrationId,req.body.platform,
 		function(err,result){
 			if(err){
 				res.statusCode=500;
@@ -373,7 +385,7 @@ app.configure();
 
 //HTTPS-begin
 secureServer.listen(443);
-server.listen(80);
+//server.listen(80);
 //HTTPS-end
 
 module.exports = app;
