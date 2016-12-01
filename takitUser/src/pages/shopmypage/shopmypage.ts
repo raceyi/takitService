@@ -182,14 +182,10 @@ export class ShopMyPage{
               });
                 this.getOrdersInProgress().then((orders:any)=>{
                         if(orders==undefined || orders==null || orders.length==0){
-                            // off run_in_background 
-                            console.log("no more order in progress within 24 hours");
-                            console.log("cordova.plugins.backgroundMode.disable");
-                            cordova.plugins.backgroundMode.disable();
-                            this.ngZone.run(()=>{
-                                this.storageProvider.run_in_background=false;
-                                //change color of notification button
-                            });
+                           // off run_in_background 
+                           console.log("no more order in progress within 24 hours");
+                           this.storageProvider.order_in_progress_24hours=false;   
+                           this.storageProvider.tabMessageEmitter.emit("stopEnsureNoti");                         
                         }
                 },()=>{
 

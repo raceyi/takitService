@@ -97,7 +97,7 @@ export class ShopTablePage {
                console.log("Handling back button on  tabs page");
                this.alertController.create({
                   title: '앱을 종료하시겠습니까?',
-                  message: '주문요청전달도 종료됩니다.',
+                  message: '매니저 권한을 넘기시거나 상점을 종료해주시기 바랍니다.',
                   buttons: [
                      {
                         text: '아니오',
@@ -327,8 +327,8 @@ export class ShopTablePage {
             console.log("!!!server:"+ ConfigProvider.serverAddress);
             let body = JSON.stringify({messageId:messageId});
 
-            this.http.post(encodeURI(ConfigProvider.serverAddress+"/successGCM"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-                  console.log("res:"+JSON.stringify(res));
+            this.http.post(encodeURI(ConfigProvider.serverAddress+"/shop/successGCM"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                  console.log("/shop/successGCM-res:"+JSON.stringify(res));
                   resolve();
             },(err)=>{
                 reject("http error");  
@@ -772,10 +772,10 @@ export class ShopTablePage {
         return new Promise((resolve,reject)=>{
             let headers = new Headers();
             headers.append('Content-Type', 'application/json');
-            console.log("!!!server:"+ ConfigProvider.serverAddress+"/sleepMode???");
+            console.log("!!!server:"+ ConfigProvider.serverAddress+"/shop/sleepMode");
             let body = JSON.stringify({});
 
-            this.http.post(encodeURI(ConfigProvider.serverAddress+"/sleepMode???"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res)=>{
+            this.http.post(encodeURI(ConfigProvider.serverAddress+"/shop/sleepMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res)=>{
                   console.log("res:"+JSON.stringify(res));
                   if(res.result=="success"){
                     resolve();

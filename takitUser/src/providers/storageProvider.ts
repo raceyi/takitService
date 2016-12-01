@@ -28,6 +28,7 @@ export class StorageProvider{
     public phone:string="";
     public shopResponse:any;
     public run_in_background=false;
+    public order_in_progress_24hours=false;
 
     constructor(private platform:Platform,private http:Http){
         console.log("StorageProvider constructor"); 

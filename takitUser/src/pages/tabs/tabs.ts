@@ -31,7 +31,7 @@ export class TabsPage {
   askExitAlert:any;
 
   constructor(public modalCtrl: ModalController,private navController: NavController,private app:App,private platform:Platform,public viewCtrl: ViewController,
-    private storageProvider:StorageProvider,private http:Http, private alertController:AlertController,private ionicApp: IonicApp,
+    public storageProvider:StorageProvider,private http:Http, private alertController:AlertController,private ionicApp: IonicApp,
     private menuCtrl: MenuController,public ngZone:NgZone) {
     // this tells the tabs component which Pages
     // should be each tab's root Page
@@ -58,16 +58,26 @@ export class TabsPage {
 
     this.storageProvider.tabMessageEmitter.subscribe((cmd)=>{
         if(cmd=="stopEnsureNoti"){
+              cordova.plugins.backgroundMode.disable();
+              this.ngZone.run(()=>{
+                    this.storageProvider.run_in_background=false;
+                    //change color of notification button
+              });
               this.stopEnsureNoti().then(()=>{
                     console.log("stopEnsureNoti was sent to Server");
               },(err)=>{
                     console.log("stopEnsureNoti error");
               });
-        }else if(cmd=="backgroundEnable"){
+        }else if(cmd=="wakeupNoti"){ //wake up notification
+            this.wakeupNoti().then(()=>{
+              cordova.plugins.backgroundMode.enable(); 
               this.ngZone.run(()=>{
                     this.storageProvider.run_in_background=true;
                     //change color of notification button
               });
+            },(err)=>{
+                    console.log("wakeupNoti error");
+            });
         }
     }); 
 
@@ -103,46 +113,59 @@ export class TabsPage {
 
             if (this.app.getRootNav().getActive()==this.viewCtrl){
                console.log("Handling back button on  tabs page");
-               this.alertController.create({
-                  title: '앱을 종료하시겠습니까?',
-                  message: '진행중인 주문에 대해 주문알림을 받지 못할수 있습니다.',
-                  buttons: [
-                     {
-                        text: '아니오',
-                        handler: () => {
-                        }
-                     },
-                     {
-                        text: '네',
-                        handler: () => {
-                          console.log("call stopEnsureNoti");
-                          console.log("cordova.plugins.backgroundMode.disable");
-                          cordova.plugins.backgroundMode.disable();
-                          this.ngZone.run(()=>{
-                              this.storageProvider.run_in_background=false;
-                              //change color of notification button
-                          });
-                          this.stopEnsureNoti().then(()=>{
-                                console.log("success stopEnsureNoti()");
-                                this.storageProvider.db.close(()=>{
-
-                                },(err)=>{
-                                    console.log("!!!fail to close db!!!");
+               if(this.storageProvider.order_in_progress_24hours){
+                    this.alertController.create({
+                        title: '앱을 종료하시겠습니까?',
+                        message: '진행중인 주문에 대해 주문알림을 받지 못할수 있습니다.',
+                        buttons: [
+                            {
+                                text: '아니오',
+                                handler: () => {
+                                }
+                            },
+                            {
+                                text: '네',
+                                handler: () => {
+                                console.log("call stopEnsureNoti");
+                                console.log("cordova.plugins.backgroundMode.disable");
+                                cordova.plugins.backgroundMode.disable();
+                                this.ngZone.run(()=>{
+                                    this.storageProvider.run_in_background=false;
+                                    //change color of notification button
                                 });
-                                this.platform.exitApp();
-                          },(err)=>{
-                                console.log("fail in stopEnsureNoti() - Whan can I do here? nothing");
-                                this.storageProvider.db.close(()=>{
-
+                                this.stopEnsureNoti().then(()=>{
+                                        console.log("success stopEnsureNoti()");
+                                        this.storageProvider.db.close(()=>{
+                                            this.platform.exitApp();
+                                        },(err)=>{
+                                            console.log("!!!fail to close db!!!");
+                                            this.platform.exitApp();
+                                        });
+                                        //this.platform.exitApp();
                                 },(err)=>{
-                                    console.log("!!!fail to close db!!!");
+                                        console.log("fail in stopEnsureNoti() - Whan can I do here? nothing");
+                                        this.storageProvider.db.close(()=>{
+                                            this.platform.exitApp();
+                                        },(err)=>{
+                                            console.log("!!!fail to close db!!!");
+                                            this.platform.exitApp();
+                                        });
+                                        //this.platform.exitApp();
                                 });
-                                this.platform.exitApp();
-                          });
-                        }
-                     }
-                  ]
-               }).present();
+                                }
+                            }
+                        ]
+                    }).present();
+               }else{
+                    cordova.plugins.backgroundMode.disable();
+                    this.storageProvider.db.close(()=>{
+                        this.platform.exitApp();
+                    },(err)=>{
+                        console.log("!!!fail to close db!!!");
+                        this.platform.exitApp();
+                    });
+                    //this.platform.exitApp();
+               }
             }
             else if (this.navController.canGoBack() || view && view.isOverlay) {
                console.log("popping back");
@@ -150,11 +173,12 @@ export class TabsPage {
             }else{
                 console.log("What can I do here? which page is shown now? Error or LoginPage");
                 this.storageProvider.db.close(()=>{
-
+                    this.platform.exitApp();
                 },(err)=>{
                     console.log("!!!fail to close db!!!");
+                    this.platform.exitApp();
                 });
-                this.platform.exitApp();
+                //this.platform.exitApp();
             }
          }, 100/* high priority rather than login page */);
   
@@ -183,7 +207,8 @@ export class TabsPage {
     //get the orders in progress within 24 hours from server
     this.getOrdersInProgress().then((orders:any)=>{
         if(orders==undefined || orders==null ||orders.length==0){
-            console.log('cordova.plugins.backgroundMode.disable');
+            console.log('no orders in progress');
+            this.storageProvider.order_in_progress_24hours=false;
             cordova.plugins.backgroundMode.disable(); 
             this.ngZone.run(()=>{
                     this.storageProvider.run_in_background=false;
@@ -196,47 +221,31 @@ export class TabsPage {
                 console.log(" stopEnsureNot failure-What should I do here?");
             }); 
             return;
-        }else{
-                let confirm = this.alertController.create({
-                    title: '24시간이내에 진행중인 주문이 있습니다.주문알림을 받기 위해 앱을 계속 실행하시겠습니까?',
-                    message: '[주의]주문 완료 전에 앱이 중지되면 주문알림을 못받을수 있습니다.',
-                    buttons: [
-                      {
-                        text: '아니오',
-                        handler: () => {
-                          console.log('cordova.plugins.backgroundMode.disable');
-                          cordova.plugins.backgroundMode.disable(); 
-                          this.ngZone.run(()=>{
-                                    this.storageProvider.run_in_background=false;
-                                    //change color of notification button
-                          });
-                          // report it to server
-                          this.stopEnsureNoti().then(()=>{
-                             console.log("stopEnsureNoti success"); 
-                          },(err)=>{
-                             console.log(" stopEnsureNot failure-What should I do here?");
-                          }); 
-                          return;
-                        }
-                      },
-                      {
-                        text: '네',
-                        handler: () => {
-                          console.log('cordova.plugins.backgroundMode.enable');
-                          cordova.plugins.backgroundMode.enable(); 
-                              this.ngZone.run(()=>{
-                                    this.storageProvider.run_in_background=true;
-                                    //change color of notification button
-                              });
-                        }
-                      }
-                    ]
-                  });
-                  confirm.present();
-                }
+        }else{    
+            this.storageProvider.order_in_progress_24hours=true;            
+            this.wakeupNoti().then(()=>{
+                console.log('cordova.plugins.backgroundMode.enable');
+                cordova.plugins.backgroundMode.enable(); 
+                    this.ngZone.run(()=>{
+                        this.storageProvider.run_in_background=true;
+                        //change color of notification button
+                    });
             },(err)=>{
-                console.log("getOrdersInProgress error-What should I do here?");
+                    let alert = this.alertController.create({
+                        title: "주문 알림을 키는데 실패했습니다.",
+                        buttons: ['OK']
+                    });
+                    alert.present();
             });
+        }
+    },(err)=>{
+        console.log("getOrderInProgress error");
+         let alert = this.alertController.create({
+                        title: "서버와 통신에 문제가 있습니다.",
+                        buttons: ['OK']
+                    });
+                    alert.present();
+    });
 }
 
   
@@ -269,13 +278,12 @@ export class TabsPage {
             this.pushNotification=Push.init({
                 android: {
                     senderID: ConfigProvider.userSenderID,
-                    //forceShow: "true" // What is it?
+                    sound: "true"
                 },
                 ios: {
                     senderID: ConfigProvider.userSenderID,
                     "gcmSandbox": "true",
                     "alert": "true",
-                    "badge": "true",
                     "sound": "true"
                 },
                 windows: {}
@@ -307,6 +315,7 @@ export class TabsPage {
                   }
              },(err)=>{
                   console.log("registrationId sent failure");
+
                   //console.log(JSON.stringify(err));
                   this.storageProvider.errorReasonSet('네트웍 연결이 원할하지 않습니다'); 
                   //Please move into ErrorPage!
@@ -337,11 +346,17 @@ export class TabsPage {
                               cordova.plugins.backgroundMode.disable();
                               this.ngZone.run(()=>{
                                     this.storageProvider.run_in_background=false;
+                                    this.storageProvider.order_in_progress_24hours=false;
                                     //change color of notification button
                               });
                           }
-                    },()=>{
-
+                    },(err)=>{
+                        console.log("getOrdersInProgress error");
+                        let alert = this.alertController.create({
+                            title: "서버와 통신에 문제가 있습니다.",
+                            buttons: ['OK']
+                        });
+                        alert.present();
                     });
                 }else if(additionalData.GCMType==="cash"){
                 /*
@@ -407,12 +422,20 @@ export class TabsPage {
                      {
                         text: '네',
                         handler: () => {
-                                console.log('cordova.plugins.backgroundMode.disable');
-                                cordova.plugins.backgroundMode.disable(); //takitShop always runs in background Mode
-                                this.ngZone.run(()=>{
-                                    this.storageProvider.run_in_background=false;
-                                    //change color of notification button
-                              });
+                                this.stopEnsureNoti().then(()=>{
+                                                console.log('cordova.plugins.backgroundMode.disable');
+                                                cordova.plugins.backgroundMode.disable(); //takitShop always runs in background Mode
+                                                this.ngZone.run(()=>{
+                                                    this.storageProvider.run_in_background=false;
+                                                    //change color of notification button
+                                                });
+                                },(err)=>{
+                                        let alert = this.alertController.create({
+                                                title: "주문알림을 끄는데 실패했습니다.",
+                                                buttons: ['OK']
+                                            });
+                                            alert.present();  
+                                });
                         }
                      }
                   ]
@@ -432,11 +455,20 @@ export class TabsPage {
                         text: '네',
                         handler: () => {
                                 console.log('enable background mode');
-                                cordova.plugins.backgroundMode.enable(); 
-                                this.ngZone.run(()=>{
-                                    this.storageProvider.run_in_background=true;
-                                    //change color of notification button
-                              });
+                                this.wakeupNoti().then(()=>{
+                                    cordova.plugins.backgroundMode.enable(); 
+                                    this.ngZone.run(()=>{
+                                        this.storageProvider.run_in_background=true;
+                                        //change color of notification button
+                                    });
+                                },(err)=>{
+                                    console.log("wakeupNoti fail");
+                                    let alert = this.alertController.create({
+                                        title: "주문알림을 키는데 실패했습니다.",
+                                        buttons: ['OK']
+                                    });
+                                    alert.present();
+                                });
                         }
                      }
                   ]
@@ -462,7 +494,7 @@ export class TabsPage {
 
             this.http.post(encodeURI(ConfigProvider.serverAddress+"/orderNotiMode"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                   console.log("res:"+JSON.stringify(res));
-                  console.log("res.result:"+res.result);
+                  console.log("orderNotiMode-res.result:"+res.result);
                   if(res.result=="success"){
                     resolve(res.orders);
                   }else{
@@ -481,8 +513,29 @@ export class TabsPage {
             console.log("!!!server:"+ ConfigProvider.serverAddress+"/sleepMode");
             let body = JSON.stringify({});
 
-            this.http.post(encodeURI(ConfigProvider.serverAddress+"/sleepMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res)=>{
-                  console.log("res:"+JSON.stringify(res));
+            this.http.post(encodeURI(ConfigProvider.serverAddress+"/sleepMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res:any)=>{
+                  console.log("sleepMode-res:"+JSON.stringify(res));
+                  if(res.result=="success"){
+                    resolve();
+                  }else{
+                    reject("server error");
+                  }
+            },(err)=>{
+                reject("http error");  
+            });
+      });    
+  }
+
+  wakeupNoti(){
+        return new Promise((resolve,reject)=>{
+            let headers = new Headers();
+            headers.append('Content-Type', 'application/json');
+            console.log("!!!server:"+ ConfigProvider.serverAddress+"/wakeMode");
+            let body = JSON.stringify({});
+
+            this.http.post(encodeURI(ConfigProvider.serverAddress+"/wakeMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res:any)=>{
+                  console.log("wakeMode-res:"+JSON.stringify(res));
+                  console.log("res is ..."+res.result);
                   if(res.result=="success"){
                     resolve();
                   }else{

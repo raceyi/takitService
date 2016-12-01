@@ -138,12 +138,13 @@ export class OrderPage {
                  console.log(JSON.stringify(res)); 
                  var result:string=res.result;
                  if(result=="success"){
+                    this.storageProvider.order_in_progress_24hours=true;
                     this.storageProvider.messageEmitter.emit(res.order);
                     console.log("storageProvider.run_in_background: "+this.storageProvider.run_in_background);
                     if(this.storageProvider.run_in_background==false){
                         let confirm = this.alertController.create({
-                            title: '주문에 성공하였습니다.'+'주문번호['+res.order.orderNO+']',
-                            message: '[주의]앱을 종료하시면 주문알림을 못받을수 있습니다. 주문알림을 받기 위해 앱을 계속 실행하시겠습니까?',
+                            title: '주문완료['+res.order.orderNO+']'+' 앱을 계속 실행하여 주문알림을 받으시겠습니까?',
+                            message: '앱이 중지되면 주문알림을 못받을수 있습니다.',
                             buttons: [
                             {
                                 text: '아니오',
@@ -158,9 +159,7 @@ export class OrderPage {
                             {
                                 text: '네',
                                 handler: () => {
-                                    console.log('cordova.plugins.backgroundMode.enable');
-                                    this.storageProvider.tabMessageEmitter.emit("backgroundEnable");
-                                    cordova.plugins.backgroundMode.enable(); //takitShop always runs in background Mode
+                                    this.storageProvider.tabMessageEmitter.emit("wakeupNoti");
                                     this.app.getRootNav().pop();
                                     return;
                                 }
