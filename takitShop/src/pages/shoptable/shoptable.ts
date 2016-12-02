@@ -21,12 +21,14 @@ export class ShopTablePage {
   Option="today";
   startDate;
   endDate;
-  currTime;
+ // currTime;
   orders=[];
   pushNotification:PushNotification;
   infiniteScroll:any=undefined;
   smsInboxPlugin;
   isAndroid;
+  storeColor="gray";
+  notiColor="gray";
 
   constructor(public navController: NavController,private app:App,private storageProvider:StorageProvider,
       private http:Http,private alertController:AlertController,private ngZone:NgZone,private ionicApp: IonicApp,
@@ -34,7 +36,7 @@ export class ShopTablePage {
       public viewCtrl: ViewController) {
     console.log("ShopTablePage constructor");
     this.isAndroid=this.platform.is("android");
-
+  
     this.registerPushService();
     
     var date=new Date();
@@ -42,13 +44,28 @@ export class ShopTablePage {
 //  Why initialization of startDate and endDate doesn't work?    
 //    this.startDate=date.getFullYear().toString()+'-'+month+'-'+date.getDate();
 //    this.endDate=date.getFullYear().toString()+'-'+month+'-'+date.getDate();
-    this.currTime=date.getFullYear().toString()+'-'+month+'-'+date.getDate();
+//    this.currTime=date.getFullYear().toString()+'-'+month+'-'+date.getDate();
 
     console.log("startDate:"+this.startDate);
     console.log("endDate:"+this.endDate);
 
     this.getOrders(-1);
-     /////////////////////////////////////////////////////////////////
+
+    console.log("this.storageProvider.myshop.GCMNoti:"+this.storageProvider.myshop.GCMNoti);
+
+    if(this.storageProvider.myshop.GCMNoti=="off"){
+      this.notiColor="gray";
+    }else if(this.storageProvider.myshop.GCMNoti=="on"){
+      this.notiColor="primary";
+    }else{
+      console.log("unknown GCMNoti");
+    }
+
+    if(this.storageProvider.storeOpen==true)
+      this.storeColor="primary";
+    else 
+      this.storeColor="gray";  
+    /////////////////////////////////////////////////////////////////
   }
 
     ionViewDidLoad(){
@@ -110,13 +127,7 @@ export class ShopTablePage {
                           console.log("call stopEnsureNoti");
                           console.log("cordova.plugins.backgroundMode.disable");
                           cordova.plugins.backgroundMode.disable();
-                          this.stopEnsureNoti().then(()=>{
-                                console.log("success stopEnsureNoti()");
-                                this.platform.exitApp();
-                          },(err)=>{
-                                console.log("fail in stopEnsureNoti() - Whan can I do here? nothing");
-                                this.platform.exitApp();
-                          });
+                          this.platform.exitApp();
                         }
                      }
                   ]
@@ -486,16 +497,24 @@ export class ShopTablePage {
                         console.log("orders update:"+JSON.stringify(this.orders));
                        });
                     }
-                      this.confirmMsgDelivery(additionalData.notId).then(()=>{
-                            console.log("confirmMsgDelivery success");
-                      },(err)=>{
-                          let alert = this.alertController.create({
-                              title: "서버와 통신에 문제가 있습니다.",
-                              buttons: ['OK']
-                          });
-                          alert.present();
-                      });
+                }else if(additionalData.GCMType==="change_manager"){
+                     //I am not manager anymore. 
+                     console.log("I am not a manager any more");
+                     this.ngZone.run(()=>{
+                        this.notiColor="gray";
+                        this.storageProvider.myshop.GCMNoti=="off";
+                     });
                 }
+                this.confirmMsgDelivery(additionalData.notId).then(()=>{
+                      console.log("confirmMsgDelivery success");
+                },(err)=>{
+                    let alert = this.alertController.create({
+                        title: "서버와 통신에 문제가 있습니다.",
+                        buttons: ['OK']
+                    });
+                    alert.present();
+                });
+
                 console.log("[shoptable.ts]pushNotification.on-data:"+JSON.stringify(data));
                 console.log("first view name:"+this.navController.first().name);
                 console.log("active view name:"+this.navController.getActive().name);
@@ -657,7 +676,6 @@ export class ShopTablePage {
         });
      }
 
-
      getOrderColor(order){
        if(order.orderStatus==='completed'){
           return 'gray';
@@ -708,49 +726,50 @@ export class ShopTablePage {
     this.getOrders(-1);
   }
 
-  enableManager(){
-    // 현재 매니저가 아니라면 alert을 보여줌.
-    // 매니저라면 skip한다. 
-    let confirm = this.alertController.create({
-      title: '매니저가 되시겠습니까?',
-      message: '주문알림을 받게됩니다.',
-      buttons: [
-        {
-          text: '아니오',
-          handler: () => {
-            console.log('Disagree clicked');
-          }
-        },
-        {
-          text: '네',
-          handler: () => {
-            console.log('Agree clicked');
-            this.requestManager().then(()=>{
-                  let alert = this.alertController.create({
-                    title: '주문요청이 전달됩니다',
-                    buttons: ['OK']
+  enableGotNoti(){
+    if(this.storageProvider.amIGotNoti==false){
+          let confirm = this.alertController.create({
+            title: '주문알림을 받으시겠습니까?',
+            buttons: [
+              {
+                text: '아니오',
+                handler: () => {
+                  console.log('Disagree clicked');
+                }
+              },
+              {
+                text: '네',
+                handler: () => {
+                  console.log('Agree clicked');
+                  this.requestManager().then(()=>{
+                        this.notiColor="primary";
+                        this.storageProvider.myshop.GCMNoti=="on";
+                        let alert = this.alertController.create({
+                          title: '주문요청이 전달됩니다',
+                          buttons: ['OK']
+                        });
+                        alert.present();
+                  },()=>{
+                        let alert = this.alertController.create({
+                          title: '주문알림 요청에 실패했습니다.',
+                          subTitle: '네트웍 연결 확인후 다시 시도해 주시기 바랍니다.',
+                          buttons: ['OK']
+                        });
+                        alert.present();
                   });
-                  alert.present();
-            },()=>{
-                  let alert = this.alertController.create({
-                    title: '주문알림 요청에 실패했습니다.',
-                    subTitle: '네트웍 연결 확인후 다시 시도해 주시기 바랍니다.',
-                    buttons: ['OK']
-                  });
-                  alert.present();
-            });
-          }
-        }
-      ]
-    });
-    confirm.present();
+                }
+              }
+            ]
+          });
+          confirm.present();
+    }
   }
 
   requestManager(){
       return new Promise((resolve,reject)=>{
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        console.log("server:"+ ConfigProvider.serverAddress);
+        console.log("/shop/todayManager-server:"+ ConfigProvider.serverAddress);
         let body= JSON.stringify({ takitId: this.storageProvider.myshop.takitId });
 
         console.log("body:"+JSON.stringify(body));
@@ -768,38 +787,51 @@ export class ShopTablePage {
       });
   }
 
-  stopEnsureNoti(){
-        return new Promise((resolve,reject)=>{
-            let headers = new Headers();
-            headers.append('Content-Type', 'application/json');
-            console.log("!!!server:"+ ConfigProvider.serverAddress+"/shop/sleepMode");
-            let body = JSON.stringify({});
-
-            this.http.post(encodeURI(ConfigProvider.serverAddress+"/shop/sleepMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res)=>{
-                  console.log("res:"+JSON.stringify(res));
-                  if(res.result=="success"){
-                    resolve();
-                  }else{
-                    reject("server error");
-                  }
-            },(err)=>{
-                reject("http error");  
-            });
-      });    
-  }
-
   configureStore(){
-    /*
-    if(this.storageProvider.storeOpen){
-      return "primary";
+    console.log("configureStore(storeOpen):"+this.storageProvider.storeOpen);
+    if(this.storageProvider.storeOpen===false){
+        this.openStore().then(()=>{
+            console.log("open shop successfully");
+            this.storeColor="primary";
+        },(err)=>{
+            if(err=="HttpFailure"){
+              let alert = this.alertController.create({
+                                title: '서버와 통신에 문제가 있습니다',
+                                subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                buttons: ['OK']
+                            });
+              alert.present();
+            }else{
+              let alert = this.alertController.create({
+                                title: '샵을 오픈하는데 실패했습니다.',
+                                subTitle: '고객센터(0505-170-3636)에 문의바랍니다.',
+                                buttons: ['OK']
+                            });
+              alert.present();
+            }
+        });
     }else{
-      return "gray";
-    }*/
-    return "gray";
-  }
-
-  getColorStore(){
-
+        this.closeStore().then(()=>{
+            console.log("close shop successfully");
+            this.storeColor="gray";
+        },(err)=>{
+            if(err=="HttpFailure"){
+              let alert = this.alertController.create({
+                                title: '서버와 통신에 문제가 있습니다',
+                                subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                buttons: ['OK']
+                            });
+              alert.present();
+            }else{
+              let alert = this.alertController.create({
+                                title: '샵을 종료하는데 실패했습니다.',
+                                subTitle: '고객센터(0505-170-3636)에 문의바랍니다.',
+                                buttons: ['OK']
+                            });
+              alert.present();
+            }
+        });
+    }
   }
 
   testPrint(){
@@ -813,4 +845,46 @@ export class ShopTablePage {
         alert.present();
       });
   }
+
+    openStore(){
+      return new Promise((resolve,reject)=>{
+        let headers = new Headers();
+        headers.append('Content-Type', 'application/json');
+        console.log("openShop-server:"+ ConfigProvider.serverAddress);
+        let body= JSON.stringify({ });
+
+        console.log("body:"+JSON.stringify(body));
+        this.http.post(ConfigProvider.serverAddress+"/shop/openShop",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+            console.log("/shop/openShop"+"-res:"+JSON.stringify(res));
+            if(res.result=="success"){
+                resolve();
+            }else
+                reject();
+         },(err)=>{
+           console.log("서버와 통신에 문제가 있습니다");
+            reject("HttpFailure");
+         });
+      });
+    }
+
+    closeStore(){
+      return new Promise((resolve,reject)=>{
+        let headers = new Headers();
+        headers.append('Content-Type', 'application/json');
+        console.log("closeShop-server:"+ ConfigProvider.serverAddress);
+        let body= JSON.stringify({ });
+
+        console.log("body:"+JSON.stringify(body));
+        this.http.post(ConfigProvider.serverAddress+"/shop/closeShop",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+            console.log("/shop/closeShop"+"-res:"+JSON.stringify(res));
+            if(res.result=="success"){
+                resolve();
+            }else
+                reject();
+         },(err)=>{
+           console.log("서버와 통신에 문제가 있습니다");
+            reject("HttpFailure");
+         });
+      });
+    }
 }

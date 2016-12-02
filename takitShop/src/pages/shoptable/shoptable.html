@@ -9,10 +9,10 @@
        </ion-col>
        <ion-col width-80>
           <button ion-button class="buttonsInHeader"  (click)="configureStore()">
-            <ion-icon [color]="getColorStore()" name="bulb"></ion-icon>
+            <ion-icon [color]="storeColor" name="bulb"></ion-icon>
           </button>
-          <button ion-button class="buttonsInHeader" (click)="enableManager()" color="primary">
-            <ion-icon name="person"></ion-icon>
+          <button ion-button class="buttonsInHeader" (click)="enableGotNoti()">
+            <ion-icon [color]="notiColor" name="person"></ion-icon>
           </button>
           <button ion-button class="buttonsInHeader" (click)="testPrint()">
             <ion-icon name="print"></ion-icon>
@@ -25,10 +25,10 @@
     <ion-row *ngIf="isAndroid">
     <ion-title> 타킷 </ion-title>
     <button ion-button class="buttonsInHeader"  (click)="configureStore()">
-      <ion-icon [color]="getColorStore()" name="bulb"></ion-icon>
+      <ion-icon [color]="storeColor" name="bulb"></ion-icon>
     </button>
-    <button ion-button class="buttonsInHeader" (click)="enableManager()" color="primary">
-      <ion-icon name="person"></ion-icon>
+    <button ion-button class="buttonsInHeader" (click)="enableGotNoti()">
+      <ion-icon [color]="notiColor" name="person"></ion-icon>
     </button>
     <button ion-button class="buttonsInHeader" (click)="testPrint()">
       <ion-icon name="print"></ion-icon>
