@@ -29,6 +29,8 @@ export class ShopTablePage {
   isAndroid;
   storeColor="gray";
   notiColor="gray";
+  printColor="gray";
+  printerEmitterSubscription;
 
   constructor(public navController: NavController,private app:App,private storageProvider:StorageProvider,
       private http:Http,private alertController:AlertController,private ngZone:NgZone,private ionicApp: IonicApp,
@@ -112,26 +114,38 @@ export class ShopTablePage {
 
             if (this.app.getRootNav().getActive()==this.viewCtrl){
                console.log("Handling back button on  tabs page");
-               this.alertController.create({
-                  title: '앱을 종료하시겠습니까?',
-                  message: '매니저 권한을 넘기시거나 상점을 종료해주시기 바랍니다.',
-                  buttons: [
-                     {
-                        text: '아니오',
-                        handler: () => {
-                        }
-                     },
-                     {
-                        text: '네',
-                        handler: () => {
-                          console.log("call stopEnsureNoti");
-                          console.log("cordova.plugins.backgroundMode.disable");
-                          cordova.plugins.backgroundMode.disable();
-                          this.platform.exitApp();
-                        }
-                     }
-                  ]
-               }).present();
+               //Please check the amIGotNoti and storeOpen with server call
+               if(this.storageProvider.amIGotNoti==true && 
+                    this.storageProvider.storeOpen==true){
+                    this.alertController.create({
+                        title: '앱을 종료하시겠습니까?',
+                        message: '알림을 받고 계십니다. 상점도 같이 종료합니다.',
+                        buttons: [
+                          {
+                              text: '아니오',
+                              handler: () => {
+
+                              }
+                          },
+                          {
+                              text: '네',
+                              handler: () => {
+                                console.log("call stopEnsureNoti");
+                                console.log("cordova.plugins.backgroundMode.disable");
+                                cordova.plugins.backgroundMode.disable();
+                                this.closeStore().then(()=>{
+                                    console.log("closeStore success");
+                                    this.platform.exitApp();  
+                                },(err)=>{
+                                    this.platform.exitApp();
+                                });
+                              }
+                          }
+                        ]
+                    }).present();
+               }else{
+                    this.platform.exitApp();
+               }
             }
             else if (this.navController.canGoBack() || view && view.isOverlay) {
                console.log("popping back");
@@ -162,6 +176,19 @@ export class ShopTablePage {
               console.log("isSupported:"+JSON.stringify(err));
             });
         }
+
+
+
+        this.printerEmitterSubscription= this.printerProvider.messageEmitter.subscribe((status)=> {
+                console.log("printer status:"+status);
+                this.ngZone.run(()=>{
+                  if(this.printerProvider.printerStatus=="connected")
+                      this.printColor="primary";
+                  else  
+                      this.printColor="gray";
+                    console.log("ngZone=> Printer status into "+this.printColor);
+                });
+        });
 
     }
 
@@ -348,7 +375,7 @@ export class ShopTablePage {
     }
     
     printOrder(order){
-      if(this.storageProvider.printOff==true)
+      if(this.storageProvider.printOn==false)
         return;
       if(!this.platform.is("android")){ //Not yet supported
         return;
@@ -835,6 +862,13 @@ export class ShopTablePage {
   }
 
   testPrint(){
+    if(this.storageProvider.printOn==false){
+          let alert = this.alertController.create({
+                      title: '프린터 설정 메뉴에서 프린터를 설정해주세요.',
+                      buttons: ['OK']
+                  });
+          alert.present();
+    }else{
      this.printerProvider.print("주문","프린터가 동작합니다").then(()=>{
           console.log("프린트 명령을 보냈습니다. ");
       },()=>{
@@ -844,6 +878,7 @@ export class ShopTablePage {
         });
         alert.present();
       });
+    }
   }
 
     openStore(){

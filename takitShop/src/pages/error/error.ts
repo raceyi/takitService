@@ -148,6 +148,15 @@ export class ErrorPage{
         this.storage.get("printer").then((value:string)=>{
             this.storageProvider.printerName=value;
             this.printerProvider.setPrinter(value);
-        },()=>{});
+            this.storage.get("printOn").then((value:string)=>{
+                console.log("printOn:"+value);
+                this.storageProvider.printOn= JSON.parse(value);
+            },()=>{
+                this.storageProvider.printOn=false;
+            });
+        },()=>{
+            this.storageProvider.printOn=false;
+        });
     }
+
 }

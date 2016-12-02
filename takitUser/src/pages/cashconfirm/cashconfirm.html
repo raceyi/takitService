@@ -40,7 +40,7 @@
                     </ion-col>
                 </ion-row>
                 <ion-row center>
-                    <ion-col>거래지점</ion-col>
+                    <ion-col>거래지점</ion-col> <!-- server로 부터 가져오자 -->
                     <ion-col>
                     <ion-item>
                     <ion-input class="cashIn-check-inputBox" type="text" placeholder="과천" ></ion-input>
@@ -62,6 +62,7 @@
             <ion-label class="checkInfo">본인의 캐쉬입금이 아닐경우 <span style="color:red">민형사상</span>의 책임을 지겠습니다.</ion-label>
             <ion-checkbox></ion-checkbox>
             </ion-item>
+            <ion-lable>사기죄로 형사고발이 가능합니다.</ion-lable>
             <ion-item>
             <button ion-button block (click)="cashInComplete()">캐쉬 입금 확인하기 </button>
             </ion-item>

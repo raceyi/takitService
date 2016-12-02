@@ -176,8 +176,14 @@ export class MyApp {
         this.storage.get("printer").then((value:string)=>{
             this.storageProvider.printerName=value;
             this.printerProvider.setPrinter(value);
+            this.storage.get("printOn").then((value:string)=>{
+                console.log("printOn:"+value);
+                this.storageProvider.printOn= JSON.parse(value);
+            },()=>{
+                this.storageProvider.printOn=false;
+            });
         },()=>{
-
+            this.storageProvider.printOn=false;
         });
   }
 
@@ -241,6 +247,8 @@ export class MyApp {
    removeStoredInfo(){
         this.storage.clear(); 
         this.storage.remove("id"); //So far, clear() doesn't work. Please remove this line later
+        this.storage.remove("printer");
+        this.storage.remove("printOn");
         console.log("move into LoginPage"); //Please exit App and then restart it.
         if(this.storageProvider.login==true){
             console.log("call setRoot with LoginPage");

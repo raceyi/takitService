@@ -22,10 +22,10 @@ export class PrinterPage {
            console.log("PrinterPage construtor");
   }
 
-   ionViewDidEnter(){
+   ionViewDidLoad(){
         console.log("SelectorPage did enter");
         Splashscreen.hide();
-                this.printerEmitterSubscription= this.printerProvider.messageEmitter.subscribe((status)=> {
+        this.printerEmitterSubscription= this.printerProvider.messageEmitter.subscribe((status)=> {
                 console.log("printer status:"+status);
                 this.ngZone.run(()=>{
                     this.printerStatus=status;
@@ -126,8 +126,8 @@ export class PrinterPage {
   }    
 
 
-  printOffChange(){
+  printOnChange(){
       //save it into localstorage
-      //this.storageProvider.printOff
+      this.storage.set("printOn",this.storageProvider.printOn.toString());
   }
 }

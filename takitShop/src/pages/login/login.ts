@@ -78,6 +78,9 @@ export class LoginPage {
                     console.log("...MyApp:"+JSON.stringify(res));
                     console.log("res.shopUserInfo:"+JSON.stringify(res.shopUserInfo));
                     if(res.result=="success"){
+                        var encrypted:string=this.storageProvider.encryptValue('id','facebook');
+                        this.storage.set('id',encodeURI(encrypted));
+                        console.log("save id with facebook");
                         //save shoplist
                         this.shoplistHandler(res.shopUserInfo);
                     }else if(res.result=='invalidId'){
@@ -141,6 +144,8 @@ export class LoginPage {
                 console.log("MyApp:"+JSON.stringify(res));
                 if(res.result=="success"){
                     //save shoplist
+                    var encrypted:string=this.storageProvider.encryptValue('id','kakao');
+                    this.storage.set('id',encodeURI(encrypted));
                     this.shoplistHandler(res.shopUserInfo);
                 }else if(res.result=='invalidId'){
                     console.log("You have no right to access this app");
