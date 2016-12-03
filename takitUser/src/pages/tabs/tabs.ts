@@ -11,6 +11,7 @@ import {Push,PushNotification} from 'ionic-native';
 import {Http,Headers} from '@angular/http';
 import {StorageProvider} from '../../providers/storageProvider';
 import {ConfigProvider} from '../../providers/ConfigProvider';
+import {ServerProvider} from '../../providers/serverProvider';
 
 import 'rxjs/add/operator/timeout';
 import 'rxjs/add/operator/map';
@@ -32,7 +33,7 @@ export class TabsPage {
 
   constructor(public modalCtrl: ModalController,private navController: NavController,private app:App,private platform:Platform,public viewCtrl: ViewController,
     public storageProvider:StorageProvider,private http:Http, private alertController:AlertController,private ionicApp: IonicApp,
-    private menuCtrl: MenuController,public ngZone:NgZone) {
+    private menuCtrl: MenuController,public ngZone:NgZone,private serverProvider:ServerProvider) {
     // this tells the tabs component which Pages
     // should be each tab's root Page
     this.tabHome = HomePage;
@@ -66,7 +67,14 @@ export class TabsPage {
               this.stopEnsureNoti().then(()=>{
                     console.log("stopEnsureNoti was sent to Server");
               },(err)=>{
-                    console.log("stopEnsureNoti error");
+                    console.log("stopEnsureNoti error "+err);
+                    if(err=="NetworkFailure"){
+                        let alert = this.alertController.create({
+                            title: "서버와 통신에 문제가 있습니다.",
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                    }
               });
         }else if(cmd=="wakeupNoti"){ //wake up notification
             this.wakeupNoti().then(()=>{
@@ -76,7 +84,14 @@ export class TabsPage {
                     //change color of notification button
               });
             },(err)=>{
-                    console.log("wakeupNoti error");
+                    console.log("wakeupNoti error "+err);
+                    if(err=="NetworkFailure"){
+                        let alert = this.alertController.create({
+                            title: "서버와 통신에 문제가 있습니다.",
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                    }
             });
         }
     }); 
@@ -205,7 +220,7 @@ export class TabsPage {
     });
 
     //get the orders in progress within 24 hours from server
-    this.getOrdersInProgress().then((orders:any)=>{
+    this.serverProvider.orderNoti().then((orders:any)=>{
         if(orders==undefined || orders==null ||orders.length==0){
             console.log('no orders in progress');
             this.storageProvider.order_in_progress_24hours=false;
@@ -239,12 +254,15 @@ export class TabsPage {
             });
         }
     },(err)=>{
-        console.log("getOrderInProgress error");
-         let alert = this.alertController.create({
+        if(err=="NetworkFailure"){
+            let alert = this.alertController.create({
                         title: "서버와 통신에 문제가 있습니다.",
                         buttons: ['OK']
                     });
                     alert.present();
+        }else{
+            console.log("getOrderInProgress error");
+        }
     });
 }
 
@@ -305,7 +323,8 @@ export class TabsPage {
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
               console.log("server:"+ ConfigProvider.serverAddress +" body:"+JSON.stringify(body));
-              this.http.post(ConfigProvider.serverAddress+"/registrationId",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+              //this.http.post(ConfigProvider.serverAddress+"/registrationId",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+              this.serverProvider.post(ConfigProvider.serverAddress+"/registrationId",body).then((res:any)=>{
                   console.log("registrationId sent successfully");
                   var result:string=res.result;
                   if(result=="success"){
@@ -314,12 +333,14 @@ export class TabsPage {
                     
                   }
              },(err)=>{
-                  console.log("registrationId sent failure");
-
-                  //console.log(JSON.stringify(err));
-                  this.storageProvider.errorReasonSet('네트웍 연결이 원할하지 않습니다'); 
-                  //Please move into ErrorPage!
-                  this.app.getRootNav().setRoot(ErrorPage); 
+                 if(err=="NetworkFailure"){
+                        console.log("registrationId sent failure");
+                        this.storageProvider.errorReasonSet('네트웍 연결이 원할하지 않습니다'); 
+                        //Please move into ErrorPage!
+                        this.app.getRootNav().setRoot(ErrorPage);
+                 }else{
+                     console.log("Hum...registrationId-HttpError");
+                 } 
                 });
             });
 
@@ -338,7 +359,7 @@ export class TabsPage {
                     });
                     alert.present();
                     // check if order in progress exists or not
-                    this.getOrdersInProgress().then((orders:any)=>{
+                    this.serverProvider.orderNoti().then((orders:any)=>{
                           if(orders==undefined || orders==null || orders.length==0){
                               // off run_in_background 
                               console.log("no more order in progress within 24 hours");
@@ -367,11 +388,15 @@ export class TabsPage {
                 this.confirmMsgDelivery(additionalData.notId).then(()=>{
                       console.log("confirmMsgDelivery success");
                 },(err)=>{
-                     let alert = this.alertController.create({
-                        title: "서버와 통신에 문제가 있습니다.",
-                        buttons: ['OK']
-                    });
-                    alert.present();
+                    if(err=="NetworkFailure"){
+                        let alert = this.alertController.create({
+                            title: "서버와 통신에 문제가 있습니다.",
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                    }else{
+                        console.log("hum...successGCM-HttpFailure");
+                    }
                 });
 
                 /*
@@ -397,11 +422,12 @@ export class TabsPage {
             console.log("!!!server:"+ ConfigProvider.serverAddress);
             let body = JSON.stringify({messageId:messageId});
 
-            this.http.post(encodeURI(ConfigProvider.serverAddress+"/successGCM"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+            //this.http.post(encodeURI(ConfigProvider.serverAddress+"/successGCM"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+            this.serverProvider.post(ConfigProvider.serverAddress+"/successGCM",body).then((res:any)=>{    
                   console.log("res:"+JSON.stringify(res));
                   resolve();
             },(err)=>{
-                reject("http error");  
+                reject(err);  
             });
       });   
     }
@@ -484,65 +510,42 @@ export class TabsPage {
     }
   }
 
-
-  getOrdersInProgress(){
-        return new Promise((resolve,reject)=>{
-            let headers = new Headers();
-            headers.append('Content-Type', 'application/json');
-            console.log("!!!server:"+ ConfigProvider.serverAddress+"/orderNotiMode");
-            let body = JSON.stringify({});
-
-            this.http.post(encodeURI(ConfigProvider.serverAddress+"/orderNotiMode"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-                  console.log("res:"+JSON.stringify(res));
-                  console.log("orderNotiMode-res.result:"+res.result);
-                  if(res.result=="success"){
-                    resolve(res.orders);
-                  }else{
-                    reject("server error");
-                  }
-            },(err)=>{
-                reject("http error");  
-            });
-      });         
-  }
-
   stopEnsureNoti(){
         return new Promise((resolve,reject)=>{
-            let headers = new Headers();
-            headers.append('Content-Type', 'application/json');
             console.log("!!!server:"+ ConfigProvider.serverAddress+"/sleepMode");
             let body = JSON.stringify({});
 
-            this.http.post(encodeURI(ConfigProvider.serverAddress+"/sleepMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res:any)=>{
+            //Why default timeout doesn't work?
+            //this.http.post(encodeURI(ConfigProvider.serverAddress+"/sleepMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res:any)=>{
+            this.serverProvider.post(ConfigProvider.serverAddress+"/sleepMode",body).then((res:any)=>{    
                   console.log("sleepMode-res:"+JSON.stringify(res));
                   if(res.result=="success"){
                     resolve();
                   }else{
-                    reject("server error");
+                    reject("HttpFailure");
                   }
             },(err)=>{
-                reject("http error");  
+                reject(err);  
             });
       });    
   }
 
   wakeupNoti(){
         return new Promise((resolve,reject)=>{
-            let headers = new Headers();
-            headers.append('Content-Type', 'application/json');
             console.log("!!!server:"+ ConfigProvider.serverAddress+"/wakeMode");
             let body = JSON.stringify({});
 
-            this.http.post(encodeURI(ConfigProvider.serverAddress+"/wakeMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res:any)=>{
+            //this.http.post(encodeURI(ConfigProvider.serverAddress+"/wakeMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res:any)=>{
+            this.serverProvider.post(ConfigProvider.serverAddress+"/wakeMode",body).then((res:any)=>{
                   console.log("wakeMode-res:"+JSON.stringify(res));
                   console.log("res is ..."+res.result);
                   if(res.result=="success"){
                     resolve();
                   }else{
-                    reject("server error");
+                    reject("HttpFailure");
                   }
             },(err)=>{
-                reject("http error");  
+                reject(err);  
             });
       });    
   }

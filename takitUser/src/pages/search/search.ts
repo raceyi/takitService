@@ -9,6 +9,7 @@ import {ShopTabsPage} from '../shoptabs/shoptabs';
 import {App} from 'ionic-angular';
 import {Device} from 'ionic-native';
 import {StorageProvider} from '../../providers/storageProvider';
+import {ServerProvider} from '../../providers/serverProvider';
 
 //reference=> https://github.com/dtaalbers/ionic-2-examples/tree/master/file-transfer-upload 
 //Please refer to http://www.codingandclimbing.co.uk/blog/ionic-2-filter-an-array-by-a-property-value-21
@@ -20,7 +21,6 @@ import {StorageProvider} from '../../providers/storageProvider';
   templateUrl: 'search.html'
 })
 export class SearchPage {
-  //@ViewChild("searchContent") contentRef: Content;
 
   private loading:any;
   inputType:string='keypad';
@@ -37,7 +37,7 @@ export class SearchPage {
   minVersion:boolean=(this.platform.is('android') && parseInt(Device.device.version[0])<=4);
 
   constructor(private app:App, public storageProvider:StorageProvider, private navController: NavController,
-    private platform:Platform,private http:Http ,private alertController:AlertController) {
+    private platform:Platform,private http:Http ,private alertController:AlertController,private serverProvider:ServerProvider) {
       console.log("SearchPage constructor");
       console.log("this.platform.is('android'):"+this.platform.is('android'));
       /* Please check if swipe works with side menu 
@@ -180,7 +180,8 @@ export class SearchPage {
             console.log("body:"+JSON.stringify(body));
             let headers = new Headers();
             headers.append('Content-Type', 'application/json');
-            this.http.post(ConfigProvider.serverAddress+"/takitIdAutocomplete",JSON.stringify(body),{headers: headers}).map(response=>response.json()).subscribe((res)=>{
+            //this.http.post(ConfigProvider.serverAddress+"/takitIdAutocomplete",JSON.stringify(body),{headers: headers}).map(response=>response.json()).subscribe((res)=>{
+            this.serverProvider.post(ConfigProvider.serverAddress+"/takitIdAutocomplete",JSON.stringify(body)).then((res:any)=>{
                 console.log("res:"+JSON.stringify(res));
                     this.takitIds=res;
                     this.services=[];
@@ -200,15 +201,17 @@ export class SearchPage {
                     });
                     resolve();
             },(err)=>{
-              console.log("takitIdAutocomplete err");
-              let alert = this.alertController.create({
+              console.log("takitIdAutocomplete err "+err);
+              if(err=="NetworkFailure"){
+                let alert = this.alertController.create({
                     title: '서버와 통신에 문제가 있습니다',
                     subTitle: '네트웍상태를 확인해 주시기바랍니다',
                     buttons: ['OK']
                     });
                     alert.present();
-              reject("no response from server");
-            });
+              }
+              reject(err);
+            })
         });
     }
 
@@ -402,8 +405,9 @@ export class SearchPage {
           console.log("[goToShop]  "+this.serviceQuery.trim()+"@"+this.brandQuery.trim());
           if(this.serviceQuery.trim().length>0 &&this.brandQuery.trim().length>0){
                 console.log("call getShopInfo");
-                this.storageProvider.getShopInfo(this.serviceQuery.trim()+"@"+this.brandQuery.trim()).then(()=>{
+                this.serverProvider.getShopInfo(this.serviceQuery.trim()+"@"+this.brandQuery.trim()).then((res)=>{
                     console.log("getShopInfo success");
+                    this.storageProvider.shopResponse=res;
                     this.app.getRootNav().push(ShopTabsPage,{takitId:this.serviceQuery.trim()+"@"+this.brandQuery.trim()}); 
                 },(err)=>{
 

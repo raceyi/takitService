@@ -6,6 +6,7 @@ import {EmailProvider} from '../providers/LoginProvider/email-provider';
 import {KakaoProvider} from '../providers/LoginProvider/kakao-provider';
 import {PrinterProvider} from '../providers/printerProvider';
 import {StorageProvider} from '../providers/storageProvider';
+import {ServerProvider} from '../providers/serverProvider';
 
 import {Storage} from '@ionic/storage';
 import {LoginPage} from '../pages/login/login';
@@ -48,12 +49,13 @@ import{Focuser} from '../components/focuser/focuser';
     CashPage,
   ],
   providers: [
+    Storage,
     FbProvider,
     EmailProvider,
     KakaoProvider,
     StorageProvider,
     PrinterProvider,
-    Storage
+    ServerProvider
   ]
 })
 export class AppModule {}

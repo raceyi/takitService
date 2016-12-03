@@ -3,6 +3,7 @@ import {Platform,Tabs,NavController} from 'ionic-angular';
 import {SQLite} from 'ionic-native';
 import {ConfigProvider} from './ConfigProvider';
 import {Http,Headers} from '@angular/http';
+
 import 'rxjs/add/operator/map';
 import 'rxjs/add/operator/timeout';
 
@@ -236,22 +237,6 @@ export class StorageProvider{
         this.email=email;
         this.name=name;
         this.phone=phone;
-    }
-
-    getShopInfo(takitId){
-        return new Promise((resolve,reject)=>{
-            let headers = new Headers();
-            headers.append('Content-Type', 'application/json');
-            console.log("takitId:"+takitId);
-            console.log("!!!server:"+ ConfigProvider.serverAddress+"/cafe/shopHome?takitId="+takitId);
-             this.http.get(encodeURI(ConfigProvider.serverAddress+"/cafe/shopHome?takitId="+takitId),{headers: headers}).subscribe((res)=>{
-                  console.log("res:"+JSON.stringify(res));
-                  this.shopResponse=res.json();
-                  resolve();
-             },(err)=>{
-                reject("http error");  
-             });
-        });   
     }
 }
 

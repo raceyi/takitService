@@ -8,6 +8,7 @@ import {ViewChild} from '@angular/core';
 import {Content} from 'ionic-angular';
 import {Device,InAppBrowserEvent,InAppBrowser} from 'ionic-native';
 import {CashIdPage} from '../cashid/cashid';
+import {ServerProvider} from '../../providers/serverProvider';
 
 @Component({
   selector: 'page-cash',
@@ -24,7 +25,8 @@ export class CashPage {
   @ViewChild("cashContent") contentRef: Content;
 
   constructor(private app:App,private platform:Platform, private navController: NavController
-  ,private navParams: NavParams,public http:Http ,private alertController:AlertController) {
+  ,private navParams: NavParams,public http:Http ,private alertController:AlertController
+  ,private serverProvider:ServerProvider) {
       this.isAndroid = platform.is('android');
       console.log(" param: "+this.navParams.get('param'));
 
@@ -53,19 +55,22 @@ export class CashPage {
                     let headers = new Headers();
                     headers.append('Content-Type', 'application/json');
                     console.log("server:"+ ConfigProvider.serverAddress);
-                    this.http.post(ConfigProvider.serverAddress+"/triggerCashCheck",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                    //this.http.post(ConfigProvider.serverAddress+"/triggerCashCheck",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                    this.serverProvider.post(ConfigProvider.serverAddress+"/triggerCashCheck",body).then((res:any)=>{    
                         var result:string=res.result;
                         if(result=="success"){
                             console.log("triggerCashCheck sent successfully");
                         }
                     },(err)=>{
-                            console.log("http post err");
-                            let alert = this.alertController.create({
-                                title: '서버와 통신에 문제가 있습니다',
-                                subTitle: '네트웍상태를 확인해 주시기바랍니다',
-                                buttons: ['OK']
-                            });
-                            alert.present();
+                            console.log("triggerCashCheck err "+err);
+                            if(err=="NetworkFailure"){
+                                let alert = this.alertController.create({
+                                    title: '서버와 통신에 문제가 있습니다',
+                                    subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                    buttons: ['OK']
+                                });
+                                alert.present();
+                            }
                     });
                 });
   }

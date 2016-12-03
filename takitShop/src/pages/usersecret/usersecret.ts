@@ -13,6 +13,7 @@ import {ConfigProvider} from '../../providers/ConfigProvider';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
 import {Storage} from '@ionic/storage';
+import {ServerProvider} from '../../providers/serverProvider';
 
 @Component({
   selector: 'page-usersecret',  
@@ -28,7 +29,7 @@ export class UserSecretPage {
   constructor(private navController: NavController, private navParams: NavParams,
                 private fbProvider:FbProvider,private emailProvider:EmailProvider,
                 private kakaoProvider:KakaoProvider,private storageProvider:StorageProvider,
-                private http:Http,public storage:Storage){
+                private http:Http,public storage:Storage,private serverProvider:ServerProvider){
       console.log("userSecretPage construtor");
       if(navParams.get("id")!=undefined){
           this.id=navParams.get("id");
@@ -111,12 +112,13 @@ export class UserSecretPage {
               headers.append('Content-Type', 'application/json');
               console.log("server:"+ ConfigProvider.serverAddress);
 
-             this.http.post(ConfigProvider.serverAddress+"/shop/secretLogin",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             //this.http.post(ConfigProvider.serverAddress+"/shop/secretLogin",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             this.serverProvider.post("/shop/secretLogin",body).then((res:any)=>{     
                  console.log("secretLogin res:"+JSON.stringify(res));
                  resolve(res); // 'success'(move into home page) or 'invalidId'(move into signup page)
              },(err)=>{
                  console.log("secretLogin no response");
-                 reject("secretLogin no response");
+                 reject(err);
              });
          });
   } 

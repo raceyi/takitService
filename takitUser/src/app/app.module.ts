@@ -11,6 +11,7 @@ import {EmailProvider} from '../providers/LoginProvider/email-provider';
 import {KakaoProvider} from '../providers/LoginProvider/kakao-provider';
 import {StorageProvider} from '../providers/storageProvider';
 import {Storage} from '@ionic/storage';
+import {ServerProvider} from '../providers/serverProvider';
 
 import {SignupPage} from '../pages/signup/signup';
 import {SignupSubmitPage} from '../pages/signup_submit/signup_submit';
@@ -81,11 +82,12 @@ import{Focuser} from '../components/focuser/focuser';
     CashIdPage
   ],
   providers: [
+    Storage, 
     FbProvider,
     EmailProvider,
     KakaoProvider,
     StorageProvider,
-    Storage 
+    ServerProvider
   ]
 })
 export class AppModule {}

@@ -4,6 +4,8 @@ import {StorageProvider} from '../../providers/storageProvider';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
 import {ConfigProvider} from '../../providers/ConfigProvider';
+import {ServerProvider} from '../../providers/serverProvider';
+
 declare var cordova:any;
 
 @Component({
@@ -26,7 +28,7 @@ export class ShopCartPage{
 
      constructor(private navController: NavController,private http:Http,
             private navParams: NavParams,private storageProvider:StorageProvider,
-            private alertController:AlertController){
+            private alertController:AlertController,private serverProvider:ServerProvider){
 	      console.log("ShopCartPage constructor");
         this.shopname=this.storageProvider.currentShopname();
         this.cart=this.storageProvider.cart;
@@ -104,7 +106,8 @@ export class ShopCartPage{
               headers.append('Content-Type', 'application/json');
               console.log("server:"+ ConfigProvider.serverAddress);
 
-             this.http.post(ConfigProvider.serverAddress+"/saveOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             //this.http.post(ConfigProvider.serverAddress+"/saveOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                 this.serverProvider.saveOrder(body).then((res:any)=>{
                  console.log(res); 
                  var result:string=res.result;
                   if(result=="success"){
@@ -169,13 +172,15 @@ export class ShopCartPage{
                     alert.present();
                  }
              },(err)=>{
-                 console.log("saveOrder err ");
-                 let alert = this.alertController.create({
-                        title: '서버와 통신에 문제가 있습니다',
-                        subTitle: '네트웍상태를 확인해 주시기바랍니다',
-                        buttons: ['OK']
-                    });
-                    alert.present();
+                 console.log("saveOrder err "+err);
+                 if(err=="NetworkFailure"){
+                    let alert = this.alertController.create({
+                            title: '서버와 통신에 문제가 있습니다',
+                            subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                    }
              });
      }
 

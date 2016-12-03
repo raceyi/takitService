@@ -4,6 +4,8 @@ import {Splashscreen,Transfer,File} from 'ionic-native';
 
 import {StorageProvider} from '../../providers/storageProvider';
 import {ConfigProvider} from '../../providers/ConfigProvider';
+import {ServerProvider} from '../../providers/serverProvider';
+
 import {Http} from '@angular/http';
 import 'rxjs/add/operator/map';
 
@@ -29,7 +31,7 @@ export class HomePage{
 
      constructor(private platform:Platform,private navController: NavController, private navParams: NavParams,
         private app: App, menu:MenuController,public storageProvider:StorageProvider,
-        private http:Http){
+        private http:Http,private serverProvider:ServerProvider){
          console.log("homePage constructor screen:"+ window.screen.availWidth+" "+window.screen.width+" "+window.screen.availHeight+ " "+window.screen.height);
          console.log("cordova.file.dataDirectory:"+cordova.file.dataDirectory);
 
@@ -177,7 +179,8 @@ export class HomePage{
 
     getSelected(takitId){
          console.log("getSelected:"+takitId);
-         this.storageProvider.getShopInfo(takitId).then(()=>{
+         this.serverProvider.getShopInfo(takitId).then((res)=>{
+              this.storageProvider.shopResponse=res;
               this.app.getRootNav().push(ShopTabsPage,{takitId:takitId}); 
          },(err)=>{
 

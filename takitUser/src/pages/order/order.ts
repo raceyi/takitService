@@ -5,8 +5,8 @@ import {Platform,App,AlertController} from 'ionic-angular';
 import 'rxjs/add/operator/map';
 import {ConfigProvider} from '../../providers/ConfigProvider';
 import {StorageProvider} from '../../providers/storageProvider';
-//import {Focuser} from "../../components/focuser/focuser";
-//import {Keyboard} from 'ionic-native';
+import {ServerProvider} from '../../providers/serverProvider';
+
 declare var cordova:any;
 
 @Component({
@@ -17,7 +17,6 @@ export class OrderPage {
   @ViewChild('orderPage') orderPageRef: Content;
   @ViewChild('optionDiv')  optionDivElementRef:ElementRef;
   @ViewChild('takeoutDiv') takeoutDivElementRef:ElementRef;
-  //@ViewChild('actionSheet') actionSheetElementRef:ActionSheetCmp;
 
   userNotiHidden:boolean =true;
   shopname:string;
@@ -43,7 +42,7 @@ export class OrderPage {
   constructor(private app:App,private navController: NavController,private http:Http,private navParams: NavParams,
         private alertController:AlertController, 
         private platform:Platform,private storageProvider:StorageProvider,
-        private ngZone:NgZone) {
+        private ngZone:NgZone,private serverProvider:ServerProvider) {
 
       this.menu=JSON.parse(navParams.get("menu"));
       this.shopname=navParams.get("shopname");
@@ -101,11 +100,11 @@ export class OrderPage {
               headers.append('Content-Type', 'application/json');
               console.log("server:"+ ConfigProvider.serverAddress);
 
-             this.http.post(ConfigProvider.serverAddress+"/saveOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             //this.http.post(ConfigProvider.serverAddress+"/saveOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             this.serverProvider.saveOrder(body).then((res)=>{    
                  resolve(res);
              },(err)=>{
-                 console.log("saveOrder err ");
-                 reject("서버와 통신에 문제가 있습니다");
+                 reject(err);
              });                 
        });
   }
@@ -186,13 +185,15 @@ export class OrderPage {
                     alert.present();
                  }
            },(error)=>{
-                 console.log("saveOrder err ");
-                 let alert = this.alertController.create({
-                        title: '서버와 통신에 문제가 있습니다',
-                        subTitle: '네트웍상태를 확인해 주시기바랍니다',
-                        buttons: ['OK']
-                    });
-                    alert.present();
+                 console.log("saveOrder err "+error);
+                 if(error=="NetworkFailure"){
+                    let alert = this.alertController.create({
+                            title: '서버와 통신에 문제가 있습니다',
+                            subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                 }
            })        
   }  
 

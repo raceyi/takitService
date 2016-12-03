@@ -9,6 +9,7 @@ import {Http,Headers} from '@angular/http';
 import {ErrorPage} from '../../pages/error/error';
 import {Splashscreen} from 'ionic-native';
 import {PrinterProvider} from '../../providers/printerProvider';
+import {ServerProvider} from '../../providers/serverProvider';
 
 declare var cordova:any;
 
@@ -35,7 +36,7 @@ export class ShopTablePage {
   constructor(public navController: NavController,private app:App,private storageProvider:StorageProvider,
       private http:Http,private alertController:AlertController,private ngZone:NgZone,private ionicApp: IonicApp,
       private printerProvider:PrinterProvider,private platform:Platform,private menuCtrl: MenuController,
-      public viewCtrl: ViewController) {
+      public viewCtrl: ViewController,private serverProvider:ServerProvider) {
     console.log("ShopTablePage constructor");
     this.isAndroid=this.platform.is("android");
   
@@ -137,7 +138,21 @@ export class ShopTablePage {
                                     console.log("closeStore success");
                                     this.platform.exitApp();  
                                 },(err)=>{
-                                    this.platform.exitApp();
+                                        if(err=="HttpFailure"){
+                                          let alert = this.alertController.create({
+                                                            title: '서버와 통신에 문제가 있습니다',
+                                                            subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                                            buttons: ['OK']
+                                                        });
+                                          alert.present();
+                                        }else{
+                                          let alert = this.alertController.create({
+                                                            title: '샵을 종료하는데 실패했습니다.',
+                                                            subTitle: '고객센터(0505-170-3636)에 문의바랍니다.',
+                                                            buttons: ['OK']
+                                                        });
+                                          alert.present();
+                                        }
                                 });
                               }
                           }
@@ -243,7 +258,8 @@ export class ShopTablePage {
                                       });
         }
          console.log("body:"+JSON.stringify(body));
-         this.http.post(ConfigProvider.serverAddress+"/shop/getOrders",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+         //this.http.post(ConfigProvider.serverAddress+"/shop/getOrders",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+         this.serverProvider.post("/shop/getOrders",body).then((res:any)=>{  
             console.log("!!!getOrders-res:"+JSON.stringify(res));
             var result:string=res.result;
             if(result==="success" &&Array.isArray(res.orders)){
@@ -258,13 +274,17 @@ export class ShopTablePage {
               resolve(false);
             }
          },(err)=>{
-           console.log("서버와 통신에 문제가 있습니다");
-           let alert = this.alertController.create({
+           if(err=="NetworkFailure"){
+              console.log("서버와 통신에 문제가 있습니다");
+              let alert = this.alertController.create({
                                 title: '서버와 통신에 문제가 있습니다',
                                 subTitle: '네트웍상태를 확인해 주시기바랍니다',
                                 buttons: ['OK']
                             });
-                            alert.present();
+              alert.present();
+           }else if(err=="HttpFailure"){
+              console.log("getOrders-HttpFailure... Please check the reason in server side");
+           }
            reject();
          });
       });
@@ -365,11 +385,11 @@ export class ShopTablePage {
             console.log("!!!server:"+ ConfigProvider.serverAddress);
             let body = JSON.stringify({messageId:messageId});
 
-            this.http.post(encodeURI(ConfigProvider.serverAddress+"/shop/successGCM"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-                  console.log("/shop/successGCM-res:"+JSON.stringify(res));
-                  resolve();
+            //this.http.post(encodeURI(ConfigProvider.serverAddress+"/shop/successGCM"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             this.serverProvider.post("/shop/successGCM",body).then((res:any)=>{   
+                resolve();
             },(err)=>{
-                reject("http error");  
+                reject("err");  
             });
       });   
     }
@@ -474,14 +494,18 @@ export class ShopTablePage {
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
               console.log("server:"+ ConfigProvider.serverAddress+" body:"+JSON.stringify(body));
-              this.http.post(ConfigProvider.serverAddress+"/shop/registrationId",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+              //this.http.post(ConfigProvider.serverAddress+"/shop/registrationId",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+              this.serverProvider.post("/shop/registrationId",body).then((res:any)=>{    
                   console.log("registrationId sent successfully");
              },(err)=>{
                   console.log("registrationId sent failure");
-                  //console.log(JSON.stringify(err));
-                  this.storageProvider.errorReasonSet('네트웍 연결이 원할하지 않습니다'); 
-                  //Please move into ErrorPage!
-                  this.app.getRootNav().setRoot(ErrorPage); 
+                  if(err=="NetworkFailure"){
+                      this.storageProvider.errorReasonSet('네트웍 연결이 원할하지 않습니다'); 
+                      //Please move into ErrorPage!
+                      this.app.getRootNav().setRoot(ErrorPage);
+                  }else if(err=="HttpFailure"){
+                      console.log("hum... /shop/registrationId-HttpFailure");
+                  } 
                 });
             });
 
@@ -535,11 +559,15 @@ export class ShopTablePage {
                 this.confirmMsgDelivery(additionalData.notId).then(()=>{
                       console.log("confirmMsgDelivery success");
                 },(err)=>{
+                  if(err=="NetworkFailure"){
                     let alert = this.alertController.create({
                         title: "서버와 통신에 문제가 있습니다.",
                         buttons: ['OK']
                     });
                     alert.present();
+                  }else if(err=="HttpFailure"){
+                      console.log("confirmMsgDelivery - httpError ");
+                  }
                 });
 
                 console.log("[shoptable.ts]pushNotification.on-data:"+JSON.stringify(data));
@@ -600,7 +628,8 @@ export class ShopTablePage {
         let body= JSON.stringify({ orderId: order.orderId,cancelReason:cancelReason});
 
         console.log("body:"+JSON.stringify(body));
-        this.http.post(ConfigProvider.serverAddress+"/shop/cancelOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        //this.http.post(ConfigProvider.serverAddress+"/shop/cancelOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        this.serverProvider.post("/shop/cancelOrder",body).then((res:any)=>{ 
             console.log("res:"+JSON.stringify(res));
             if(res.result=="success"){
                  order.orderStatus="cancelled";
@@ -613,13 +642,17 @@ export class ShopTablePage {
                 reject();
             }
          },(err)=>{
-           console.log("서버와 통신에 문제가 있습니다");
-           let alert = this.alertController.create({
-                                title: '서버와 통신에 문제가 있습니다',
-                                subTitle: '네트웍상태를 확인해 주시기바랍니다',
-                                buttons: ['OK']
-                            });
-           alert.present();
+           if(err=="NetworkFailure"){
+              console.log("서버와 통신에 문제가 있습니다");
+              let alert = this.alertController.create({
+                                    title: '서버와 통신에 문제가 있습니다',
+                                    subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                    buttons: ['OK']
+                                });
+              alert.present();
+           }else if(err=="HttpFailure"){
+              console.log("shop/cancelOrder-HttpFailure");
+           }
          });
       });
     }
@@ -666,7 +699,8 @@ export class ShopTablePage {
         let body= JSON.stringify({ orderId: order.orderId });
 
         console.log("body:"+JSON.stringify(body));
-        this.http.post(ConfigProvider.serverAddress+"/shop/"+request,body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        //this.http.post(ConfigProvider.serverAddress+"/shop/"+request,body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        this.serverProvider.post("/shop/"+request,body).then((res:any)=>{   
             console.log(request+"-res:"+JSON.stringify(res));
             if(res.result=="success"){
                 resolve("주문상태변경에 성공했습니다");
@@ -679,14 +713,18 @@ export class ShopTablePage {
                 alert.present();
             }
          },(err)=>{
-           console.log("서버와 통신에 문제가 있습니다");
-           reject("서버와 통신에 문제가 있습니다");
-           let alert = this.alertController.create({
-                                title: '서버와 통신에 문제가 있습니다',
-                                subTitle: '네트웍상태를 확인해 주시기바랍니다',
-                                buttons: ['OK']
-                            });
-            alert.present();
+           if(err=="NetworkFailure"){
+              console.log("서버와 통신에 문제가 있습니다");
+              reject("서버와 통신에 문제가 있습니다");
+              let alert = this.alertController.create({
+                                    title: '서버와 통신에 문제가 있습니다',
+                                    subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                    buttons: ['OK']
+                                });
+                alert.present();
+           }else if(err=="HttpFailure"){
+              console.log("shop/"+request+"-HttpFailure");
+           }
          });
       });
      }
@@ -776,13 +814,21 @@ export class ShopTablePage {
                           buttons: ['OK']
                         });
                         alert.present();
-                  },()=>{
-                        let alert = this.alertController.create({
+                  },(err)=>{
+                      let alert;
+                      if(err=="NetworkError"){
+                        alert = this.alertController.create({
                           title: '주문알림 요청에 실패했습니다.',
                           subTitle: '네트웍 연결 확인후 다시 시도해 주시기 바랍니다.',
                           buttons: ['OK']
                         });
-                        alert.present();
+                      }else{
+                        alert = this.alertController.create({
+                          title: '주문알림 요청에 실패했습니다.',
+                          buttons: ['OK']
+                        });
+                      }
+                      alert.present();
                   });
                 }
               }
@@ -800,7 +846,8 @@ export class ShopTablePage {
         let body= JSON.stringify({ takitId: this.storageProvider.myshop.takitId });
 
         console.log("body:"+JSON.stringify(body));
-        this.http.post(ConfigProvider.serverAddress+"/shop/todayManager",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        //this.http.post(ConfigProvider.serverAddress+"/shop/todayManager",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        this.serverProvider.post("/shop/todayManager",body).then((res:any)=>{   
           console.log("res:"+JSON.stringify(res));
           if(res.result=="success"){
                resolve(); 
@@ -808,7 +855,7 @@ export class ShopTablePage {
                 reject();
           }
         },(err)=>{
-                reject();
+                reject(err);
         });
 
       });
@@ -821,7 +868,7 @@ export class ShopTablePage {
             console.log("open shop successfully");
             this.storeColor="primary";
         },(err)=>{
-            if(err=="HttpFailure"){
+            if(err=="NetworkFailure"){
               let alert = this.alertController.create({
                                 title: '서버와 통신에 문제가 있습니다',
                                 subTitle: '네트웍상태를 확인해 주시기바랍니다',
@@ -889,7 +936,8 @@ export class ShopTablePage {
         let body= JSON.stringify({ });
 
         console.log("body:"+JSON.stringify(body));
-        this.http.post(ConfigProvider.serverAddress+"/shop/openShop",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        //this.http.post(ConfigProvider.serverAddress+"/shop/openShop",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        this.serverProvider.post("/shop/openShop",body).then((res:any)=>{   
             console.log("/shop/openShop"+"-res:"+JSON.stringify(res));
             if(res.result=="success"){
                 resolve();
@@ -897,7 +945,7 @@ export class ShopTablePage {
                 reject();
          },(err)=>{
            console.log("서버와 통신에 문제가 있습니다");
-            reject("HttpFailure");
+            reject(err);
          });
       });
     }
@@ -910,7 +958,8 @@ export class ShopTablePage {
         let body= JSON.stringify({ });
 
         console.log("body:"+JSON.stringify(body));
-        this.http.post(ConfigProvider.serverAddress+"/shop/closeShop",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        //this.http.post(ConfigProvider.serverAddress+"/shop/closeShop",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        this.serverProvider.post("/shop/closeShop",body).then((res:any)=>{   
             console.log("/shop/closeShop"+"-res:"+JSON.stringify(res));
             if(res.result=="success"){
                 resolve();
@@ -918,7 +967,7 @@ export class ShopTablePage {
                 reject();
          },(err)=>{
            console.log("서버와 통신에 문제가 있습니다");
-            reject("HttpFailure");
+            reject(err);
          });
       });
     }

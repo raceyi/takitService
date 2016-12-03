@@ -4,6 +4,8 @@ import {StorageProvider} from '../../providers/storageProvider';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
 import {ConfigProvider} from '../../providers/ConfigProvider';
+import {ServerProvider} from '../../providers/serverProvider';
+
 declare var cordova:any;
 
 @Component({
@@ -23,7 +25,8 @@ export class ShopMyPage{
 
      constructor(private http:Http, private navController: NavController, 
           private navParams: NavParams,private storageProvider:StorageProvider,
-          private alertController:AlertController, private ngZone:NgZone){
+          private alertController:AlertController, private ngZone:NgZone,
+          private serverProvider:ServerProvider){
 	      console.log("ShopMyPage constructor");
         this.myPageMenu="orderHistory";
         this.shopname=this.storageProvider.currentShopname();
@@ -104,7 +107,8 @@ export class ShopMyPage{
                                         lastOrderId:lastOrderId, 
                                         limit:ConfigProvider.OrdersInPage});
         console.log("getOrders:"+body);
-         this.http.post(ConfigProvider.serverAddress+"/getOrders",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        // this.http.post(ConfigProvider.serverAddress+"/getOrders",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        this.serverProvider.post(ConfigProvider.serverAddress+"/getOrders",body).then((res:any)=>{
             console.log("getOrders-res:"+JSON.stringify(res));
             var result:string=res.result;
             if(result=="success" && Array.isArray(res.orders)){
@@ -160,7 +164,8 @@ export class ShopMyPage{
         console.log("server:"+ ConfigProvider.serverAddress);
         let body  = JSON.stringify({ orderId:order.orderId,cancelReason:""});
          
-         this.http.post(ConfigProvider.serverAddress+"/cancelOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+         //this.http.post(ConfigProvider.serverAddress+"/cancelOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+         this.serverProvider.post(ConfigProvider.serverAddress+"/cancelOrder",body).then((res:any)=>{
             console.log("cancelOrder-res:"+JSON.stringify(res));
             var result:string=res.result;
             if(result==="success"){
@@ -180,15 +185,23 @@ export class ShopMyPage{
                     }
                 }
               });
-                this.getOrdersInProgress().then((orders:any)=>{
+                this.serverProvider.orderNoti().then((orders:any)=>{
                         if(orders==undefined || orders==null || orders.length==0){
                            // off run_in_background 
                            console.log("no more order in progress within 24 hours");
                            this.storageProvider.order_in_progress_24hours=false;   
                            this.storageProvider.tabMessageEmitter.emit("stopEnsureNoti");                         
                         }
-                },()=>{
-
+                },(err)=>{
+                    if(err=="NetworkFailure"){
+                        let alert = this.alertController.create({
+                                    title: "서버와 통신에 문제가 있습니다.",
+                                    buttons: ['OK']
+                                });
+                                alert.present();
+                    }else{
+                        console.log("orderNotiMode error");
+                    } 
                 });
 
             }else{
@@ -232,26 +245,5 @@ export class ShopMyPage{
         if(this.infiniteScroll!=undefined)
             this.infiniteScroll.enable(true);
         this.getOrders(-1);
-    }
-
-    getOrdersInProgress(){
-            return new Promise((resolve,reject)=>{
-                let headers = new Headers();
-                headers.append('Content-Type', 'application/json');
-                console.log("!!!server:"+ ConfigProvider.serverAddress+"/orderNotiMode");
-                let body = JSON.stringify({});
-
-                this.http.post(encodeURI(ConfigProvider.serverAddress+"/orderNotiMode"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-                    console.log("res:"+JSON.stringify(res));
-                    console.log("res.result:"+res.result);
-                    if(res.result=="success"){
-                        resolve(res.orders);
-                    }else{
-                        reject("server error");
-                    }
-                },(err)=>{
-                    reject("http error");  
-                });
-        });         
     }
 }

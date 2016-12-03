@@ -9,7 +9,7 @@ import {OrderPage} from '../order/order';
 import {App} from 'ionic-angular';
 import {TabsPage} from '../tabs/tabs';
 import {Device} from 'ionic-native';
-//import {ErrorPage} from '../../pages/error/error';
+import {ServerProvider} from '../../providers/serverProvider';
 
 @Component({
   selector:'page-shophome',  
@@ -42,7 +42,7 @@ export class ShopHomePage {
    
   constructor(private app:App, private platform: Platform, private navController: NavController
       ,private navParams: NavParams,private http:Http,private storageProvider:StorageProvider
-      ,private alertController:AlertController) {
+      ,private alertController:AlertController,private serverProvider:ServerProvider) {
         // this.minVersion=(this.platform.is('android') && parseInt(Device.device.version[0])<=4);
   }
 
@@ -173,7 +173,8 @@ export class ShopHomePage {
         console.log("body:",body);
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        this.http.post(ConfigProvider.serverAddress+"/shopEnter",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        //this.http.post(ConfigProvider.serverAddress+"/shopEnter",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        this.serverProvider.post(ConfigProvider.serverAddress+"/shopEnter",body).then((res:any)=>{
             console.log("res.result:"+res.result);
             var result:string=res.result;
             if(result=="success"){
@@ -182,8 +183,16 @@ export class ShopHomePage {
                 
             }
         },(err)=>{
-            console.log("shopEnter-http post err");
+            console.log("shopEnter-http post err "+err);
             //Please give user an alert!
+            if(err=="NetworkFailure"){
+            let alert = this.alertController.create({
+                    title: '서버와 통신에 문제가 있습니다',
+                    subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                    buttons: ['OK']
+                });
+                alert.present();
+            }
         });
         /////////////////////////////////
       this.isAndroid = this.platform.is('android');                        
