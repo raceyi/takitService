@@ -267,24 +267,27 @@ export class LoginPage {
 
   tour(){
       console.log("tour");
-      /*
+      
       this.emailProvider.EmailServerLogin(ConfigProvider.tourEmail,ConfigProvider.tourPassword).then((res:any)=>{
                 console.log("emailLogin-login page:"+JSON.stringify(res));
                 if(res.result=="success"){
-
+                    this.storageProvider.tourMode=true;
+                    if(res.userInfo.hasOwnProperty("shopList")){
+                        console.log("shoplist:"+res.userInfo.shopList);
+                        this.storageProvider.shoplistSet(JSON.parse(res.userInfo.shopList));
+                    }
+                    this.storageProvider.tourMode=true;
+                    this.navController.push(TabsPage);//hum... !!! Please check how backbutton works !!!                    
                 }else{
-
+                    console.log("hum... tour id doesn't work.");
                 }
       },(err)=>{
-                if(err.hasOwnProperty("status") && err.status==401)
-                    console.log("Please login again and then call http request with the same parameter");
-                });
                 let alert = this.alertController.create({
                     title: '네트웍 상태를 확인하신후 다시 시도해 주시기 바랍니다.',
                     buttons: ['OK']
                 });
                 alert.present();
       });
-      */
+      
   }
 }

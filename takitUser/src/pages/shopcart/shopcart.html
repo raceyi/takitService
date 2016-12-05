@@ -137,7 +137,7 @@
 <ion-footer class="shopcart" [hidden]="emptyCart()">
     <ion-segment>
     <ion-segment-button (click)="deleteAll()">전체삭제</ion-segment-button>
-    <ion-segment-button (click)="order()">주문결제하기</ion-segment-button>
+    <ion-segment-button (click)="order()" [disabled]="storageProvider.tourMode==true">주문결제하기</ion-segment-button>
     </ion-segment>
 </ion-footer>
 

@@ -41,7 +41,7 @@ export class OrderPage {
 
   constructor(private app:App,private navController: NavController,private http:Http,private navParams: NavParams,
         private alertController:AlertController, 
-        private platform:Platform,private storageProvider:StorageProvider,
+        private platform:Platform,public storageProvider:StorageProvider,
         private ngZone:NgZone,private serverProvider:ServerProvider) {
 
       this.menu=JSON.parse(navParams.get("menu"));
@@ -80,6 +80,7 @@ export class OrderPage {
  }
 
   sendSaveOrder(cart,menuName){
+      if(this.storageProvider.tourMode==false){
        return new Promise((resolve, reject)=>{
              var takeout;
              if(this.takeout==true){
@@ -107,6 +108,7 @@ export class OrderPage {
                  reject(err);
              });                 
        });
+      }
   }
 
   sendOrder(){

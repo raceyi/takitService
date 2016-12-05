@@ -27,7 +27,7 @@ export class ShopCartPage{
     takeout:boolean=false;
 
      constructor(private navController: NavController,private http:Http,
-            private navParams: NavParams,private storageProvider:StorageProvider,
+            private navParams: NavParams,public storageProvider:StorageProvider,
             private alertController:AlertController,private serverProvider:ServerProvider){
 	      console.log("ShopCartPage constructor");
         this.shopname=this.storageProvider.currentShopname();
@@ -86,7 +86,8 @@ export class ShopCartPage{
      }
 
      order(){
-       console.log("order ");
+       if(this.storageProvider.tourMode==false){  
+            console.log("order ");
              ////////////////////////////////////////////////////
              var takeout;
              if(this.takeout==true){
@@ -182,6 +183,7 @@ export class ShopCartPage{
                         alert.present();
                     }
              });
+       }
      }
 
      collapse($event){

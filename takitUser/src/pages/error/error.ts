@@ -18,15 +18,15 @@ import {LoginPage} from '../login/login';
 
 export class ErrorPage{
      public reason:string="";
-     android_platform:boolean;
+     //android_platform:boolean;
 
      constructor(private navController: NavController, private _navParams: NavParams,
-        private platform:Platform,private storageProvider:StorageProvider,
+        private platform:Platform,public storageProvider:StorageProvider,
         public fbProvider:FbProvider, public kakaoProvider:KakaoProvider,
         public emailProvider:EmailProvider,public storage:Storage,private app:App){
 
          console.log("ErrorPage constructor");
-         this.android_platform=this.platform.is('android');
+         //this.android_platform=this.platform.is('android');
          this.reason=this.storageProvider.errorReason;
      }
 

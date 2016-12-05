@@ -28,14 +28,14 @@ export class ServerProvider{
             let headers = new Headers();
             headers.append('Content-Type', 'application/json');
 
-            this.http.post(ConfigProvider.serverAddress+request,body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+            this.http.post(ConfigProvider.serverAddress+request,body,{headers: headers}).timeout(ConfigProvider.timeout).map(res=>res.json()).subscribe((res)=>{
                 resolve(res);                    
             },(err)=>{
                 if(err.hasOwnProperty("status") && err.status==401){
                     //login again with id
                     this.loginAgain().then(()=>{
                         //call http post again
-                         this.http.post(ConfigProvider.serverAddress+request,body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                         this.http.post(ConfigProvider.serverAddress+request,body,{headers: headers}).timeout(ConfigProvider.timeout).map(res=>res.json()).subscribe((res)=>{
                             resolve(res);  
                          },(err)=>{
                              reject("NetworkFailure");

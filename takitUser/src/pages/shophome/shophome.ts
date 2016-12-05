@@ -25,7 +25,7 @@ export class ShopHomePage {
   categorySelected:number=1;
   categories=[];
 
-  isAndroid: boolean = false;
+  //isAndroid: boolean = false;
   takitId:string;
 
   shop;
@@ -174,28 +174,30 @@ export class ShopHomePage {
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
         //this.http.post(ConfigProvider.serverAddress+"/shopEnter",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-        this.serverProvider.post(ConfigProvider.serverAddress+"/shopEnter",body).then((res:any)=>{
-            console.log("res.result:"+res.result);
-            var result:string=res.result;
-            if(result=="success"){
+        if(this.storageProvider.tourMode==false){    
+            this.serverProvider.post(ConfigProvider.serverAddress+"/shopEnter",body).then((res:any)=>{
+                console.log("res.result:"+res.result);
+                var result:string=res.result;
+                if(result=="success"){
 
-            }else{
-                
-            }
-        },(err)=>{
-            console.log("shopEnter-http post err "+err);
-            //Please give user an alert!
-            if(err=="NetworkFailure"){
-            let alert = this.alertController.create({
-                    title: '서버와 통신에 문제가 있습니다',
-                    subTitle: '네트웍상태를 확인해 주시기바랍니다',
-                    buttons: ['OK']
-                });
-                alert.present();
-            }
-        });
+                }else{
+                    
+                }
+            },(err)=>{
+                console.log("shopEnter-http post err "+err);
+                //Please give user an alert!
+                if(err=="NetworkFailure"){
+                let alert = this.alertController.create({
+                        title: '서버와 통신에 문제가 있습니다',
+                        subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                        buttons: ['OK']
+                    });
+                    alert.present();
+                }
+            });
+        }
         /////////////////////////////////
-      this.isAndroid = this.platform.is('android');                        
+      //this.isAndroid = this.platform.is('android');                        
   }
 
   categoryChange(category_no){

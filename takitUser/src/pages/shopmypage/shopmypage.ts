@@ -24,7 +24,7 @@ export class ShopMyPage{
      infiniteScroll:any;
 
      constructor(private http:Http, private navController: NavController, 
-          private navParams: NavParams,private storageProvider:StorageProvider,
+          private navParams: NavParams,public storageProvider:StorageProvider,
           private alertController:AlertController, private ngZone:NgZone,
           private serverProvider:ServerProvider){
 	      console.log("ShopMyPage constructor");

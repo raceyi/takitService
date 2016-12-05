@@ -18,7 +18,7 @@
   <ion-col width-50>잠시후 다시 시도해 주세요</ion-col>
   <ion-col width-25></ion-col>
 </ion-row>
-<ion-row  *ngIf="android_platform">
+<ion-row  *ngIf="storageProvider.isAndroid">
   <ion-col width-25></ion-col>
   <ion-col width-25>
     <button ion-button color="white" (click)="terminate($event)" full><ion-icon class="exitIcon" name="exit"></ion-icon>종료</button> 
@@ -28,7 +28,7 @@
   </ion-col>
   <ion-col width-25></ion-col>
  </ion-row>   
- <ion-row  *ngIf="!android_platform">
+ <ion-row  *ngIf="!storageProvider.isAndroid">
   <ion-col width-33></ion-col>
   <ion-col width-33>
     <button ion-button color="white" (click)="tryLogin($event)" full>데이터요청</button> 

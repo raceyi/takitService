@@ -162,7 +162,7 @@
 <ion-footer class="orderPage">
     <ion-segment>
     <ion-segment-button value="shopcart" (click)="shopcart()">장바구니 담기</ion-segment-button>
-    <ion-segment-button value="order" (click)="order()">주문결제하기</ion-segment-button>
+    <ion-segment-button value="order" [disabled]="storageProvider.tourMode==true" (click)="order()">주문결제하기</ion-segment-button>
     </ion-segment>
 </ion-footer>
 

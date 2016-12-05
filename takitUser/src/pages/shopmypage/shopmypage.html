@@ -15,7 +15,7 @@
       <button ion-button  class="updateButton" color='gray' (click)="update()"><span class="updateButtonText">업데이트</span></button>
     </ion-col>    
   </ion-row>
-<div padding>
+<div padding *ngIf="storageProvider.isAndroid">
   <ion-segment [(ngModel)]="myPageMenu">
     <ion-segment-button (click)="historySelect()" value="orderHistory">
       주문내역

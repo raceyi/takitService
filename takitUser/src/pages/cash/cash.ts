@@ -8,6 +8,7 @@ import {ViewChild} from '@angular/core';
 import {Content} from 'ionic-angular';
 import {Device,InAppBrowserEvent,InAppBrowser} from 'ionic-native';
 import {CashIdPage} from '../cashid/cashid';
+import {StorageProvider} from '../../providers/storageProvider';
 import {ServerProvider} from '../../providers/serverProvider';
 
 @Component({
@@ -17,7 +18,7 @@ import {ServerProvider} from '../../providers/serverProvider';
 export class CashPage {
   cashMenu: string = "cashIn";
   available: string ="15000";
-  isAndroid: boolean = false;
+  //isAndroid: boolean = false;
   browserRef:InAppBrowser;
 
   //minVersion:boolean=(this.platform.is('android') && parseInt(Device.device.version[0])<=4);
@@ -26,8 +27,8 @@ export class CashPage {
 
   constructor(private app:App,private platform:Platform, private navController: NavController
   ,private navParams: NavParams,public http:Http ,private alertController:AlertController
-  ,private serverProvider:ServerProvider) {
-      this.isAndroid = platform.is('android');
+  ,public storageProvider:StorageProvider,private serverProvider:ServerProvider) {
+      //this.isAndroid = platform.is('android');
       console.log(" param: "+this.navParams.get('param'));
 
   }

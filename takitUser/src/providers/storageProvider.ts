@@ -30,9 +30,12 @@ export class StorageProvider{
     public shopResponse:any;
     public run_in_background=false;
     public order_in_progress_24hours=false;
+    public tourMode=false;
+    public isAndroid;
 
     constructor(private platform:Platform,private http:Http){
         console.log("StorageProvider constructor"); 
+        this.isAndroid = this.platform.is('android'); 
     }
 
     open(){
@@ -237,6 +240,7 @@ export class StorageProvider{
         this.email=email;
         this.name=name;
         this.phone=phone;
+        this.tourMode=false;
     }
 }
 

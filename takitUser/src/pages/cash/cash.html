@@ -12,7 +12,7 @@
     </ion-item>
 
     <div>
-    <ion-segment [(ngModel)]="cashMenu" [attr.light]="isAndroid ? '' : null">
+    <ion-segment [(ngModel)]="cashMenu" [attr.light]="storageProvider.isAndroid ? '' : null">
       <ion-segment-button outline value="cashIn">
       입금하기
       </ion-segment-button>

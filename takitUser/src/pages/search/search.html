@@ -7,7 +7,8 @@
 <ion-content padding class="ocr" (swipe)="swipeSearch($event)">
   -->
 <ion-content #searchContent class="ocr">
-<ion-segment  [(ngModel)]="inputType">
+
+<ion-segment  [(ngModel)]="inputType"  *ngIf="storageProvider.isAndroid" >
  <ion-segment-button color="primary" value="keypad" (ionSelect)="keypad()">
    <ion-icon name="keypad"></ion-icon>
   </ion-segment-button>
@@ -21,7 +22,6 @@
 
 <ion-list>
 <ion-item>
-
 
 <ion-row>
   <ion-col width-45>
