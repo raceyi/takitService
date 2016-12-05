@@ -100,12 +100,13 @@ export class CashPage {
               });
               this.browserRef.on("loadstart").subscribe((event:InAppBrowserEvent)=>{
                   console.log("InAppBrowserEvent(loadstart):"+String(event.url));
-                  if(event.url=="https://takit.biz/oauthSuccess"){ // Just testing. Please add success and failure into server 
+                  if(event.url.startsWith("https://takit.biz/oauthSuccess")){ // Just testing. Please add success and failure into server 
                         console.log("cert success");
+                        
                         this.browserRef.close();
                         reject();
                         return;
-                  }else if(event.url=="https://takit.biz/oauthFailure"){
+                  }else if(event.url.startsWith("https://takit.biz/oauthFailure")){
                         console.log("cert failure");
                         this.browserRef.close();
                          resolve();

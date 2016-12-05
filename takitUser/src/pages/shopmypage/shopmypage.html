@@ -25,6 +25,10 @@
     </ion-segment-button>
   </ion-segment>
 </div>
+
+<div padding *ngIf="!storageProvider.isAndroid">
+  주문내역 
+</div>  
 </ion-content>
 <!--
 <ion-content padding class="infiniteScroll" [hidden]="myPageMenu==='couponHistory'">

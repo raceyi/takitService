@@ -118,7 +118,8 @@ export class ServerProvider{
                   console.log("res:"+JSON.stringify(res));
                   console.log("saveOrder-res.result:"+res.result);
                   if(res.result=="success"){
-                    resolve(res.orders);
+                    //resolve(res.orders);
+                    resolve(res);
                   }else{
                     reject("HttpFailure");
                   }
