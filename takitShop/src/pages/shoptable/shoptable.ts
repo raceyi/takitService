@@ -205,6 +205,44 @@ export class ShopTablePage {
                 });
         });
 
+        let body = JSON.stringify({takitId:this.storageProvider.myshop.takitId});
+        this.serverProvider.post("/getShopInfo",body).then((res:any)=>{
+          if(res.result=="success"){
+              this.ngZone.run(()=>{
+                if(res.shopInfo.business=="on"){
+                     this.storeColor="primary";
+                }else{
+                    this.storeColor="gray";
+                }
+              });
+          }else{
+              console.log("getShopInfo-HttpFailure... Please check the reason in server side");
+              let alert = this.alertController.create({
+                                title: '상점의 개점 여부를 알수 없습니다.',
+                                subTitle: '상점 정보를 읽어오는데 실패했습니다.',
+                                buttons: ['OK']
+                            });
+              alert.present();
+          }
+        },(err)=>{
+          if(err=="NetworkFailure"){
+              console.log("서버와 통신에 문제가 있습니다");
+              let alert = this.alertController.create({
+                                title: '서버와 통신에 문제가 있습니다',
+                                subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                buttons: ['OK']
+                            });
+              alert.present();
+           }else{
+              console.log("getShopInfo-HttpFailure... Please check the reason in server side");
+              let alert = this.alertController.create({
+                                title: '상점의 개점 여부를 알수 없습니다.',
+                                subTitle: '상점 정보를 읽어오는데 실패했습니다.',
+                                buttons: ['OK']
+                            });
+              alert.present();
+           }
+        })  
     }
 
     convertOrderInfo(orderInfo){
@@ -693,9 +731,6 @@ export class ShopTablePage {
 
     updateStatus(order,request){
       return new Promise((resolve,reject)=>{
-        let headers = new Headers();
-        headers.append('Content-Type', 'application/json');
-        console.log(request+"-server:"+ ConfigProvider.serverAddress);
         let body= JSON.stringify({ orderId: order.orderId });
 
         console.log("body:"+JSON.stringify(body));
@@ -789,6 +824,36 @@ export class ShopTablePage {
     if(this.infiniteScroll!=undefined)
         this.infiniteScroll.enable(true);
     this.getOrders(-1);
+    let body= JSON.stringify({ takitId: this.storageProvider.myshop.takitId});
+    this.serverProvider.post("/shop/refreshInfo",body).then((res:any)=>{
+        console.log("res:"+JSON.stringify(res));
+        if(res.result=="success"){
+          this.ngZone.run(()=>{
+            if(res.shopUserInfo.GCMNoti=="on"){
+                this.notiColor="primary";
+            }else{ // This should be "off"
+                this.notiColor="gray";
+            }
+            if(res.shopInfo.business=="on"){
+                this.storeColor="primary";
+            }else{ // This should be "off"
+                this.storeColor="gray";
+            }
+          });
+        }else{
+            console.log("/shop/refreshInfo-failure ");
+        }
+    },(err)=>{
+      if(err=="NetworkFailure"){
+              let alert = this.alertController.create({
+                                title: '서버와 통신에 문제가 있습니다',
+                                subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                buttons: ['OK']
+                            });
+              alert.present();
+      }
+    });
+    
   }
 
   enableGotNoti(){
@@ -842,12 +907,12 @@ export class ShopTablePage {
       return new Promise((resolve,reject)=>{
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        console.log("/shop/todayManager-server:"+ ConfigProvider.serverAddress);
+        console.log("/shop/changeNotiMember-server:"+ ConfigProvider.serverAddress);
         let body= JSON.stringify({ takitId: this.storageProvider.myshop.takitId });
 
         console.log("body:"+JSON.stringify(body));
-        //this.http.post(ConfigProvider.serverAddress+"/shop/todayManager",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-        this.serverProvider.post("/shop/todayManager",body).then((res:any)=>{   
+        //this.http.post(ConfigProvider.serverAddress+"/shop/changeNotiMember",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        this.serverProvider.post("/shop/changeNotiMember",body).then((res:any)=>{   
           console.log("res:"+JSON.stringify(res));
           if(res.result=="success"){
                resolve(); 
@@ -889,7 +954,7 @@ export class ShopTablePage {
             console.log("close shop successfully");
             this.storeColor="gray";
         },(err)=>{
-            if(err=="HttpFailure"){
+            if(err=="NetworkFailure"){
               let alert = this.alertController.create({
                                 title: '서버와 통신에 문제가 있습니다',
                                 subTitle: '네트웍상태를 확인해 주시기바랍니다',
@@ -933,7 +998,7 @@ export class ShopTablePage {
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
         console.log("openShop-server:"+ ConfigProvider.serverAddress);
-        let body= JSON.stringify({ });
+        let body= JSON.stringify({takitId: this.storageProvider.myshop.takitId});
 
         console.log("body:"+JSON.stringify(body));
         //this.http.post(ConfigProvider.serverAddress+"/shop/openShop",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
@@ -955,7 +1020,7 @@ export class ShopTablePage {
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
         console.log("closeShop-server:"+ ConfigProvider.serverAddress);
-        let body= JSON.stringify({ });
+        let body= JSON.stringify({takitId:this.storageProvider.myshop.takitId});
 
         console.log("body:"+JSON.stringify(body));
         //this.http.post(ConfigProvider.serverAddress+"/shop/closeShop",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{

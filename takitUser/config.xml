@@ -44,4 +44,5 @@
     <allow-navigation href="https://*.kakao.com/*" />
     <allow-navigation href="https://takit.biz/*" />
     <allow-navigation href="https://takit.biz:8443/*" />
+    <allow-navigation href="https://cert.kcp.co.kr/*" />
 </widget>

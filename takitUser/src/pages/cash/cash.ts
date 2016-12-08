@@ -83,17 +83,48 @@ export class CashPage {
   }
   
   configureCashId(){
-      this.mobileAuth().then(()=>{ // success
-          this.navController.push(CashIdPage);
-      },()=>{ //failure
+   // this.app.getRootNav().push(CashIdPage);
 
-      });
+    let confirm = this.alertController.create({
+      title: '회원정보와 휴대폰 본인인증 정보가 동일해야만 합니다.',
+      message: '다를 경우 회원정보 수정후 진행해주시기바랍니다.',
+      buttons: [
+        {
+          text: '아니오',
+          handler: () => {
+            console.log('Disagree clicked');
+            return;
+          }
+        },
+        {
+          text: '네',
+          handler: () => {
+            console.log('Agree clicked');
+            this.mobileAuth().then(()=>{ // success
+            this.app.getRootNav().push(CashIdPage);
+            },(err)=>{ //failure
+                if(err=="invalidUserInfo"){
+                    console.log("invalidUserInfo");
+                    let alert = this.alertController.create({
+                            title: '사용자 정보가 일치하지 않습니다.',
+                            subTitle: '회원정보를 수정해주시기 바랍니다',
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                }
+            });
+          }
+        }
+      ]
+    });
+    confirm.present();    
   }
 
   mobileAuth(){
     return new Promise((resolve,reject)=>{
       // move into CertPage and then 
-      this.browserRef=new InAppBrowser("https://takit.biz:8443/NHPintech/kcpcert_start.jsp?uid=3","_blank",'toolbar=no');
+      //this.browserRef=new InAppBrowser("https://kauth.kakao.com/oauth/authorize?client_id="+ConfigProvider.kakaoTakitUser+"&redirect_uri="+ConfigProvider.kakaoOauthUrl+"&response_type=code","_blank" ,'toolbar=no');
+      this.browserRef=new InAppBrowser("https://takit.biz:8443/NHPintech/kcpcert_start.jsp","_blank" ,'toolbar=no');
               this.browserRef.on("exit").subscribe((event)=>{
                   console.log("InAppBrowserEvent(exit):"+JSON.stringify(event)); 
                   this.browserRef.close();
@@ -102,14 +133,42 @@ export class CashPage {
                   console.log("InAppBrowserEvent(loadstart):"+String(event.url));
                   if(event.url.startsWith("https://takit.biz/oauthSuccess")){ // Just testing. Please add success and failure into server 
                         console.log("cert success");
-                        
+                        var strs=event.url.split("userPhone=");    
+                        if(strs.length>=2){
+                            var nameStrs=strs[1].split("userName=");
+                            if(nameStrs.length>=2){
+                                var userPhone=nameStrs[0];
+                                var userName=nameStrs[1];
+                                console.log("userPhone:"+userPhone+" userName:"+userName);
+                                let body = JSON.stringify({userPhone:userPhone,userName:userName});
+                                this.serverProvider.post(ConfigProvider.serverAddress+"/validUserInfo",body).then((res:any)=>{
+                                    if(res.result=="success"){
+                                        // forward into cash id page
+                                        resolve();
+                                    }else{
+                                        // change user info
+                                        //    
+                                        reject("invalidUserInfo");
+                                    }
+                                },(err)=>{
+                                    if(err=="NetworkFailure"){
+                                        let alert = this.alertController.create({
+                                            title: '서버와 통신에 문제가 있습니다',
+                                            subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                            buttons: ['OK']
+                                        });
+                                        alert.present();
+                                    }
+                                    reject(err);
+                                });
+                            }
+                        }
                         this.browserRef.close();
-                        reject();
                         return;
                   }else if(event.url.startsWith("https://takit.biz/oauthFailure")){
                         console.log("cert failure");
                         this.browserRef.close();
-                         resolve();
+                         reject();
                         return;
                   }
                       

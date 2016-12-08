@@ -1,15 +1,19 @@
 page-cashid{
+    input[type=number] {
+        -webkit-text-security: disc;
+    }
+
     .explain{
-    text-align: justify;
-    white-space: pre-line; //normal
-    color:#7F7F7F;
-    font-size: 1.3rem; 
+        text-align: justify;
+        white-space: pre-line; //normal
+        color:#7F7F7F;
+        font-size: 1.3rem; 
     }
     .cashIdValue{
-    color:#387ef5;
-    border:1px solid #BEBEBE;
-    border-radius: 4px;
-    height:38px;
+        color:#387ef5;
+        border:1px solid #BEBEBE;
+        border-radius: 4px;
+        height:38px;
     }
 
     .cashIdValue>.text-input {
@@ -17,7 +21,7 @@ page-cashid{
     }
 
     .cashId.item.item-input>.item-inner{
-    padding-right:2px;
+         padding-right:2px;
     }
 
     .list-md > .item-block:first-child, .list-md > .item-wrapper:first-child .item-block {
