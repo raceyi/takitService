@@ -84,47 +84,65 @@ export class CashPage {
   
   configureCashId(){
    // this.app.getRootNav().push(CashIdPage);
-
-    let confirm = this.alertController.create({
-      title: '회원정보와 휴대폰 본인인증 정보가 동일해야만 합니다.',
-      message: '다를 경우 회원정보 수정후 진행해주시기바랍니다.',
-      buttons: [
-        {
-          text: '아니오',
-          handler: () => {
-            console.log('Disagree clicked');
-            return;
-          }
-        },
-        {
-          text: '네',
-          handler: () => {
-            console.log('Agree clicked');
-            this.mobileAuth().then(()=>{ // success
-            this.app.getRootNav().push(CashIdPage);
-            },(err)=>{ //failure
-                if(err=="invalidUserInfo"){
-                    console.log("invalidUserInfo");
-                    let alert = this.alertController.create({
-                            title: '사용자 정보가 일치하지 않습니다.',
-                            subTitle: '회원정보를 수정해주시기 바랍니다',
-                            buttons: ['OK']
-                        });
-                        alert.present();
-                }
-            });
-          }
-        }
-      ]
-    });
-    confirm.present();    
+   if(this.storageProvider.isAndroid){
+        let confirm = this.alertController.create({
+        title: '회원정보와 휴대폰 본인인증 정보가 동일해야만 합니다.',
+        message: '다를 경우 회원정보 수정후 진행해주시기바랍니다.',
+        buttons: [
+            {
+            text: '아니오',
+            handler: () => {
+                console.log('Disagree clicked');
+                return;
+            }
+            },
+            {
+            text: '네',
+            handler: () => {
+                console.log('Agree clicked');
+                this.mobileAuth().then(()=>{ // success
+                    this.app.getRootNav().push(CashIdPage);
+                },(err)=>{ //failure
+                    if(err=="invalidUserInfo"){
+                        console.log("invalidUserInfo");
+                        let alert = this.alertController.create({
+                                title: '사용자 정보가 일치하지 않습니다.',
+                                subTitle: '회원정보를 수정해주시기 바랍니다',
+                                buttons: ['OK']
+                            });
+                            alert.present();
+                    }
+                });
+            }
+            }
+        ]
+        });
+        confirm.present();    
+    }else{
+                this.mobileAuth().then(()=>{ // success
+                this.app.getRootNav().push(CashIdPage);
+                },(err)=>{ //failure
+                    if(err=="invalidUserInfo"){
+                        console.log("invalidUserInfo");
+                        let alert = this.alertController.create({
+                                title: '사용자 정보가 일치하지 않습니다.',
+                                subTitle: '회원정보를 수정해주시기 바랍니다',
+                                buttons: ['OK']
+                            });
+                            alert.present();
+                    }
+                });
+    }
   }
 
   mobileAuth(){
     return new Promise((resolve,reject)=>{
       // move into CertPage and then 
-      //this.browserRef=new InAppBrowser("https://kauth.kakao.com/oauth/authorize?client_id="+ConfigProvider.kakaoTakitUser+"&redirect_uri="+ConfigProvider.kakaoOauthUrl+"&response_type=code","_blank" ,'toolbar=no');
-      this.browserRef=new InAppBrowser("https://takit.biz:8443/NHPintech/kcpcert_start.jsp","_blank" ,'toolbar=no');
+      if(this.storageProvider.isAndroid){
+            this.browserRef=new InAppBrowser("https://takit.biz:8443/NHPintech/kcpcert_start.jsp","_blank" ,'toolbar=no');
+      }else{ // ios
+            this.browserRef=new InAppBrowser("https://takit.biz:8443/NHPintech/kcpcert_start.jsp","_blank" ,'location=no,closebuttoncaption=종료');
+      }
               this.browserRef.on("exit").subscribe((event)=>{
                   console.log("InAppBrowserEvent(exit):"+JSON.stringify(event)); 
                   this.browserRef.close();
@@ -171,7 +189,6 @@ export class CashPage {
                          reject();
                         return;
                   }
-                      
               });
     });
   }
