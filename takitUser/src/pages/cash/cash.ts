@@ -100,6 +100,8 @@ export class CashPage {
             text: '네',
             handler: () => {
                 console.log('Agree clicked');
+                this.app.getRootNav().push(CashIdPage);
+                /*
                 this.mobileAuth().then(()=>{ // success
                     this.app.getRootNav().push(CashIdPage);
                 },(err)=>{ //failure
@@ -113,14 +115,17 @@ export class CashPage {
                             alert.present();
                     }
                 });
+                */
             }
             }
         ]
         });
         confirm.present();    
     }else{
+          this.app.getRootNav().push(CashIdPage);
+        /*
                 this.mobileAuth().then(()=>{ // success
-                this.app.getRootNav().push(CashIdPage);
+                    this.app.getRootNav().push(CashIdPage);
                 },(err)=>{ //failure
                     if(err=="invalidUserInfo"){
                         console.log("invalidUserInfo");
@@ -132,6 +137,7 @@ export class CashPage {
                             alert.present();
                     }
                 });
+         */       
     }
   }
 

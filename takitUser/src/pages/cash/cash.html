@@ -32,7 +32,7 @@
             </ion-item>
             <ion-row>
             <ion-item ion-col class="cashId">
-                <ion-input class="cashIdValue" type="text" placeholder="kalen"></ion-input>
+                <ion-input class="cashIdValue" type="text" [(ngModel)]="storageProvider.cashId" placeholder="설정해주세요"></ion-input>
             </ion-item>
                 <button ion-button class="config" (click)="configureCashId()">
                     <span>설정</span>
@@ -121,7 +121,7 @@
         </ion-list>
 
         <ion-list *ngSwitchCase="'cashHistory'">
-
+<!--
             <ion-item class="cashHistory-select"> 
             <ion-label></ion-label>
             <ion-select [(ngModel)]="division">
@@ -170,7 +170,7 @@
                 </ion-row>
             </ion-grid>
             </ion-item>
-
+-->
         </ion-list>
 
         <ion-list *ngSwitchCase="'cashOut'">
@@ -231,4 +231,55 @@
         </ion-list> 
 
     </div>
+</ion-content>
+
+<ion-content class="cashHistory" *ngIf="cashMenu=='cashHistory'">
+            <ion-item class="cashHistory-select"> 
+            <ion-label></ion-label>
+            <ion-select [(ngModel)]="division">
+                <ion-option value="전체" checked="true">전체</ion-option>
+                <ion-option value="사용">사용</ion-option>
+                <ion-option value="환불">환불</ion-option>
+                <ion-option value="적립">적립</ion-option>
+            </ion-select>
+            <ion-select [(ngModel)]="YearMonth">
+                <ion-option value="2016-01" checked="true">2016년 1월</ion-option>
+                <ion-option value="2016-02">2016년 2월</ion-option>
+                <ion-option value="2016-03">2016년 3월</ion-option>
+                <ion-option value="2016-04">2016년 4월</ion-option>
+                <ion-option value="2016-05">2016년 5월</ion-option>
+                <ion-option value="2016-06">2016년 6월</ion-option>
+                <ion-option value="2016-07">2016년 7월</ion-option>
+            </ion-select>
+            </ion-item>
+
+            <ion-item>
+            <ion-grid class="HistoryTable">
+                <ion-row>
+                    <ion-col>거래일</ion-col>
+                    <ion-col>구분</ion-col>
+                    <ion-col>금액</ion-col>
+                </ion-row>
+                <ion-row>
+                    <ion-col>2016-01-29</ion-col>
+                    <ion-col>이자</ion-col>
+                    <ion-col>+2</ion-col>
+                </ion-row>
+                <ion-row>
+                    <ion-col>2016-01-15</ion-col>
+                    <ion-col>사용</ion-col>
+                    <ion-col>-2,000</ion-col>
+                </ion-row>
+                <ion-row>
+                    <ion-col>2016-01-03</ion-col>
+                    <ion-col>사용</ion-col>
+                    <ion-col>-5,000</ion-col>
+                </ion-row>
+                <ion-row>
+                    <ion-col>2016-01-03</ion-col>
+                    <ion-col>적립</ion-col>
+                    <ion-col>20,000</ion-col>
+                </ion-row>
+            </ion-grid>
+            </ion-item>
 </ion-content>

@@ -32,6 +32,7 @@ export class StorageProvider{
     public order_in_progress_24hours=false;
     public tourMode=false;
     public isAndroid;
+    public cashId;
 
     constructor(private platform:Platform,private http:Http){
         console.log("StorageProvider constructor"); 
@@ -240,6 +241,17 @@ export class StorageProvider{
         this.email=email;
         this.name=name;
         this.phone=phone;
+        this.tourMode=false;
+    }
+
+    userInfoSetFromServer(userInfo:any){
+        this.email=userInfo.email;
+        this.name=userInfo.name;
+        this.phone=userInfo.phone;
+        if(userInfo.hasOwnProperty("cashId") || userInfo.cashId==null || userInfo.cashId==undefined){
+            this.cashId="";
+        }else
+            this.cashId=userInfo.cashId;
         this.tourMode=false;
     }
 }

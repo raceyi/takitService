@@ -51,7 +51,7 @@ export class ErrorPage{
                                     if(res.userInfo.hasOwnProperty("shopList")){
                                         this.storageProvider.shoplistSet(JSON.parse(res.userInfo.shopList));
                                     }
-                                    this.storageProvider.userInfoSet(res.userInfo.email,res.userInfo.name,res.userInfo.phone);
+                                    this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     console.log("shoplist...:"+JSON.stringify(this.storageProvider.shoplist));
                                     this.app.getRootNav().setRoot(TabsPage);
                                 }else if(res.result=='invalidId'){
@@ -77,7 +77,7 @@ export class ErrorPage{
                                     if(res.userInfo.hasOwnProperty("shopList")){
                                         this.storageProvider.shoplistSet(JSON.parse(res.userInfo.shopList));
                                     }
-                                    this.storageProvider.userInfoSet(res.userInfo.email,res.userInfo.name,res.userInfo.phone);
+                                    this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     this.app.getRootNav().setRoot(TabsPage);
                                 }else if(res.result=='invalidId'){
                                     console.log("사용자 정보에 문제가 발생했습니다. 로그인 페이지로 이동합니다.");
@@ -102,7 +102,7 @@ export class ErrorPage{
                                         //save shoplist
                                         this.storageProvider.shoplistSet(JSON.parse(res.userInfo.shopList));
                                     }
-                                    this.storageProvider.userInfoSet(res.userInfo.email,res.userInfo.name,res.userInfo.phone);
+                                    this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     this.app.getRootNav().setRoot(TabsPage);
                                 }else{ 
                                     console.log("사용자 정보에 문제가 발생했습니다. 로그인 페이지로 이동합니다.");
