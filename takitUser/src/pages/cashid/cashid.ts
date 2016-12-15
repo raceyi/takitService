@@ -61,26 +61,89 @@ export class CashIdPage {
     }
 
     configureCashId(){
-        if(this.checkValidity()){
+        if(this.storageProvider.cashId.length==0){ // create cashId
+            if(this.checkValidity()){
              let body = JSON.stringify({cashId:this.cashId.trim(),password:this.password});
-            this.serverProvider.post(ConfigProvider.serverAddress+"/createCashId",body).then((res:any)=>{
-                if(res.result=="success"){
-                    //this.storage
-
-                     this.app.getRootNav().pop();
-                }
+                this.serverProvider.post(ConfigProvider.serverAddress+"/createCashId",body).then((res:any)=>{
+                    if(res.result=="success"){
+                        //this.storage
+                        this.app.getRootNav().pop();
+                    }
+                },(err)=>{
+                    if(err=="NetworkFailure"){
+                        let alert = this.alertController.create({
+                            title: "서버와 통신에 문제가 있습니다.",
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                    }else{
+                        console.log("createCashId error "+err);
+                    }
+                });
+            }            
+        }else{ // change password only... Please check if password changes or not by calling server call.
+            this.checkExistingCashPassword().then((res)=>{
+                // password is the same as previous one. Just skip it.
+                this.app.getRootNav().pop();
             },(err)=>{
-                if(err=="NetworkFailure"){
-                    let alert = this.alertController.create({
-                        title: "서버와 통신에 문제가 있습니다.",
-                        buttons: ['OK']
-                    });
-                    alert.present();
-                }else{
-                    console.log("createCashId error "+err);
+                if(err=="passwordMismatch"){
+                    if(this.checkValidity()){
+                    let body = JSON.stringify({cashId:this.storageProvider.cashId,password:this.password});
+                        this.serverProvider.post(ConfigProvider.serverAddress+"/modifyCashPwd",body).then((res:any)=>{
+                            if(res.result=="success"){
+                                //this.storage
+                                this.app.getRootNav().pop();
+                            }else{
+                                let alert = this.alertController.create({
+                                    title: "캐쉬 비밀번호 설정에 실패했습니다.",
+                                    buttons: ['OK']
+                                });
+                                alert.present();
+                            }
+                        },(err)=>{
+                            if(err=="NetworkFailure"){
+                                let alert = this.alertController.create({
+                                    title: "서버와 통신에 문제가 있습니다.",
+                                    buttons: ['OK']
+                                });
+                                alert.present();
+                            }else{
+                                console.log("createCashId error "+err);
+                                let alert = this.alertController.create({
+                                    title: "캐쉬 비밀번호 설정에 실패했습니다.",
+                                    buttons: ['OK']
+                                });
+                                alert.present();
+                            }
+                        });            
+                    }
                 }
-            });            
+            });
         }
+    }
+
+    checkExistingCashPassword(){
+         return new Promise((resolve, reject) => {
+                let body = JSON.stringify({cashId:this.storageProvider.cashId,password:this.password});
+                this.serverProvider.post(ConfigProvider.serverAddress+"/checkCashInfo",body).then((res:any)=>{
+                    if(res.result=="success"){
+                        resolve(res);
+                    }else{
+                        reject("passwordMismatch");
+                    }
+                },(err)=>{
+                    if(err=="NetworkFailure"){
+                        let alert = this.alertController.create({
+                            title: "서버와 통신에 문제가 있습니다.",
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                    }else{
+                        console.log("createCashId error "+err);
+                    }
+                    reject(err);
+                });     
+         });
     }
 }
 

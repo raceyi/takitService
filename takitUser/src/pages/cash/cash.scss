@@ -1,17 +1,31 @@
 page-cash{
-    ion-content.cashHistory{
-        position: relative !important; 
+        ion-header {
+         position: relative !important; 
+     }
+
+    ion-content{
+        position:relative !important;
+        height: 100% !important;
     }
 
- .item {
-    padding-right: 5px;
-    padding-left: 5px;
+    ion-content.segmentButton{
+        height:min-content !important;
+        > .scroll-content{
+            position:relative !important;
+            overflow-y: hidden;
+        }
     }
 
-    .button-block {
-     margin-left: inherit; 
-     margin-right: inherit; 
-    }
+     ion-content.cashOut{
+         width:100% !important;
+         div.scroll-content{
+            position:relative !important;
+            overflow-y: hidden !important;
+             margin-top: 0px !important; 
+             margin-bottom: 0px !important; 
+         }
+     }
+
 
     .segment-md>.segment-button {
         border-width: 2px !important;
@@ -25,10 +39,6 @@ page-cash{
         color: white !important;
     }
 
-    .toolbar-background{
-        background:transparent;
-    }
-
     .available-amount{
         text-align: right;
     }
@@ -36,6 +46,20 @@ page-cash{
     .available-amount>span{
         color:#387ef5;
         font-size: 2.5rem;
+    }
+
+    .textSet{
+        font-size: 1.4rem;
+    }
+
+    .item {
+    padding-right: 5px;
+    padding-left: 5px;
+    }
+
+    .button-block {
+     margin-left: inherit; 
+     margin-right: inherit; 
     }
 
     ion-list .item .item-inner{
@@ -50,8 +74,8 @@ page-cash{
     border-top:0px;
     }
 
-    .textSet{
-    font-size: 1.4rem;
+    .toolbar-background{
+        background:transparent;
     }
 
     .cashId.item.item-input>.item-inner{
@@ -79,7 +103,7 @@ page-cash{
 
     .explain{
     text-align: justify;
-    white-space: pre-line; //normal
+    white-space: normal;
     color:#7F7F7F;
     font-size: 1.3rem; 
     }
@@ -200,5 +224,78 @@ page-cash{
     
     .cashOut{
         width:30%;
+    }
+
+    .HistoryTable{
+    text-align: center;
+    font-size: 1.4rem;
+    }
+
+    .list-md > .item-block:first-child, .list-md > .item-wrapper:first-child .item-block {
+         border-top: 0px; 
+    }
+
+    .list-md > .item-block:last-child, .list-md > .item-wrapper:last-child .item-block {
+        border-bottom: 0px !important;
+    }
+
+    .list-ios > .item-block:first-child {
+        border-top: 0px;
+    }
+
+    .list-ios > .item-block:last-child, .list-ios > .item-wrapper:last-child .item-block {
+        border-bottom: 0px !important;
+    }
+
+    .transaction{
+        .button-ios {
+            margin: 0px; 
+            height: 1.6em;
+            font-size: 1.4rem !important;
+        }
+        
+        .button-md {
+            margin: 0px; 
+            height: inherit;
+            font-size: 1.4rem !important;
+        }
+    }
+
+    .transactionLabel{
+        background-color: #EEEEEE;
+        font-weight: bold;
+        text-align: center;
+        font-size: 1.4rem;
+        border-bottom: 1px solid #bebebe;
+    }
+
+    ion-row.transaction{
+        border-bottom: 1px solid #bebebe;
+    }
+
+    ion-row.transaction>ion-col{
+//        margin: 3px 0px 3px 0px;
+        text-align: center;
+        font-size: 1.4rem;
+    }
+
+    .infiniteScroll{
+        ion-label{
+            margin: 0px 0px 0px 0; 
+        }
+    }
+
+    .explanations{
+        .label-md {
+            margin: 0px 0px 0px 0 !important; 
+        }
+    }
+
+    .dummy{
+        height:40vh;
+    }
+
+    .scrollDummy{
+        height:50vh;
     }
 }

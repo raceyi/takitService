@@ -593,8 +593,18 @@ export class ShopTablePage {
                      //I am not manager anymore. 
                      console.log("I am not a manager any more");
                      this.ngZone.run(()=>{
-                        this.notiColor="gray";
-                        this.storageProvider.myshop.GCMNoti=="off";
+                        var customInfo; 
+                        //Please look for the reason why the format of custom fields are different.
+                        if(typeof data.additionalData.custom === 'string')
+                            customInfo=JSON.parse(data.additionalData.custom);
+                        else
+                            customInfo=data.additionalData.custom;
+                        console.log("customInfo:"+ customInfo);
+                        console.log("customInfo.email:"+ customInfo.email);
+                       if(customInfo.email!=this.storageProvider.email){
+                          this.notiColor="gray";
+                          this.storageProvider.myshop.GCMNoti=="off";
+                       }
                      });
                     }
                 this.confirmMsgDelivery(additionalData.notId).then(()=>{

@@ -58,6 +58,7 @@ export class UserSecretPage {
             this.navController.setRoot(ErrorPage);
         }else{
             this.storageProvider.myshoplist=JSON.parse(userinfo.myShopList);
+            this.storageProvider.userInfoSetFromServer(userinfo);
             if(this.storageProvider.myshoplist.length==1){
                 console.log("move into ShopTablePage myshoplist[0]:"+JSON.stringify(userinfo.myShopList[0]));
                 this.storageProvider.myshop=this.storageProvider.myshoplist[0];

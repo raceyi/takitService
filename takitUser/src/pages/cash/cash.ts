@@ -18,10 +18,9 @@ import {ServerProvider} from '../../providers/serverProvider';
 export class CashPage {
   cashMenu: string = "cashIn";
   available: string ="15000";
-  //isAndroid: boolean = false;
+  transactions=[];
   browserRef:InAppBrowser;
-
-  //minVersion:boolean=(this.platform.is('android') && parseInt(Device.device.version[0])<=4);
+  bank;
 
   @ViewChild("cashContent") contentRef: Content;
 
@@ -30,16 +29,13 @@ export class CashPage {
   ,public storageProvider:StorageProvider,private serverProvider:ServerProvider) {
       //this.isAndroid = platform.is('android');
       console.log(" param: "+this.navParams.get('param'));
-
+    this.transactions.push({date:"2016-01-03" ,type:"입금", amount:"20,000",balance:"20,000"});
+    this.transactions.push({date:"2016-01-03" ,type:"사용", amount:"-5,000",balance:"15,000"});
+    this.transactions.push({date:"2016-01-15" ,type:"사용", amount:"-2,000",balance:"13,000"});
+    this.transactions.push({date:"2016-01-29" ,type:"이자", amount:"+2",balance:"13,002"});
+    this.transactions.push({date:"2016-01-29" ,type:"확인", amount:"+5,000",balance:"13,002"});
   }
-/*
- ionViewDidEnter(){
-    let dimensions=this.contentRef.getContentDimensions();
-    let height=this.contentRef.getNativeElement().parentElement.offsetHeight-dimensions.contentTop;
-    console.log("pageHeight:"+this.contentRef.getNativeElement().parentElement.offsetHeight+"top:"+dimensions.contentTop+"menusHeight:"+height);
-    this.contentRef.getScrollElement().setAttribute("style","height:"+height+"px;margin-top:0px;");
- }
-*/
+
     createTimeout(timeout) {
         return new Promise((resolve, reject) => {
             setTimeout(() => resolve(null),timeout)
@@ -76,7 +72,7 @@ export class CashPage {
                 });
   }
 
-  cashInComplete(event){
+  cashInComplete(){
       console.log("cashInComplete");
       this.available="20000";
       //this.content.scrollToTop();
@@ -197,5 +193,9 @@ export class CashPage {
                   }
               });
     });
+  }
+
+  doInfinite(event){
+
   }
 }

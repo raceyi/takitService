@@ -2,37 +2,33 @@
   <ion-navbar hideBackButton>
   </ion-navbar>
 </ion-header>
-<!--
-<ion-content padding class="cash" (swipe)="swipeCash($event)">
-    -->
-<ion-content #cashContent class="cash">
-    <ion-item>
+
+<ion-content class="segmentButton">
+   <ion-item>
         <ion-label class="textSet"><strong>사용가능 금액</strong></ion-label>
         <ion-label class="available-amount"><span>{{available}}</span> 원</ion-label>
     </ion-item>
-
-    <div>
-    <ion-segment [(ngModel)]="cashMenu" [attr.light]="storageProvider.isAndroid ? '' : null">
-      <ion-segment-button outline value="cashIn">
+    <ion-segment [(ngModel)]="cashMenu">
+      <ion-segment-button outline  value="cashIn">
       입금하기
       </ion-segment-button>
-      <ion-segment-button outline value="cashHistory">
+      <ion-segment-button outline  value="cashHistory">
        전체내역
       </ion-segment-button>
-      <ion-segment-button outline value="cashOut">
+      <ion-segment-button outline  value="cashOut">
        환불받기
       </ion-segment-button>
     </ion-segment>
-    </div>
+</ion-content>
 
-    <div [ngSwitch]="cashMenu">
-        <ion-list *ngSwitchCase="'cashIn'">
+<ion-content [hidden]="cashMenu!='cashIn'">
+        <ion-list>
             <ion-item>
                 <ion-label class="textSet"><strong>캐쉬아이디(받는통장 표시내용)</strong></ion-label>
             </ion-item>
             <ion-row>
             <ion-item ion-col class="cashId">
-                <ion-input class="cashIdValue" type="text" [(ngModel)]="storageProvider.cashId" placeholder="설정해주세요"></ion-input>
+                <ion-input class="cashIdValue" type="text" placeholder="설정버튼을 눌러주세요"></ion-input>
             </ion-item>
                 <button ion-button class="config" (click)="configureCashId()">
                     <span>설정</span>
@@ -47,7 +43,7 @@
             <ion-item>
                 <ion-label class="textSet">입금계좌 : 농협 301-2424-3636-21 (타킷주식회사)</ion-label>
             </ion-item>
-            <ion-item>        
+            <ion-item class="explanations">        
                 <p class="explain">
                 - 계좌이체시 <span style="color:red"> 받는통장 표시내용</span>에 반드시 <span style="color:red">캐쉬아이디를 입력</span>해주시기 바랍니다. 
                 </p>
@@ -115,65 +111,47 @@
             </ion-item>
             -->
             <ion-item>
-            <button ion-button block (click)="cashInComplete(event)">입금 수동 확인하기</button>
+            <button ion-button block (click)="cashInComplete()">입금 수동 확인하기</button>
             </ion-item>
             </div>
-        </ion-list>
+        </ion-list>   
+        <div class="dummy">
+        </div>     
+</ion-content>
 
-        <ion-list *ngSwitchCase="'cashHistory'">
-<!--
-            <ion-item class="cashHistory-select"> 
-            <ion-label></ion-label>
-            <ion-select [(ngModel)]="division">
-                <ion-option value="전체" checked="true">전체</ion-option>
-                <ion-option value="사용">사용</ion-option>
-                <ion-option value="환불">환불</ion-option>
-                <ion-option value="적립">적립</ion-option>
-            </ion-select>
-            <ion-select [(ngModel)]="YearMonth">
-                <ion-option value="2016-01" checked="true">2016년 1월</ion-option>
-                <ion-option value="2016-02">2016년 2월</ion-option>
-                <ion-option value="2016-03">2016년 3월</ion-option>
-                <ion-option value="2016-04">2016년 4월</ion-option>
-                <ion-option value="2016-05">2016년 5월</ion-option>
-                <ion-option value="2016-06">2016년 6월</ion-option>
-                <ion-option value="2016-07">2016년 7월</ion-option>
-            </ion-select>
-            </ion-item>
-
-            <ion-item>
-            <ion-grid class="HistoryTable">
-                <ion-row>
+<ion-content padding class="infiniteScroll" [hidden]="cashMenu!='cashHistory'">
+      <ion-list padding [hidden]="transactions.length!=0">
+      거래내역이 없습니다. 
+      </ion-list>
+      <ion-list [hidden]="transactions.length==0">
+              <ion-item>
+                <ion-row class="transactionLabel">
                     <ion-col>거래일</ion-col>
                     <ion-col>구분</ion-col>
                     <ion-col>금액</ion-col>
+                    <ion-col>잔액</ion-col>
                 </ion-row>
-                <ion-row>
-                    <ion-col>2016-01-29</ion-col>
-                    <ion-col>이자</ion-col>
-                    <ion-col>+2</ion-col>
+              </ion-item>
+              <ion-item *ngFor="let tr of transactions">
+                <ion-row class="transaction">
+                    <ion-col>{{tr.date}}</ion-col>
+                    <ion-col *ngIf="tr.type!='확인'">{{tr.type}}</ion-col>
+                    <ion-col *ngIf="tr.type=='확인'"> <button ion-button >{{tr.type}}</button></ion-col>
+                    <ion-col>{{tr.amount}}</ion-col>
+                    <ion-col>{{tr.balance}}</ion-col>
                 </ion-row>
-                <ion-row>
-                    <ion-col>2016-01-15</ion-col>
-                    <ion-col>사용</ion-col>
-                    <ion-col>-2,000</ion-col>
-                </ion-row>
-                <ion-row>
-                    <ion-col>2016-01-03</ion-col>
-                    <ion-col>사용</ion-col>
-                    <ion-col>-5,000</ion-col>
-                </ion-row>
-                <ion-row>
-                    <ion-col>2016-01-03</ion-col>
-                    <ion-col>적립</ion-col>
-                    <ion-col>20,000</ion-col>
-                </ion-row>
-            </ion-grid>
-            </ion-item>
--->
-        </ion-list>
+              </ion-item>
+      </ion-list>        
 
-        <ion-list *ngSwitchCase="'cashOut'">
+ <ion-infinite-scroll (ionInfinite)="doInfinite($event)" [hidden]="transactions.length==0">
+   <ion-infinite-scroll-content></ion-infinite-scroll-content>
+ </ion-infinite-scroll>
+ <div class="scrollDummy">
+ </div>
+</ion-content>
+
+<ion-content [hidden]="cashMenu!='cashOut'" class="cashOut" >
+        <ion-list>
             <ion-item>
               <ion-label class="textSet"><strong>등록 환불 계좌 </strong></ion-label>
             </ion-item>
@@ -228,58 +206,5 @@
                 </button>
             </ion-row>
             
-        </ion-list> 
-
-    </div>
-</ion-content>
-
-<ion-content class="cashHistory" *ngIf="cashMenu=='cashHistory'">
-            <ion-item class="cashHistory-select"> 
-            <ion-label></ion-label>
-            <ion-select [(ngModel)]="division">
-                <ion-option value="전체" checked="true">전체</ion-option>
-                <ion-option value="사용">사용</ion-option>
-                <ion-option value="환불">환불</ion-option>
-                <ion-option value="적립">적립</ion-option>
-            </ion-select>
-            <ion-select [(ngModel)]="YearMonth">
-                <ion-option value="2016-01" checked="true">2016년 1월</ion-option>
-                <ion-option value="2016-02">2016년 2월</ion-option>
-                <ion-option value="2016-03">2016년 3월</ion-option>
-                <ion-option value="2016-04">2016년 4월</ion-option>
-                <ion-option value="2016-05">2016년 5월</ion-option>
-                <ion-option value="2016-06">2016년 6월</ion-option>
-                <ion-option value="2016-07">2016년 7월</ion-option>
-            </ion-select>
-            </ion-item>
-
-            <ion-item>
-            <ion-grid class="HistoryTable">
-                <ion-row>
-                    <ion-col>거래일</ion-col>
-                    <ion-col>구분</ion-col>
-                    <ion-col>금액</ion-col>
-                </ion-row>
-                <ion-row>
-                    <ion-col>2016-01-29</ion-col>
-                    <ion-col>이자</ion-col>
-                    <ion-col>+2</ion-col>
-                </ion-row>
-                <ion-row>
-                    <ion-col>2016-01-15</ion-col>
-                    <ion-col>사용</ion-col>
-                    <ion-col>-2,000</ion-col>
-                </ion-row>
-                <ion-row>
-                    <ion-col>2016-01-03</ion-col>
-                    <ion-col>사용</ion-col>
-                    <ion-col>-5,000</ion-col>
-                </ion-row>
-                <ion-row>
-                    <ion-col>2016-01-03</ion-col>
-                    <ion-col>적립</ion-col>
-                    <ion-col>20,000</ion-col>
-                </ion-row>
-            </ion-grid>
-            </ion-item>
+        </ion-list>         
 </ion-content>

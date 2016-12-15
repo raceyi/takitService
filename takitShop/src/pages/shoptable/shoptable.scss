@@ -30,6 +30,7 @@ page-shoptable {
         height:min-content !important;
         > .scroll-content{
             position:relative !important;
+             overflow-y: hidden;
         }
     }
 

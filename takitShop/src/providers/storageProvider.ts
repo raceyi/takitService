@@ -20,6 +20,11 @@ export class StorageProvider{
     public amIGotNoti=false;
     public storeOpen=false;
 
+    public tourMode=false;
+    public email;
+    public name;
+    public phone;
+
     constructor(private platform:Platform){
         console.log("StorageProvider constructor");         
     }
@@ -78,6 +83,14 @@ export class StorageProvider{
 
     currentShopname(){
         return this.shopInfo.shopName;
+    }
+
+    public userInfoSetFromServer(userInfo:any){
+        console.log("userInfoSetFromServer:"+JSON.stringify(userInfo));
+        this.email=userInfo.email;
+        this.name=userInfo.name;
+        this.phone=userInfo.phone;
+        this.tourMode=false;
     }
 }
 
