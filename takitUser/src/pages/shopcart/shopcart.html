@@ -71,14 +71,14 @@
    <div id ="grayDiv">
     <ion-row class="textrow">
       <ion-col width-33 class="center">주문금액</ion-col>
-      <ion-col width-33 class="center">할인금액(0.5%)</ion-col>
+      <ion-col width-33 class="center">할인금액{{storageProvider.shopInfo.discountRate*100}}%</ion-col>
       <ion-col width-33 class="center">최종결제금액</ion-col>
     </ion-row>
 
     <ion-row class="textrow">
       <ion-col width-33 class="right">{{cart.total}}원</ion-col>
-      <ion-col width-33 class="right">{{cart.total*0.005}}원</ion-col>
-      <ion-col width-33 class="right"><span style="color:#387ef5">{{cart.total*0.995}}</span>원</ion-col>
+      <ion-col width-33 class="right">{{this.amount}}원</ion-col>
+      <ion-col width-33 class="right"><span style="color:#387ef5">{{this.discount}}</span>원</ion-col>
     </ion-row>
 
       <ion-row>

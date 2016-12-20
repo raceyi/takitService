@@ -53,8 +53,8 @@ export class OrderPage {
       console.log("takitId:"+this.takitId);
 
       this.price=this.menu.price*1;
-      this.discount=Math.round(this.price*0.005);
-      this.amount=Math.round(this.price*0.995);
+      this.discount=Math.round(this.price*this.storageProvider.shopInfo.discountRate);
+      this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
       console.log(" ["+this.menu.hasOwnProperty("takeout")+"][ "+(this.menu.takeout!=null) +"] ["+ (this.menu.takeout!=false)+"]");
       if(this.menu.hasOwnProperty("takeout") && (this.menu.takeout!=null) && (this.menu.takeout!=false)){ // humm... please add takeout field into all menus...
          this.takeoutAvailable=true;
@@ -82,6 +82,9 @@ export class OrderPage {
   sendSaveOrder(cart,menuName){
       if(this.storageProvider.tourMode==false){
        return new Promise((resolve, reject)=>{
+             //check if cash and cashpassword exist
+             //....
+
              var takeout;
              if(this.takeout==true){
                  takeout=1;
@@ -95,6 +98,8 @@ export class OrderPage {
                                         amount:Math.round(this.amount),
                                         takeout: takeout,
                                         orderedTime:new Date().toISOString()});
+                                       // cashId: this.storageProvider. ,
+                                       // cashPassword:);
 
               console.log("sendOrder:"+JSON.stringify(body));                          
               let headers = new Headers();
@@ -342,8 +347,8 @@ export class OrderPage {
       }else{
           this.quantityInputType="select";
           this.price=this.menu.price*quantity;
-          this.discount=Math.round(this.price*0.005);
-          this.amount=Math.round(this.price*0.995);
+          this.discount=Math.round(this.price*this.storageProvider.shopInfo.discountRate);
+          this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
       }
   }
 
@@ -377,8 +382,8 @@ export class OrderPage {
                 */
           }
       }
-      this.discount=this.price*0.005;
-      this.amount=Math.round(this.price*0.995);
+      this.discount=this.price*this.storageProvider.shopInfo.discountRate;
+      this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
   }
 
     choiceChange(option,idx,flag){
@@ -444,8 +449,8 @@ export class OrderPage {
         });
         console.log("unitPrice:"+unitPrice);
           this.price=unitPrice*this.quantity;
-          this.discount=Math.round(this.price*0.005);
-          this.amount=Math.round(this.price*0.995);
+          this.discount=Math.round(this.price*this.storageProvider.shopInfo.discountRate);
+          this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
     }      
   }
 

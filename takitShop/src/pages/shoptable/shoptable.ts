@@ -33,6 +33,14 @@ export class ShopTablePage {
   printColor="gray";
   printerEmitterSubscription;
 
+  getTodayString(){
+    var d = new Date();
+    var mm = d.getMonth() < 9 ? "0" + (d.getMonth() + 1) : (d.getMonth() + 1); // getMonth() is zero-based
+    var dd  = d.getDate() < 10 ? "0" + d.getDate() : d.getDate();
+    var dString=d.getFullYear()+'-'+(mm)+'-'+dd;
+    return dString;
+  }
+
   constructor(public navController: NavController,private app:App,private storageProvider:StorageProvider,
       private http:Http,private alertController:AlertController,private ngZone:NgZone,private ionicApp: IonicApp,
       private printerProvider:PrinterProvider,private platform:Platform,private menuCtrl: MenuController,
@@ -44,10 +52,9 @@ export class ShopTablePage {
     
     var date=new Date();
     var month=date.getMonth()+1;
-//  Why initialization of startDate and endDate doesn't work?    
-//    this.startDate=date.getFullYear().toString()+'-'+month+'-'+date.getDate();
-//    this.endDate=date.getFullYear().toString()+'-'+month+'-'+date.getDate();
-//    this.currTime=date.getFullYear().toString()+'-'+month+'-'+date.getDate();
+
+    this.startDate=this.getTodayString();
+    this.endDate=this.getTodayString();
 
     console.log("startDate:"+this.startDate);
     console.log("endDate:"+this.endDate);

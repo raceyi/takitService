@@ -1,5 +1,5 @@
 import {Component} from '@angular/core';
-import {App,NavController,NavParams,Tabs,AlertController} from 'ionic-angular';
+import {App,NavController,NavParams,Tabs,AlertController,TextInput} from 'ionic-angular';
 import {Platform} from 'ionic-angular';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
@@ -10,6 +10,7 @@ import {Device,InAppBrowserEvent,InAppBrowser} from 'ionic-native';
 import {CashIdPage} from '../cashid/cashid';
 import {StorageProvider} from '../../providers/storageProvider';
 import {ServerProvider} from '../../providers/serverProvider';
+import {Storage} from '@ionic/storage';
 
 @Component({
   selector: 'page-cash',
@@ -20,20 +21,62 @@ export class CashPage {
   available: string ="15000";
   transactions=[];
   browserRef:InAppBrowser;
-  bank;
+  infiniteScroll=false;
+
+  refundBank:string="";
+  refundAccount:string="";
+
+  verifiedBank:string="";
+  verifiedAccount:string="";
+
+  transferDate;
+  contentLength;
+  inputHeight;
+
+ /////////////////////////////////////
+  // 캐쉬정보 수동입력 
+  depositBank="";
+  depositBankInput="";
+  depositBranch="";
+  depositBranchInput="";
+  branchShown=[];
 
   @ViewChild("cashContent") contentRef: Content;
+  @ViewChild("depositCashAmount") textInputRef:TextInput;
 
   constructor(private app:App,private platform:Platform, private navController: NavController
-  ,private navParams: NavParams,public http:Http ,private alertController:AlertController
-  ,public storageProvider:StorageProvider,private serverProvider:ServerProvider) {
-      //this.isAndroid = platform.is('android');
-      console.log(" param: "+this.navParams.get('param'));
+        ,private navParams: NavParams,public http:Http ,private alertController:AlertController
+        ,public storageProvider:StorageProvider,private serverProvider:ServerProvider
+        ,public storage:Storage) {
+
+    var d = new Date();
+    var mm = d.getMonth() < 9 ? "0" + (d.getMonth() + 1) : (d.getMonth() + 1); // getMonth() is zero-based
+    var dd  = d.getDate() < 10 ? "0" + d.getDate() : d.getDate();
+    var dString=d.getFullYear()+'-'+(mm)+'-'+dd;
+    this.transferDate=dString;
+
+    console.log(" param: "+this.navParams.get('param'));
+    
     this.transactions.push({date:"2016-01-03" ,type:"입금", amount:"20,000",balance:"20,000"});
     this.transactions.push({date:"2016-01-03" ,type:"사용", amount:"-5,000",balance:"15,000"});
     this.transactions.push({date:"2016-01-15" ,type:"사용", amount:"-2,000",balance:"13,000"});
     this.transactions.push({date:"2016-01-29" ,type:"이자", amount:"+2",balance:"13,002"});
     this.transactions.push({date:"2016-01-29" ,type:"확인", amount:"+5,000",balance:"13,002"});
+
+    //read cash info from local storage
+    // bank name and account saved in encrypted format.
+     this.storage.get("refundBank").then((value:string)=>{
+        this.refundBank=this.storageProvider.decryptValue("refundBank",decodeURI(value));
+        this.storage.get("refundAccount").then((valueAccount:string)=>{
+            this.refundAccount=this.storageProvider.decryptValue("refundAccount",decodeURI(valueAccount));
+            this.verifiedBank=this.refundBank;
+            this.verifiedAccount=this.refundAccount;
+        },(err)=>{
+            console.log("fail to read refundAccount");
+        });
+     },(err)=>{
+        console.log("refundBank doesn't exist");
+     });
   }
 
     createTimeout(timeout) {
@@ -70,6 +113,11 @@ export class CashPage {
                             }
                     });
                 });
+  }
+
+  ionViewDidEnter(){
+        this.contentLength=this.contentRef.getContentDimensions().contentHeight;
+        this.inputHeight=this.textInputRef._elementRef.nativeElement.getBoundingClientRect().height;
   }
 
   cashInComplete(){
@@ -195,7 +243,89 @@ export class CashPage {
     });
   }
 
-  doInfinite(event){
+  doInfinite(infiniteScroll){
+    console.log("doInfinite");
+    this.transactions.push({date:"2016-01-29" ,type:"확인", amount:"+5,000",balance:"13,002"});
+    infiniteScroll.complete();
+  }
 
+   disableInfiniteScroll(){
+    console.log("disableInfiniteScroll");
+    this.infiniteScroll=false;
+  }
+
+  enableInfiniteScroll(){
+    console.log("enableInfiniteScroll");
+    this.infiniteScroll=true;
+  }
+
+  focusInput(input:string) { // Anyotherway?
+    if(this.storageProvider.isAndroid){
+        console.log("focusInput:"+input);
+        //console.log("scrollTo "+this.contentLength*7/10+this.inputHeight);
+       if(input=='depositCashAmount'){
+            this.contentRef.scrollTo(0, this.contentLength*7/10+this.inputHeight);
+       }else if(input=='depositBank'){
+            this.contentRef.scrollTo(0, this.contentLength*7/10+2*this.inputHeight);
+       }else if(input=='depositBranch'){
+            this.contentRef.scrollTo(0, this.contentLength*7/10+3*this.inputHeight);
+       }else if(input=='depositCashId'){
+           this.contentRef.scrollTo(0, this.contentLength);
+       }else if(input=='inputRefundAccount'){
+           this.contentRef.scrollTo(0, this.contentLength*1/5);
+       }else if(input=='inputRefundAmount'){
+           this.contentRef.scrollTo(0, this.contentLength*2/5);
+       }
+    }
+  }  
+
+  depositBankType(depositBank){
+      console.log("depositBank is"+depositBank);
+  }
+
+  depositBranchType(depositBranch){
+    console.log("depositBranch is"+depositBranch);
+  }
+
+  toggleSelectInput(type){
+    if(type=='depositBankTypeSelect'){
+        this.depositBank="";
+    }else if(type=='depositBranchTypeSelect'){
+        console.log("depositBankType become true");
+        this.depositBranch="";
+        this.branchShown=[];
+    }
+  }
+
+  getFocusBranch(event){
+    if(this.depositBank.length==0 || this.depositBank=='0'/* can it happen? */){
+      console.log("Please select bank");
+      let alert = this.alertController.create({
+                        title: '은행을 선택해 주시기비랍니다.',
+                        buttons: ['OK']
+                    });
+                    alert.present();
+    }
+  }
+
+  getBranch(event){
+    console.log("getBranch"+this.depositBranch.trim());
+    //ask server branch name starting with refundBranch input.
+    
+  }
+
+  selectBranch(branch){
+    if(branch=='직접입력'){
+      this.depositBranch='직접입력';
+      this.branchShown=[];
+    }else{
+      this.depositBranch=branch;
+      this.branchShown=[];
+    }
+  }
+
+  branchClear(event){
+      this.branchShown=[];
+      this.depositBranch="";
   }
 }

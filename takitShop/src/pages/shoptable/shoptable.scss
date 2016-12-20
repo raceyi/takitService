@@ -34,11 +34,22 @@ page-shoptable {
         }
     }
 
+    ion-content{
+        position:relative !important;
+        height: 100% !important;
+        width: 100% !important;
+    }
+
     ion-content.infiniteScroll{
         position: relative !important; 
         ion-label {
             margin: 0px 0px 0px 0px !important;
         }
+        .scroll-content{
+            margin-top:0px !important;
+            margin-bottom:0px !important;
+        }
+
     }
 
     .segment-md>.segment-button {

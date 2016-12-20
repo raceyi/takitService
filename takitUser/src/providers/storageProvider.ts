@@ -34,6 +34,38 @@ export class StorageProvider{
     public isAndroid;
     public cashId;
 
+    /* 농협 계좌 이체가능 은행 */
+    banklist=[  {name:"국민",value:"004"},
+                {name:"기업",value:"003"},
+                {name:"농협",value:"010"},
+                {name:"신한(조흥)",value:"088"},
+                {name:"우리",value:"020"},
+                {name:"KEB하나",value:"081"},
+                {name:"SC(제일)",value:"023"},
+                {name:"경남",value:"039"},
+                {name:"광주",value:"034"},
+                {name:"대구",value:"031"},
+                {name:"부산",value:"032"},
+                {name:"산업",value:"002"},
+                {name:"상호저축",value:"050"},
+                {name:"새마을금고",value:"045"},
+                {name:"수협",value:"007"},
+                {name:"신협",value:"048"},
+                {name:"우체국",value:"071"},
+                {name:"전북",value:"037"},
+                {name:"제주",value:"035"},
+                {name:"한국씨티(한미)",value:"027"},
+                {name:"산림조합",value:"064"},
+                {name:"BOA",value:"060"},
+                {name:"도이치",value:"055"},
+                {name:"HSBC",value:"054"},
+                {name:"제이피모간체이스",value:"057"},
+                {name:"중국공상",value:"062"},
+                {name:"비엔피파리바",value:"061"}];
+
+//"이외 금융기관 => 직접 입력(숫자)"  
+//"지점 코드=>직접 입력(숫자)" http://www.kftc.or.kr/kftc/data/EgovBankList.do 금융회사명으로 조회하기 
+
     constructor(private platform:Platform,private http:Http){
         console.log("StorageProvider constructor"); 
         this.isAndroid = this.platform.is('android'); 
@@ -231,6 +263,8 @@ export class StorageProvider{
     shopInfoSet(shopInfo:any){
         console.log("shopInfoSet:"+JSON.stringify(shopInfo));
         this.shopInfo=shopInfo;
+        this.shopInfo.discountRate=parseFloat(shopInfo.discountRate) / 100.0;
+        console.log("discountRate:"+this.shopInfo.discountRate);
     } 
 
     currentShopname(){

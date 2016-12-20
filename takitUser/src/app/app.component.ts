@@ -183,7 +183,9 @@ export class MyApp {
 
   removeStoredInfo(){
         this.storage.clear(); 
-        this.storage.remove("id"); //So far, it doesn't work. Please remove this line later
+        this.storage.remove("id"); //So far, clear() doesn't work. Please remove this line later
+        this.storage.remove("refundBank");
+        this.storage.remove("refundAccount");
         this.storageProvider.dropCartInfo().then(()=>{
             console.log("move into LoginPage"); //Please exit App and then restart it.
             if(this.storageProvider.login==true){
