@@ -47,6 +47,31 @@ export class TabsPage {
   }
 
  ionViewDidLoad(){ 
+  //get discount rate of each shoptab
+  this.storageProvider.shoplist.forEach(shop=>{
+      let body = JSON.stringify({takitId:shop.takitId});
+      console.log("request discount rate of "+shop.takitId);
+        this.serverProvider.post(ConfigProvider.serverAddress+"/getDiscountRate",body).then((res:any)=>{
+            console.log("getDiscountRate-res:"+JSON.stringify(res));
+            if(res.result=="success"){
+                shop.discountRate=res.discountRate;
+                console.log("shopinfo:"+JSON.stringify(this.storageProvider.shoplist));
+            }else{
+                console.log("couldn't get discount rate of "+shop.takitId+" due to unknwn reason");
+            }
+        },(err)=>{
+                if(err=="NetworkFailure"){
+                            let alert = this.alertController.create({
+                                title: "서버와 통신에 문제가 있습니다.",
+                                buttons: ['OK']
+                            });
+                            alert.present();
+                 }else{
+                     console.log("Hum...getDiscountRate-HttpError");
+                 } 
+        })    
+  });
+
  if(this.storageProvider.tourMode==false){    
     //open database file
         this.storageProvider.open().then(()=>{
@@ -347,8 +372,8 @@ export class TabsPage {
               }
 
               let body = JSON.stringify({registrationId:response.registrationId, platform: platform});
-              let headers = new Headers();
-              headers.append('Content-Type', 'application/json');
+              //let headers = new Headers();
+              //headers.append('Content-Type', 'application/json');
               console.log("server:"+ ConfigProvider.serverAddress +" body:"+JSON.stringify(body));
               //this.http.post(ConfigProvider.serverAddress+"/registrationId",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
               this.serverProvider.post(ConfigProvider.serverAddress+"/registrationId",body).then((res:any)=>{

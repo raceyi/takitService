@@ -13,7 +13,7 @@
        <img [src]="shop.filename"/>
        </button>
        <ion-card-title class="takitId">
-       {{shop.takitId}}<span>0.5%</span>
+       {{shop.takitId}}<span *ngIf="shop.discountRate!=undefined">{{shop.discountRate}}</span>
  <!--        
        <ion-row>
        <ion-col width-80>

@@ -351,4 +351,32 @@ page-cash{
         margin:0px !important;
         box-shadow: none !important; 
     }
+    .list-md .item-input.input-has-focus:last-child{
+        border-bottom-width: 0px;
+        box-shadow:inherit;
+    }
+
+    .list-md .item-input.ng-valid.input-has-value:not(.input-has-focus):last-child{
+        border-bottom-width: 0px;
+        box-shadow:inherit;
+    }
+
+    .list-md .item-input.ng-invalid.ng-touched:not(.input-has-focus):last-child{
+        border-bottom-width: 0px;
+        box-shadow:inherit;
+    }
+
+    ion-col.refundAccountRegButton{
+        padding: 5px !important;
+    }   
+
+     .transaction{
+         ion-col{
+             padding: 10px !important; 
+         }
+     }
+
+     ion-select.depositBankSelect{
+          max-width: 100%
+    }
 }

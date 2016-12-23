@@ -28,9 +28,9 @@
   <ion-searchbar [(ngModel)]="serviceQuery" autocomplete="on" placeholder="서비스" (ionClear)="serviceClear($event)" (ionFocus)="getFocusServices($event)" (ionInput)="getServices($event)" ></ion-searchbar>
   <ion-list>
     <ion-item class="searchBarItems" *ngFor="let item of servicesShown">
-     <button ion-button (click)="selectTakitService(item)">
+     <ion-row (click)="selectTakitService(item)">
       {{ item }}
-    </button>
+    </ion-row>
     </ion-item>
   </ion-list>
   </ion-col>
@@ -43,9 +43,9 @@
   <ion-searchbar class="searchBarItems" [(ngModel)]="brandQuery"  autocomplete="on" placeholder="브랜드" (ionClear)="brandClear($event)" (ionFocus)="getFocusBrands($event)" (ionInput)="getBrands($event)"></ion-searchbar>
   <ion-list>
     <ion-item *ngFor="let item of brandsShown">
-     <button ion-button (click)="selectTakitBrand(item)">
+     <ion-row (click)="selectTakitBrand(item)">
       {{ item }}
-    </button>
+    </ion-row>
     </ion-item>
   </ion-list>
   </ion-col>

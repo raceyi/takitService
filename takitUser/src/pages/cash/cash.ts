@@ -1,11 +1,10 @@
 import {Component} from '@angular/core';
 import {App,NavController,NavParams,Tabs,AlertController,TextInput} from 'ionic-angular';
-import {Platform} from 'ionic-angular';
+import {Platform,Content} from 'ionic-angular';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
 import {ConfigProvider} from '../../providers/ConfigProvider';
 import {ViewChild} from '@angular/core';
-import {Content} from 'ionic-angular';
 import {Device,InAppBrowserEvent,InAppBrowser} from 'ionic-native';
 import {CashIdPage} from '../cashid/cashid';
 import {StorageProvider} from '../../providers/storageProvider';
@@ -29,6 +28,7 @@ export class CashPage {
   verifiedBank:string="";
   verifiedAccount:string="";
 
+  refundEditable=true;
   transferDate;
   contentLength;
   inputHeight;
@@ -40,6 +40,8 @@ export class CashPage {
   depositBranch="";
   depositBranchInput="";
   branchShown=[];
+
+  refundAmount:number=undefined;
 
   @ViewChild("cashContent") contentRef: Content;
   @ViewChild("depositCashAmount") textInputRef:TextInput;
@@ -65,15 +67,22 @@ export class CashPage {
 
     //read cash info from local storage
     // bank name and account saved in encrypted format.
+    console.log("read refundBank");
      this.storage.get("refundBank").then((value:string)=>{
-        this.refundBank=this.storageProvider.decryptValue("refundBank",decodeURI(value));
-        this.storage.get("refundAccount").then((valueAccount:string)=>{
-            this.refundAccount=this.storageProvider.decryptValue("refundAccount",decodeURI(valueAccount));
-            this.verifiedBank=this.refundBank;
-            this.verifiedAccount=this.refundAccount;
-        },(err)=>{
-            console.log("fail to read refundAccount");
-        });
+         console.log("refundBank is "+value);
+         if(value!=null){
+            this.refundBank=this.storageProvider.decryptValue("refundBank",decodeURI(value));
+            this.storage.get("refundAccount").then((valueAccount:string)=>{
+                if(value!=null){
+                    this.refundAccount=this.storageProvider.decryptValue("refundAccount",decodeURI(valueAccount));
+                    this.verifiedBank=this.refundBank;
+                    this.verifiedAccount=this.refundAccount;
+                    this.refundEditable=false;
+                }
+            },(err)=>{
+                console.log("fail to read refundAccount");
+            });
+        }
      },(err)=>{
         console.log("refundBank doesn't exist");
      });
@@ -92,8 +101,8 @@ export class CashPage {
                     console.log(`done after 300ms delay`);
                     this.contentRef.scrollToTop(); 
                     let body = JSON.stringify({});
-                    let headers = new Headers();
-                    headers.append('Content-Type', 'application/json');
+                    //let headers = new Headers();
+                    //headers.append('Content-Type', 'application/json');
                     console.log("server:"+ ConfigProvider.serverAddress);
                     //this.http.post(ConfigProvider.serverAddress+"/triggerCashCheck",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                     this.serverProvider.post(ConfigProvider.serverAddress+"/triggerCashCheck",body).then((res:any)=>{    
@@ -274,7 +283,7 @@ export class CashPage {
        }else if(input=='inputRefundAccount'){
            this.contentRef.scrollTo(0, this.contentLength*1/5);
        }else if(input=='inputRefundAmount'){
-           this.contentRef.scrollTo(0, this.contentLength*2/5);
+           this.contentRef.scrollTo(0, this.contentLength*3/5);
        }
     }
   }  
@@ -311,7 +320,8 @@ export class CashPage {
   getBranch(event){
     console.log("getBranch"+this.depositBranch.trim());
     //ask server branch name starting with refundBranch input.
-    
+    //...AAGUID.max는 다섯개 
+    //this.branchShown=[];
   }
 
   selectBranch(branch){
@@ -327,5 +337,134 @@ export class CashPage {
   branchClear(event){
       this.branchShown=[];
       this.depositBranch="";
+  }
+
+  checkWithrawAccount(){
+      console.log("checkWithrawAccount");
+
+      console.log("refundBank:"+this.refundBank);
+      if(this.storageProvider.cashId.length==0){
+            let alert = this.alertController.create({
+                title: '캐쉬아이디를 등록해 주시기 바랍니다.',
+                buttons: ['OK']
+            });
+            alert.present();
+          return;
+      }
+      if(this.refundBank.length==0){
+            let alert = this.alertController.create({
+                title: '은행을 선택해 주시기 바랍니다.',
+                buttons: ['OK']
+            });
+            alert.present();
+          return;
+      }
+
+      if(this.refundAccount.trim().length==0 ){
+            let alert = this.alertController.create({
+                title: '계좌번호를 입력해 주시기 바랍니다.',
+                buttons: ['OK']
+            });
+            alert.present();
+          return;
+      }
+
+      let body = JSON.stringify({depositorName:this.storageProvider.name,
+                                bankCode:this.refundBank ,account:this.refundAccount.trim()});
+      this.serverProvider.post(ConfigProvider.serverAddress+"/registRefundAccount",body).then((res:any)=>{
+          console.log("registRefundAccount res:"+JSON.stringify(res));
+          if(res.result=="success"){
+              // store info into local storage and convert button from registration into modification
+              var encryptedBank:string=this.storageProvider.encryptValue('refundBank',this.refundBank);
+              this.storage.set('refundBank',encodeURI(encryptedBank));
+              var encrypted:string=this.storageProvider.encryptValue('refundAccount',this.refundAccount.trim());
+              this.storage.set('refundAccount',encodeURI(encrypted));
+              this.verifiedBank=this.refundBank;
+              this.verifiedAccount=this.refundAccount.trim();
+              this.refundEditable=false;
+              return;
+          }
+          if(res.result=="failure"){
+                let alert = this.alertController.create({
+                    title: '환불계좌 등록에 실패하였습니다.',
+                    subTitle: res.error,
+                    buttons: ['OK']
+                });
+                alert.present();
+          }
+      },(err)=>{
+                if(err=="NetworkFailure"){
+                            let alert = this.alertController.create({
+                                title: "서버와 통신에 문제가 있습니다.",
+                                buttons: ['OK']
+                            });
+                            alert.present();
+                 }else{
+                     console.log("Hum...checkDepositor-HttpError");
+                 } 
+
+      });
+  }
+
+  enableRefundEditable(){
+      this.refundEditable=true;
+      this.refundBank="";
+      this.refundAccount="";
+  }
+
+  cancelRefundEditable(){
+      this.refundEditable=false;
+      this.refundBank=this.verifiedBank;
+      this.refundAccount=this.verifiedAccount;
+  }
+
+  refundCash(){
+        if(this.refundAmount==undefined || this.refundAmount<=0){
+            let alert = this.alertController.create({
+                title: '환불 금액은 0보다 커야 합니다.',
+                buttons: ['OK']
+            });
+            alert.present();
+          return;
+      }
+
+      let body = JSON.stringify({depositorName:this.storageProvider.name,
+                                bankCode:this.refundBank ,account:this.refundAccount.trim(),
+                                cashId:this.storageProvider.cashId,
+                                withdrawalAmount:this.refundAmount});
+
+      this.serverProvider.post(ConfigProvider.serverAddress+"/refundCash",body).then((res:any)=>{
+          console.log("refundCash res:"+JSON.stringify(res));
+          if(res.result=="success"){
+              console.log("cashAmount:"+res.cashAmount);
+              return;
+          }
+          if(res.result=="failure" && res.error=='check your balance'){
+                let alert = this.alertController.create({
+                    title: '잔액이 부족합니다.',
+                    buttons: ['OK']
+                });
+                alert.present();
+              return;
+          }
+          if(res.result=="failure"){
+                let alert = this.alertController.create({
+                    title: '환불에 실패하였습니다.',
+                    buttons: ['OK']
+                });
+                alert.present();
+          }
+      },(err)=>{
+                if(err=="NetworkFailure"){
+                            let alert = this.alertController.create({
+                                title: "서버와 통신에 문제가 있습니다.",
+                                buttons: ['OK']
+                            });
+                            alert.present();
+                 }else{
+                     console.log("Hum...checkDepositor-HttpError");
+                 } 
+
+      });
   }
 }

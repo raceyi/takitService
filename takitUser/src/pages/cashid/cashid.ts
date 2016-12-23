@@ -15,9 +15,9 @@ declare var window:any;
 
 export class CashIdPage {
 
-    cashId:string;
-    password:string;
-    passwordConfirm:string;
+    cashId:string="";
+    password:string="";
+    passwordConfirm:string="";
 
     cashIdComment=true;
     passwordComment=true;
@@ -27,6 +27,9 @@ export class CashIdPage {
         private alertController:AlertController,private serverProvider:ServerProvider
         ,public ngZone:NgZone, public storageProvider:StorageProvider){
         console.log("CashIdPage construtor");
+        if(storageProvider.cashId.length>0){
+            this.cashId=storageProvider.cashId;
+        }
     }
 
     checkValidity(){
@@ -37,7 +40,7 @@ export class CashIdPage {
 
         var valid=/[0-9a-zA-Z]{5,7}/.test(this.cashId.trim());
 
-        if(valid==false){
+        if(this.cashId.trim().length<5 || this.cashId.trim().length>7 || valid==false){
             console.log("cashId is invalid");
             this.ngZone.run(()=>{
                 this.cashIdComment=false;
@@ -63,10 +66,10 @@ export class CashIdPage {
     configureCashId(){
         if(this.storageProvider.cashId.length==0){ // create cashId
             if(this.checkValidity()){
-             let body = JSON.stringify({cashId:this.cashId.trim(),password:this.password});
+             let body = JSON.stringify({cashId:this.cashId.trim().toUpperCase(),password:this.password});
                 this.serverProvider.post(ConfigProvider.serverAddress+"/createCashId",body).then((res:any)=>{
                     if(res.result=="success"){
-                        //this.storage
+                        this.storageProvider.cashId=this.cashId.trim();
                         this.app.getRootNav().pop();
                     }
                 },(err)=>{
@@ -84,11 +87,13 @@ export class CashIdPage {
         }else{ // change password only... Please check if password changes or not by calling server call.
             this.checkExistingCashPassword().then((res)=>{
                 // password is the same as previous one. Just skip it.
+                console.log("password doesn't change");
                 this.app.getRootNav().pop();
             },(err)=>{
                 if(err=="passwordMismatch"){
                     if(this.checkValidity()){
                     let body = JSON.stringify({cashId:this.storageProvider.cashId,password:this.password});
+                        console.log("modifyCashPwd");
                         this.serverProvider.post(ConfigProvider.serverAddress+"/modifyCashPwd",body).then((res:any)=>{
                             if(res.result=="success"){
                                 //this.storage

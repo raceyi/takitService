@@ -34,6 +34,9 @@ export class StorageProvider{
     public isAndroid;
     public cashId;
 
+    public refundBank:string="";
+    public refundAccount:string="";
+
     /* 농협 계좌 이체가능 은행 */
     banklist=[  {name:"국민",value:"004"},
                 {name:"기업",value:"003"},
@@ -282,10 +285,12 @@ export class StorageProvider{
         this.email=userInfo.email;
         this.name=userInfo.name;
         this.phone=userInfo.phone;
-        if(userInfo.hasOwnProperty("cashId") || userInfo.cashId==null || userInfo.cashId==undefined){
+        if(!userInfo.hasOwnProperty("cashId") || userInfo.cashId==null || userInfo.cashId==undefined){
             this.cashId="";
-        }else
+        }else{
             this.cashId=userInfo.cashId;
+        }
+        console.log("[userInfoSetFromServer]cashId:"+this.cashId);
         this.tourMode=false;
     }
 }

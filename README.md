@@ -62,7 +62,7 @@ License: GPL
 
  $ionic build ios
 
- $git checkout takitUser/platforms/android/src/com/htj/plugin/kakao/KakaoTalk.java
+ $git checkout platforms/android/src/com/htj/plugin/kakao/KakaoTalk.java
 
  $ionic build android 
 

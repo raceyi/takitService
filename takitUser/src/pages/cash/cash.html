@@ -30,7 +30,7 @@
             </ion-item>
             <ion-row>
             <ion-item ion-col class="cashId">
-                <ion-input class="cashIdValue" type="text" disabled placeholder="설정버튼을 눌러주세요"></ion-input>
+                <ion-input class="cashIdValue" type="text" [(ngModel)]="storageProvider.cashId" disabled placeholder="설정버튼을 눌러주세요"></ion-input>
             </ion-item>
                 <button ion-button class="config" (click)="configureCashId()">
                     <span>설정</span>
@@ -86,9 +86,9 @@
               <ion-col width-50 [hidden]="depositBank=='0'">
                 <ion-item class="bankSelect" >
                     <ion-label></ion-label>
-                    <ion-select [(ngModel)]="depositBank"  (ionChange)="depositBankType(depositBank)">
-                      <ion-option value="0">직접입력</ion-option>
+                    <ion-select class="depositBankSelect" [(ngModel)]="depositBank"  (ionChange)="depositBankType(depositBank)">
                       <ion-option *ngFor="let bank of storageProvider.banklist" value="{{bank.value}}">{{bank.name}}</ion-option>
+                      <ion-option value="0">직접입력</ion-option>
                     </ion-select>
                 </ion-item>
               </ion-col>
@@ -154,17 +154,17 @@
               <ion-item>
                 <ion-row class="transactionLabel">
                     <ion-col>거래일</ion-col>
+                     <ion-col>금액</ion-col>
                     <ion-col>구분</ion-col>
-                    <ion-col>금액</ion-col>
                     <ion-col>잔액</ion-col>
                 </ion-row>
               </ion-item>
               <ion-item class="transaction" *ngFor="let tr of transactions">
                 <ion-row class="transaction">
                     <ion-col>{{tr.date}}</ion-col>
+                    <ion-col>{{tr.amount}}</ion-col>
                     <ion-col *ngIf="tr.type!='확인'">{{tr.type}}</ion-col>
                     <ion-col *ngIf="tr.type=='확인'"> <button ion-button >{{tr.type}}</button></ion-col>
-                    <ion-col>{{tr.amount}}</ion-col>
                     <ion-col>{{tr.balance}}</ion-col>
                 </ion-row>
               </ion-item>
@@ -192,7 +192,7 @@
             <ion-item class="bankSelect">
                 <ion-label></ion-label>
                 <ion-select [(ngModel)]="refundBank">
-                <ion-option *ngFor="let bank of storageProvider.banklist" value="{{bank.value}}">{{bank.name}}</ion-option>
+                <ion-option *ngFor="let bank of storageProvider.banklist" [disabled]="!refundEditable" value="{{bank.value}}">{{bank.name}}</ion-option>
                 </ion-select>
             </ion-item>
             </ion-row>
@@ -202,15 +202,29 @@
                 <ion-label>계좌번호</ion-label>
             </ion-item>
             <ion-item ion-col class="input" >
-                <ion-input class="inputBox"  (click)="focusInput('inputRefundAccount')" [(ngModel)]="refundAccount" type="number"></ion-input>
+                <ion-input class="inputBox"  (click)="focusInput('inputRefundAccount')" [disabled]="!refundEditable" [(ngModel)]="refundAccount" type="number"></ion-input>
             </ion-item>
             </ion-row>
             <p class="explain">
             &nbsp;&nbsp;"-"를 제외한 숫자만 입력해주시기 바랍니다. 
             </p>
-            <ion-item>
-                <button ion-button full>
-                    <span>환불계좌 등록</span>
+            <ion-item *ngIf="refundEditable">
+                <ion-row>
+                    <ion-col class="refundAccountRegButton" *ngIf="verifiedAccount.length!=0">
+                        <button  ion-button (click)="cancelRefundEditable()" full>
+                            <span>취소</span>
+                        </button>
+                    </ion-col>
+                    <ion-col class="refundAccountRegButton">
+                        <button ion-button [disabled]="storageProvider.cashId.length==0" (click)="checkWithrawAccount()" full>
+                            <span>환불계좌 등록</span>
+                        </button>
+                    </ion-col>
+                </ion-row>
+            </ion-item>
+            <ion-item *ngIf="!refundEditable">
+                <button ion-button (click)="enableRefundEditable()" full>
+                    <span>환불계좌 수정</span>
                 </button>
             </ion-item>
             <ion-item>
@@ -220,9 +234,9 @@
             </ion-item>
             <ion-row>
             <ion-item ion-col class="cashId">
-                <ion-input class="cashIdValue" (click)="focusInput('inputRefundAmount')" [disabled]="verifiedAccount.length==0" type="number" placeholder="환불금액"></ion-input>
+                <ion-input class="cashIdValue" [(ngModel)]="refundAmount" (click)="focusInput('inputRefundAmount')" [disabled]="verifiedAccount.length==0 || refundEditable" type="number" placeholder="환불금액"></ion-input>
             </ion-item>
-                <button ion-button [disabled]="verifiedAccount.length==0" class="cashOut">
+                <button ion-button (click)="refundCash()" [disabled]="verifiedAccount.length==0 || refundEditable" class="cashOut">
                     <span>환불신청</span>
                 </button>
             </ion-row>
