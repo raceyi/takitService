@@ -416,7 +416,7 @@ router.passwordReset=function(req,res){
 				if(req.body.phone === userInfo.phone){
 					console.log("phone success");
 					//2) random 패스워드 DB set
-					let newPwd = crypto.randomBytes(4).toString('hex');
+					let newPwd = crypto.randomBytes(3).toString('hex');
 					
 					const userInfo = {};
 					userInfo.password = newPwd;
@@ -452,8 +452,69 @@ router.passwordReset=function(req,res){
 	}else{
 		res.send(JSON.stringify({"result":"failure"}));
 	}
-	
+}
 
+router.modifyUserInfo = function(req,res){
+   console.log("modifyUserInfo function start!!");
+
+   const userInfo ={};
+   userInfo.email = req.body.email;
+   userInfo.password = req.body.newPassword;
+   userInfo.phone = req.body.phone;
+   userInfo.name = req.body.name;
+   userInfo.userId = req.session.uid;
+	
+	console.log(JSON.stringify(userInfo));
+
+   if(req.body.hasOwnProperty('oldPassword') && req.body.oldPassword !== ""){
+		console.log("has oldPassword");
+      mariaDB.getUserInfo(req.session.uid,function(err,result){
+         if(err){
+            console.log(err);
+            res.send(JSON.stringify({"result":"failure", "error":"password fail"}));
+         }else{
+            console.log("getUserInfo success");
+
+            if(req.body.oldPassword === result.password){
+               mariaDB.updateUserInfo(userInfo,function(err,result){
+                  if(err){
+                     console.log(err);
+                     res.send(JSON.stringify({"result":"failure"}));
+                  }else{
+                     console.log("modify UserInfo:"+JSON.stringify(result));
+                     res.send(JSON.stringify({"result":"success"}));
+                  }
+               });
+            }else{
+					res.send(JSON.stringify({"result":"failure","error":"incorrect oldPassword"}));
+				}
+         }
+      });
+   }else{
+		console.log("has not oldPassword");
+      mariaDB.updateUserInfo(userInfo,function(err,result){
+         if(err){
+            console.log(err);
+            res.send(JSON.stringify({"result":"failure"}));
+         }else{
+            console.log("modify UserInfo:"+JSON.stringify(result));
+            res.send(JSON.stringify({"result":"success"}));
+         }
+      });
+   }
+}
+
+
+router.successGCM=function(req,res){
+   console.log("messageId : "+req.body.messageId);
+   redisCli.del(req.session.uid+"_gcm_user_"+req.body.messageId,function(err,result){
+      if(err){
+         res.send(JSON.stringify({"result":"failure"}));
+      }else{
+         console.log("!!!!!!!!!!!success gcm 성공!!!!!!" +result);
+         res.send(JSON.stringify({"result":"success"}));
+      }
+   })
 }
 
 /// 주문 알림 모드 -> user가 24시간 내의 주문 있으면, 앱 계속 실행 중이도록! 
@@ -461,15 +522,19 @@ router.orderNotiMode=function(req,res){
    console.log("comes orderNotiMode!!!");
    /*1. 24시간 내의 주문을 보내주어야 함.
       'paid', 'checked'*/
-
-   mariaDB.getOrdersNotiMode(req.session.uid,function(err,orders){
+	async.parallel([function(callback){
+      mariaDB.changeSMSNoti(req.session.uid,"on",callback);
+   },function(callback){
+      console.log("SMS noti on success");
+      mariaDB.getOrdersNotiMode(req.session.uid,callback);
+   }],function(err,result){
       if(err){
          console.log(err);
          res.send(JSON.stringify({"result":"failure"}));
       }else{
-         console.log("getOrdersNotiMode result:"+JSON.stringify(orders));
+         console.log("getOrdersNotiMode result:"+JSON.stringify(result));
          const response = {};
-         response.orders = orders;
+         response.orders = result[1];
          response.result = "success";
          res.send(JSON.stringify(response));
       }
@@ -479,22 +544,19 @@ router.orderNotiMode=function(req,res){
 router.sleepMode=function(req,res){
    console.log("sleepMode comes!!!!");
 
-	//1. SMS Noti 끄기
-	mariaDB.changeSMSNoti(req.session.uid,"off",function(err,result){
-      if(err){
-         res.send(JSON.stringify({"result":"failure"}));
-      }else{
-         console.log("SMS noti off success");
-      }
-   });
-
-   redisCli.keys(req.session.uid+"_gcm_*",function(err,result){
+   async.parallel([function(callback){
+      //1. SMS Noti 끄기
+      mariaDB.changeSMSNoti(req.session.uid,"off",callback);
+   },function(callback){
+      console.log("SMS noti off success");
+      redisCli.keys(req.session.uid+"_gcm_user_*",callback);
+   }],function(err,result){
       if(err){
          console.log(err);
          res.send(JSON.stringify({"result":"failure"}));
       }else{
-         console.log(result);
-         for(let i=0; i<result.length; i++){
+         console.log(JSON.stringify(result));
+         for(let i=0; i<result[1].length; i++){
             console.log(result[i]);
             redisCli.del(result[i],function(err,reply){
                if(err){
@@ -504,10 +566,8 @@ router.sleepMode=function(req,res){
                   console.log(reply);
                }
             });
+            res.send(JSON.stringify({"result":"success"}));
 
-            if(i === result.length-1){
-               res.send(JSON.stringify({"result":"success"}));
-            }
          }
 
          if(result[0] === null || result[0] === undefined){
@@ -516,5 +576,32 @@ router.sleepMode=function(req,res){
       }
    });
 }
+
+router.wakeMode=function(req,res){
+   console.log("wakeMode on!!!!");
+
+   mariaDB.changeSMSNoti(req.session.uid,"on",function(err,result){
+      if(err){
+         res.send(JSON.stringify({"result":"failure"}));
+      }else{
+         console.log("SMS noti on success");
+			res.send(JSON.stringify({"result":"success"}));
+      }
+   });
+};
+
+router.getDiscountRate = function(req,res){
+   console.log("getDiscountRate function");
+
+   mariaDB.getDiscountRate(req.body.takitId,function(err,discountRate){
+      if(err){
+         res.send(JSON.stringify({"result":"failure","error":err}));
+      }else{
+         console.log("SMS noti on success");
+         res.send(JSON.stringify({"result":"success","discountRate":discountRate}));
+      }
+   });
+}
+
 
 module.exports = router;

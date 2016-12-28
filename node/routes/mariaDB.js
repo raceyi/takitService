@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var Client = require('mariasql'); //https://github.com/mscdex/node-mariasql
-var crypto = require('crypto')
+var crypto = require('crypto');
 var timezoneJS = require('timezone-js');
 var config=require('../config');
 var moment=require('moment');
@@ -100,22 +100,17 @@ function decryptObj(obj){
    		obj.referenceId=decryption(obj.referenceId, config.rPwd);
 	}	
 
-	if(obj.hasOwnProperty('email')){
+	if(obj.hasOwnProperty('email') && obj.email !==null){
 		obj.email=decryption(obj.email, config.ePwd);	
 	}
 
-	if(obj.hasOwnProperty('phone')){
+	if(obj.hasOwnProperty('phone') && obj.phone !==null){
 		obj.phone=decryption(obj.phone, config.pPwd);
 	}
 		
 	if(obj.hasOwnProperty('userPhone') && obj.userPhone !== null){
 		obj.userPhone=decryption(obj.userPhone,config.pPwd);
-	}
-
-	if(obj.hasOwnProperty('managerPhone') && obj.managerPhone !== null){
-		obj.managerPhone=decryption(obj.managerPhone,config.pPwd);
-	}
-	
+	}	
 }
 
 
@@ -124,7 +119,7 @@ router.existUserEmail=function(email,next){
 	
 	var command="select *from userInfo where email=?";
 	var values=[secretEmail];
-        console.log("existUserEmail is called. command:"+command);
+   console.log("existUserEmail is called. command:"+command);
 
 	performQueryWithParam(command,values,function(err, result) {
         console.log("c.query success");
@@ -143,23 +138,22 @@ router.existUserEmail=function(email,next){
 };
 
 router.existEmailAndPassword=function(email, password,next){
-	var secretEmail = encryption(email,config.ePwd);
+	let secretEmail = encryption(email,config.ePwd);
 
-    var command="select *from userInfo where email=?";
-    var values=[secretEmail];
+	let command="SELECT userInfo.*, cashId FROM userInfo LEFT JOIN cash ON userInfo.userId = cash.userId WHERE email=?";
+   let values=[secretEmail];
 
 	performQueryWithParam(command,values, function(err,result){
-    	if(err){
+   	if(err){
     		console.log(err);
     		next(err);
-   		}
-    	else{
-      		//console.log("[existUser]:"+result.info.numRows);
-      		if(result.info.numRows==="0"){
+   	}else{
+      	//console.log("[existUser]:"+result.info.numRows);
+      	if(result.info.numRows==="0"){
         		next("invalidId");
     		}else{
-        		var userInfo = result[0];
-        		var secretPassword = crypto.createHash('sha256').update(password+userInfo.salt).digest('hex');
+        		let userInfo = result[0];
+        		let secretPassword = crypto.createHash('sha256').update(password+userInfo.salt).digest('hex');
        
         		if(secretPassword === userInfo.password){
         			console.log("password success!!");
@@ -174,9 +168,10 @@ router.existEmailAndPassword=function(email, password,next){
 };
 
 router.existUser=function(referenceId,next){
-	var secretReferenceId = encryption(referenceId,config.rPwd);
-	var command="select * from userInfo where referenceId=\""+secretReferenceId+"\";";
-	performQuery(command,function(err, result) {
+   let secretReferenceId = encryption(referenceId,config.rPwd);
+	let command="SELECT userInfo.*, cashId FROM userInfo LEFT JOIN cash ON userInfo.userId = cash.userId WHERE referenceId=?";
+   let values = [secretReferenceId]
+	performQueryWithParam(command, values, function(err, result) {
 		if (err){
 			console.log("query error:"+JSON.stringify(err));
 			next(err);
@@ -257,6 +252,27 @@ router.insertUser=function(referenceId,password,name,email,countryCode,phone,pho
 	});
 };
 
+router.validUserwithPhone = function(userId, name,phone, next){
+
+   let command = "SELECT *FROM userInfo WHERE userId=? and name=? and phone = ?";
+	var secretPhone = encryption(phone,config.pPwd);
+	let values = [userId,name,secretPhone];
+
+   performQueryWithParam(command,values,function(err,result){
+      if(err){
+         console.log("validUserwithPhone function error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         if(result.info.numRows==="0"){
+            next("invalidId");
+         }else{
+            console.log("validUserwithPhone function success");
+            next(null,"validId");
+         }
+      }
+   });
+}
+
 router.getUserInfo=function(userId,next){
 	var command="SELECT *FROM userInfo WHERE userId=?";
 	var values = [userId];
@@ -298,7 +314,7 @@ router.deleteUserInfo=function(userId,next){
 
 router.existShopUser=function(referenceId,next){
   var secretReferenceId = encryption(referenceId,config.rPwd);
-  var command="select * from shopUserInfo where referenceId=?";
+  var command="SELECT shopUserInfo.*, name, email FROM shopUserInfo LEFT JOIN userInfo ON shopUserInfo.userId=userInfo.userId where shopUserInfo.referenceId=?";
   var values=[secretReferenceId];
 
   performQueryWithParam(command,values,function(err, result) {
@@ -326,7 +342,7 @@ router.existShopUser=function(referenceId,next){
 
 ///////////////여러개 샵 가지고 있으면 여러 레코드 검색됨
 router.getShopUserInfo=function(userId,next){
-	let command="select * from shopUserInfo where userId=?";
+	let command="SELECT shopUserInfo.*, name, email FROM shopUserInfo LEFT JOIN userInfo ON shopUserInfo.userId=userInfo.userId WHERE shopUserInfo.userId=?";
 	let values=[userId];
 
 	performQueryWithParam(command,values,function(err, result) {
@@ -371,29 +387,41 @@ router.updateShopRefId= function(userId,referenceId,next){
 }
 
 router.updateUserInfo=function(userInfo,next){
-	
-	let secretEmail = encryption(userInfo.email,config.ePwd);
-	
-	let salt = crypto.randomBytes(16).toString('hex');
-	let secretPassword = crypto.createHash('sha256').update(userInfo.password+salt).digest('hex');
+	console.log("update UserInfo function start");
+   const values={};
+   values.email = encryption(userInfo.email,config.ePwd);
+   values.salt = null;
+   values.password = null;
+   values.phone=null;
+   values.name = userInfo.name;
 
-	let command = "UPDATE userInfo set password=:password, salt=:salt where email=:email";
-	const values = {
-		password : secretPassword,
-		salt : salt,
-		email : secretEmail
-	};
-	
-	performQueryWithParam(command,values,function(err,result){
-		if(err){
-			console.error("updateUserInfo func Unable to query. Error:", JSON.stringify(err, null, 2));
-			next(err);
-		}else{
-			console.log("Query succeeded. "+JSON.stringify(result));
-			next(null);
-		}
-	});
+   if(userInfo.hasOwnProperty('password') && userInfo.password !== null){
+      values.salt = crypto.randomBytes(16).toString('hex');
+      values.password = crypto.createHash('sha256').update(userInfo.password+values.salt).digest('hex');
+   }
+   if(userInfo.hasOwnProperty('phone') && userInfo.phone !== null){
+     values.phone = encryption(userInfo.phone,config.pPwd);
+   }
+
+   let command;
+   if(userInfo.hasOwnProperty('userId') && userInfo.userId !== null){
+     values.userId = userInfo.userId;
+     command = "UPDATE userInfo set password=:password, salt=:salt, email=:email, phone=:phone, name=:name where userId=:userId";
+   }else{
+     command = "UPDATE userInfo set password=:password, salt=:salt where email=:email";
+   }
+
+   performQueryWithParam(command,values,function(err,result){
+     if(err){
+        console.error("updateUserInfo func Unable to query. Error:", JSON.stringify(err, null, 2));
+        next(err);
+     }else{
+        console.log("Query succeeded. "+JSON.stringify(result));
+        next(null,"success");
+     }
+   });
 }
+
 
 router.insertCashId = function(userId,cashId, password, next){
    let secretCashId = encryption(cashId,config.cPwd);//cashId 에 대한 비밀번호 설정하기!
@@ -402,7 +430,7 @@ router.insertCashId = function(userId,cashId, password, next){
 	let secretPassword = crypto.createHash('sha256').update(password+salt).digest('hex');
 
    let command = "INSERT INTO cash(userId, cashId, password, salt) values(?,?,?,?)";
-   let values = [userId,cashId, secretPassword, salt];
+   let values = [userId, secretCashId, secretPassword, salt];
    
    performQueryWithParam(command,values,function(err,result){
 		if(err){
@@ -410,11 +438,85 @@ router.insertCashId = function(userId,cashId, password, next){
          next(err);
       }else{
          console.log("insertCashId Query succeeded.");
-         next(null);
+         next(null,"success");
       }
 	});
 
 };
+
+router.updateCashInfo=function(userId,cashId,password,next){
+   let secretCashId = encryption(cashId,config.cPwd);//cashId 에 대한 비밀번호 설정하기!
+
+   let salt = crypto.randomBytes(16).toString('hex');
+	let secretPassword = crypto.createHash('sha256').update(password+salt).digest('hex');
+
+   let command = "UPDATE cash SET password=?, salt=? WHERE userId=? and cashId=?";
+   let values = [secretPassword, salt, userId, secretCashId];
+
+   performQueryWithParam(command,values,function(err,result){
+		if(err){
+         console.error("insertCashId func Unable to query. Error:", JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("insertCashId Query succeeded.");
+         next(null,"success");
+      }
+   });
+}
+
+router.getCashInfo=function(cashId,next){
+   console.log("getCashInfo function start");
+
+   let command = "SELECT *FROM cash WHERE cashId=?";
+   let values = [cashId];
+
+   performQueryWithParam(command, values, function(err,result) {
+      if(err){
+         console.log("getCashInfo function err:"+JSON.stringify(err));
+         next(err);
+      }else{
+         if(result.info.numRows==='0'){
+            next("invalidId");
+         }else{
+            console.log(result);
+            decryptObj(result[0]);
+            next(null,result[0]);
+         }
+      }
+   });
+
+}
+
+router.checkCashPwd = function(cashId, password, next){
+   console.log("checkCashPwd function start");
+
+   let command = "SELECT password, salt FROM cash WHERE cashId=?";
+   let values = [cashId];
+
+   performQueryWithParam(command, values, function(err,result) {
+      if(err){
+         console.log("checkCashPwd function err:"+JSON.stringify(err));
+         next(err);
+      }else{
+         if(result.info.numRows==='0'){
+            next("invalid cashId");
+         }else{
+            console.log("checkCashPwd function success");
+
+            let secretPwd = crypto.createHash('sha256').update(password+result[0].salt).digest('hex');
+
+            if(secretPwd === result[0].password){
+               console.log("correct password");
+               next(null,"correct cashPwd");
+            }else{
+               next("invalid cash Password");
+            }
+
+         }
+      }
+   });
+}
+
 
 router.findTakitId=function(req,next){
 	console.log("mariaDB.findTakitId "+ req.body.hasOwnProperty("servicename")+" "+req.body.hasOwnProperty("shopname"));
@@ -531,13 +633,13 @@ router.queryCafeHome=function(req, res){
 	console.log("takitId:"+takitId);
 	var cafeHomeReponse={};
 
-	var command="select *from cafeInfo where takitId=?";
+	var command="select *from shopInfo where takitId=?";
 	var values = [takitId];
 	performQueryWithParam(command,values,function(err,result) {
 		  if (err){
 			  console.log(err);
 		  }else{
-			  console.dir("[queryCafeHome function's cafeInfo]:"+result);
+			  console.dir("[queryCafeHome function's shopInfo]:"+result);
 			  if(result.info.numRows==="0"){
 				  console.log("queryCafeHome function's query failure");
 			  }else{
@@ -554,20 +656,20 @@ router.queryCafeHome=function(req, res){
 //shopList string으로 저장..
 router.updateShopList=function(userId,shopList,next){
 
-        console.log("updateUserInfoShopList - userId:"+userId);
+	console.log("updateUserInfoShopList - userId:"+userId);
 
-        var command="UPDATE userInfo SET shopList=? where userId=?"; //userInfo에 shopList 넣기
-        var values = [shopList,userId];
+   let command="UPDATE userInfo SET shopList=? where userId=?"; //userInfo에 shopList 넣기
+   let values = [shopList,userId];
 
-        performQueryWithParam(command,values,function(err,result) {
-                  if (err){
-                          console.error("updateUserInfoShopList function Unable to query. Error:", JSON.stringify(err, null, 2));
-              		  next(err);
-		    }else{
-                          console.log("updateUserInfoShopList func Query succeeded. "+JSON.stringify(result[0]));
-			  next(null);
-                  }
-        });
+   performQueryWithParam(command,values,function(err,result) {
+      if (err){
+         console.error("updateUserInfoShopList function Unable to query. Error:", JSON.stringify(err, null, 2));
+         next(err);
+		}else{
+         console.log("updateUserInfoShopList func Query succeeded. "+JSON.stringify(result[0]));
+			next(null);
+      }
+   });
 };
 
 
@@ -582,6 +684,7 @@ router.updatePushId=function(userId,token,platform,next)
 				next(err);
 			}else{
 				console.log("updatePushId func Query succeeded. "+JSON.stringify(result));
+				console.log(result);
 				next(null,"success");
 			}
 		});
@@ -626,19 +729,21 @@ router.updateShopPushId=function(userId,takitId,shopToken,platform,next)
 
 
 router.getShopPushId=function(takitId,next){
-	
-	let command = "SELECT userId, shopPushId,platform from shopUserInfo WHERE takitId=? and GCMNoti=?"
+
+	let command = "SELECT shopUserInfo.userId, shopPushId, shopUserInfo.platform, phone, myShopList from shopUserInfo"
+                  +" LEFT JOIN userInfo on shopUserInfo.userId = userInfo.userId WHERE takitId=? and GCMNoti=?"	
 	let values = [takitId,"on"];
 
     performQueryWithParam(command,values,function(err,result) {
         if (err){
-            console.error("getShopPushid func Unable to query. Error:", JSON.stringify(err, null, 2));
-            next(err);
+            console.log("getShopPushId func Unable to query. Error:", JSON.stringify(err));
+				next(err);
         }else{
             console.log("[getShopPushid func get shopPushId]:"+JSON.stringify(result));
             if(result.info.numRows==='0'){
                 next("not exist shopUser");
-            }else{	
+            }else{
+					 decryptObj(result[0]);	
                 next(null, result[0]);
             }
           }
@@ -646,9 +751,25 @@ router.getShopPushId=function(takitId,next){
 }
 	
 
+router.updateShopBusiness = function(takitId,flag,next){
+   console.log("enter updateShopBusiness function");
+   let command="UPDATE shopInfo SET business=? WHERE takitId=?";
+	let values=[flag,takitId];
+
+   performQueryWithParam(command,values,function(err,result) {
+		if (err){
+			console.error("updateShopBusiness func Unable to query. Error:", JSON.stringify(err, null, 2));
+			next(err);
+		}else{
+         console.log("updateShopBusiness result:"+JSON.stringify(result));
+         next(null,"success");
+		}
+	});
+}
+
 //SMS Noti 끄기
 router.changeSMSNoti=function(userId, flag, next){
-   console.log("comes SMSNotiOff function");
+   console.log("comes changeSMSNoti function");
 
    let command="UPDATE userInfo SET SMSNoti=? where userId=?";
    let values=[flag,userId];
@@ -666,19 +787,19 @@ router.changeSMSNoti=function(userId, flag, next){
 }	
 
 
-router.getCafeInfo=function(takitId,next){  // cafeInfo 조회해서 next로 넘겨줌.
+router.getShopInfo=function(takitId,next){  // shopInfo 조회해서 next로 넘겨줌.
 	
-	console.log("enter getCafeInfo function");
-	var command="SELECT *FROM cafeInfo WHERE takitId =?";
+	console.log("enter getShopInfo function");
+	var command="SELECT *FROM shopInfo WHERE takitId =?";
 	var values=[takitId];
 	performQueryWithParam(command,values,function(err,result) {
 		if (err){
-			console.error("getCafeInfo func Unable to query. Error:", JSON.stringify(err, null, 2));		
+			console.error("getShopInfo func Unable to query. Error:", JSON.stringify(err, null, 2));		
 			next(err);
 		}else{
-			console.dir("[exist cafeInfo]:"+result.info.numRows);
+			console.dir("[exist shopInfo]:"+result.info.numRows);
 			if(result.info.numRows==="0"){
-				next(null,result.info.numRows);
+				next("inexistant shop");
 			}else{
 				decryptObj(result[0]);
 				next(null,result[0]);
@@ -687,17 +808,37 @@ router.getCafeInfo=function(takitId,next){  // cafeInfo 조회해서 next로 넘
 	});
 }
 
+router.getDiscountRate = function(takitId,next){
+   console.log("enter getDiscountRate function");
+   let command="SELECT discountRate FROM shopInfo WHERE takitId=?";
+	let values=[takitId];
 
-router.changeManager=function(userId,takitId,next){
+   performQueryWithParam(command,values,function(err,result) {
+		if (err){
+			console.log("getDiscountRate func Unable to query. Error:", JSON.stringify(err));
+			next(err);
+		}else{
+			console.dir("[getDiscountRate in shopInfo]:"+result.info.numRows);
+			if(result.info.numRows==="0"){
+				next("inexistant shop");
+			}else{
+				next(null,result[0].discountRate);
+			}
+		}
+	});
 
-   let command="UPDATE shopUserInfo SET class=(case when userId=? then 'manager'"
-                                                +"else when class='manager' then 'member' "
-                                                      +"else 'member' end end) where takitId=?";
+};
+
+router.updateNotiMember=function(userId,takitId,onMyShopList,offMyShopList,next){
+   let command="UPDATE shopUserInfo SET GCMNoti=(case when userId=? then 'on'"
+                                                +"else 'off' end),"
+                                        +"myShopList=(case when userId=? then ? "
+                                                      +"else ? end)where takitId=?";
    /*if userId 가 맞으면 'manager'로 변경
       else userId가 맞지 않고, if class==='manager' 이면(기존 manager인 사람) 'member'로 변경
                "          , else 나머지는 'member'
       */
-   let values=[userId,takitId];
+   let values=[userId,userId,onMyShopList,offMyShopList, takitId];
 
    performQueryWithParam(command,values,function(err,result){
       if(err){
@@ -705,11 +846,10 @@ router.changeManager=function(userId,takitId,next){
          next(err);
       }else{
          console.log(result);
-         next(null);
+         next(null,"success");
       }
    });
 };
-
 
 
 function getTimezoneLocalTime(timezone,timeInMilliSec){ // return current local time in timezone area
@@ -724,7 +864,7 @@ function getTimezoneLocalTime(timezone,timeInMilliSec){ // return current local 
 //increaseOrderNumber function orderNumberCounter 수 증가 시키고, 마지막 주문 시간 재 설정.
 function increaseOrderNumber(takitId,next){
 
-	var command="UPDATE cafeInfo SET orderNumberCounter=orderNumberCounter+1,orderNumberCounterTime=? WHERE takitId=? and orderNumberCounter=orderNumberCounter";
+	var command="UPDATE shopInfo SET orderNumberCounter=orderNumberCounter+1,orderNumberCounterTime=? WHERE takitId=? and orderNumberCounter=orderNumberCounter";
    var values = [new Date().toISOString(),takitId];
 
 	performQueryWithParam(command, values, function(err,result) {
@@ -740,45 +880,48 @@ function increaseOrderNumber(takitId,next){
 
 
 router.getOrderNumber=function(takitId,next){
-	var command="SELECT *FROM cafeInfo WHERE takitId=?"
+	var command="SELECT *FROM shopInfo WHERE takitId=?"
 	var values = [takitId];
 	
-	// 1. cafeInfo 찾기 
+	// 1. shopInfo 찾기 
 	
-	router.getCafeInfo(takitId,function(err,cafeInfo){
+	router.getShopInfo(takitId,function(err,shopInfo){
+		if(err){
+			next(err);
+		}else{
 		//orderNumberCounter = 오늘 주문수 계속 카운트.
 		//orderNumberCounterTime = 가장 마지막으로 주문받은 시간 저장. => 오늘의 가장 첫 주문 확인 시에 필요.
 		
-		console.log("cafeInfo in getOrderNumber:"+cafeInfo);				  
-		console.log("current orderNumberCounter:"+cafeInfo.orderNumberCounter);
-		console.log("current orderNuberTime:"+cafeInfo.orderNumberCounterTime);	
+		console.log("shopInfo in getOrderNumber:"+shopInfo);				  
+		console.log("current orderNumberCounter:"+shopInfo.orderNumberCounter);
+		console.log("current orderNuberTime:"+shopInfo.orderNumberCounterTime);	
 				  
 		//매일 카운트 수 리셋. orderNO도 리셋 하기 위한 작업.
 			
-		var timezone=cafeInfo.timezone;   // 각 shop의 timezone
+		var timezone=shopInfo.timezone;   // 각 shop의 timezone
 		var utcTime=new Date();
 		var localTime; // 현재 localTime
 		var counterLocalTime; //counterTime의 localTime
 		var oldCounterTime="0"; //이전 counterTime
 
-		if(cafeInfo.orderNumberCounterTime !== null){
-			var counterTime=new Date(Date.parse(cafeInfo.orderNumberCounterTime+" GMT"));
+		if(shopInfo.orderNumberCounterTime !== null){
+			var counterTime=new Date(Date.parse(shopInfo.orderNumberCounterTime+" GMT"));
 			console.log("first order time(counter time) : "+counterTime.toISOString()); 
 			localTime=getTimezoneLocalTime(timezone,utcTime.getTime()); //현재 시간의 localTime 계산
 			counterLocalTime=getTimezoneLocalTime(timezone,counterTime.getTime()); //이전의 orderNumberCounterTime(UTC로 저장되어 있음)의 로컬시간 계산.
-			oldCounterTime=cafeInfo.orderNumberCounterTime; //저장돼 있던 정보 이전 시간으로 저장.
+			oldCounterTime=shopInfo.orderNumberCounterTime; //저장돼 있던 정보 이전 시간으로 저장.
 			console.log("localTime:"+localTime.substring(0,10));
 			console.log("counterLocalTime:"+counterLocalTime.substring(0,10));
 		}
-		if(cafeInfo.orderNumberCounterTime===null|| cafeInfo.orderNumberCounterTime === undefined ||    //맨 처음 주문이거나
+		if(shopInfo.orderNumberCounterTime===null|| shopInfo.orderNumberCounterTime === undefined ||    //맨 처음 주문이거나
 			localTime.substring(0,10)!==counterLocalTime.substring(0,10)){ //counterLocaltime이 어제 주문한 시간이라 localTime과 맞지 않으면(다음날이 된 경우) reset
 				       
 			// set orderNumberCounter as zero and then increment it
 			console.log("reset orderNumberCounter");
 			
 			//shop에orderNumberCounterTime 없거나, orderNumberCounterTime이 어제 시간이랑 같으면(?)
-			if(cafeInfo.orderNumberCounterTime===null || cafeInfo.orderNumberCounterTime === oldCounterTime){
-				var command="UPDATE cafeInfo SET orderNumberCounter=?, orderNumberCounterTime=? WHERE takitId=?";
+			if(shopInfo.orderNumberCounterTime===null || shopInfo.orderNumberCounterTime === oldCounterTime){
+				var command="UPDATE shopInfo SET orderNumberCounter=?, orderNumberCounterTime=? WHERE takitId=?";
 				var values = [0,utcTime.toISOString(),takitId];
 				//orderNumberCounter를 하루의 시작 0으로 리셋
 				    			
@@ -789,7 +932,7 @@ router.getOrderNumber=function(takitId,next){
 //							increaseOrderNumber();
 //						} // mariadb is what's error 
 					    				  
-					    	console.error("getOrderNumber func Unable to query. Error:", JSON.stringify(err, null, 2));
+					    	console.error("getOrderNumber func Unable to query. Error:", JSON.stringify(err));
 					    	next(err);
 					}else{
 						console.dir("[getOrderNumber func update orderNumberCounter]:"+result.info.numRows);
@@ -799,9 +942,13 @@ router.getOrderNumber=function(takitId,next){
 					    	}else{
 					    		console.log("getOrderNumber func Query succeeded. "+JSON.stringify(result));
 					    		increaseOrderNumber(takitId,function(){
-								router.getCafeInfo(takitId,function(err,cafeInfo){
-									console.log("orderNumberCounter:"+cafeInfo.orderNumberCounter);
-									next(null,cafeInfo.orderNumberCounter);
+								router.getShopInfo(takitId,function(err,shopInfo){
+									if(err){
+										next(err);
+									}else{
+									console.log("orderNumberCounter:"+shopInfo.orderNumberCounter);
+									next(null,shopInfo.orderNumberCounter);
+									}
 								});	
 							});
 					    	}
@@ -813,65 +960,68 @@ router.getOrderNumber=function(takitId,next){
   	
 		}else{ //같은 날의 주문일 경우
 			increaseOrderNumber(takitId,function(){
-         	router.getCafeInfo(takitId,function(err,cafeInfo){
-					console.log("orderNumberCounter:"+cafeInfo.orderNumberCounter);
-            	next(null,cafeInfo.orderNumberCounter);
+         	router.getShopInfo(takitId,function(err,shopInfo){
+					if(err){
+						console.log(err);
+						next(err);
+					}else{
+					console.log("orderNumberCounter:"+shopInfo.orderNumberCounter);
+            	next(null,shopInfo.orderNumberCounter);
+					}
          	});     
       	});     
 		}
 	
 	        
+		}
 	        //////////////////////////////////////////////////////////////////////
 	});
 };
 
+router.saveOrder=function(order,shopInfo,next){
+   console.log("[order:"+JSON.stringify(order)+"]");
+   console.log("order's takeout:"+order.takeout);
+   //1. user 검색
+   router.getUserInfo(order.userId,function(err,userInfo){
+      //2. order insert
 
-router.saveOrder=function(order,cafeInfo,next){
-	console.log("[order:"+JSON.stringify(order)+"]");
-	console.log("order's takeout:"+order.takeout);
-	//1. user 검색
-	router.getUserInfo(order.userId,function(err,userInfo){
-		//2. order insert
-		
-		//3. encrypt phone
-		let secretUserPhone = encryption(userInfo.phone,config.pPwd);
-		let secretManagerPhone = encryption(cafeInfo.managerPhone,config.pPwd);
-		let command="INSERT INTO orders(takitId,orderName,payMethod,amount,takeout,orderNO,userId,userName,userPhone,managerPhone,orderStatus,orderList,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-		
-      let values = [order.takitId,order.orderName,order.paymethod,order.amount,order.takeout,order.orderNO,userInfo.userId,userInfo.name,secretUserPhone,secretManagerPhone,order.orderStatus,order.orderList,order.orderedTime,order.localOrderedTime,order.localOrderedDay,order.localOrderedHour,order.localOrderedDate];
+      //3. encrypt phone
+      let secretUserPhone = encryption(userInfo.phone,config.pPwd);
+      let command="INSERT INTO orders(takitId,orderName,payMethod,amount,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+
+      let values = [order.takitId,order.orderName,order.paymethod,order.amount,order.takeout,order.orderNO,userInfo.userId,userInfo.name,secretUserPhone,order.orderStatus,order.orderList,order.orderedTime,order.localOrderedTime,order.localOrderedDay,order.localOrderedHour,order.localOrderedDate];
       performQueryWithParam(command, values, function(err,orderResult) {
-			if (err){
+         if (err){
             console.error("saveOrder func inser orders Unable to query. Error:", JSON.stringify(err, null, 2));
             next(err);
          }else{
-         	//console.dir("[Add orders]:"+result);
+            //console.dir("[Add orders]:"+result);
             if(orderResult.info.affectedRows==='0'){
-					next("invalid orders");
+               next("invalid orders");
             }else{
-					console.log("saveOrder func Query succeeded. "+JSON.stringify(orderResult));
-					// 3.orderList insert				
-					
-					let command = "INSERT INTO orderList(orderId,menuNO,menuName,quantity,options,amount) values(?,?,?,?,?,?)";
+               console.log("saveOrder func Query succeeded. "+JSON.stringify(orderResult));
+               // 3.orderList insert
 
-					let orderList=JSON.parse(order.orderList);
-        			
-					orderList.menus.forEach(function(menu){
-        				let values = [orderResult.info.insertId,menu.menuNO,menu.menuName,menu.quantity,JSON.stringify(menu.options),menu.amount];
-						
-						performQueryWithParam(command, values, function(err,orderListResult) {
-                  	if(err){
+               let command = "INSERT INTO orderList(orderId,menuNO,menuName,quantity,options,amount) values(?,?,?,?,?,?)";
+               let orderList=JSON.parse(order.orderList);
+
+               orderList.menus.forEach(function(menu){
+                  let values = [orderResult.info.insertId,menu.menuNO,menu.menuName,menu.quantity,JSON.stringify(menu.options),menu.amount];
+
+                  performQueryWithParam(command, values, function(err,orderListResult) {
+                     if(err){
                         console.error("saveOrder func insert orderList Unable to query. Error:", JSON.stringify(err, null, 2));
                         next(err);
                      }else{
-								console.log("saveOrder func insert orderList Query Succeeded");			
-							}
-						});
-					});
-					next(null,orderResult.info.insertId);
+                        console.log("saveOrder func insert orderList Query Succeeded");
+                     }
+                  });
+               });
+               next(null,orderResult.info.insertId);
             }
-			}
+         }
       });
-	});
+   });
 };
 
 
@@ -942,13 +1092,14 @@ router.getOrdersUser=function(userId,takitId,lastOrderId,limit,next){
 
 }
 
+
 //shop에서 주문내역 검색할 때
 router.getOrdersShop=function(takitId,option,lastOrderId,limit,next){
-	console.log("takitId:"+takitId);	
-	
-	function queryOrders(startTime){	
+	console.log("takitId:"+takitId);
+
+	function queryOrders(startTime){
 		if(lastOrderId == -1){
-		
+
 			var command="SELECT *FROM orders WHERE takitId=? AND orderedTime > ? AND orderId > ?  ORDER BY orderId DESC LIMIT "+limit;
 		}else{
 			var command="SELECT *FROM orders WHERE takitId=? AND orderedTime > ? AND orderId < ?  ORDER BY orderId DESC LIMIT "+limit;
@@ -961,24 +1112,24 @@ router.getOrdersShop=function(takitId,option,lastOrderId,limit,next){
 			  }else{
 				  console.dir("[queryOrders func Get MenuInfo]:"+result.info.numRows);
 				  if(result.info.numRows==0){
-					  next(null,result.info.numRows);
+					  next("not exist orders");
 				  }else{
 					  console.log("queryOrders func Query succeeded. "+JSON.stringify(result.info));
-					
+
 					var orders=[];
 					result.forEach(function(order){
 						decryptObj(order);
 						orders.push(order);
-					});		
-						
+					});
+
 					  next(null,orders);
 				  }
 			  }
 		});
 	} //end queryOrders
-	
-	
-	var command="SELECT *FROM cafeInfo WHERE takitId=?";
+
+
+	var command="SELECT *FROM shopInfo WHERE takitId=?";
 	var values = [takitId];
 	performQueryWithParam(command, values, function(err,result) {
 		  if (err){
@@ -991,12 +1142,12 @@ router.getOrdersShop=function(takitId,option,lastOrderId,limit,next){
 			  }else{
 				console.log("getOrdersShop func Query succeeded. "+JSON.stringify(result));
 				console.log("timezone:"+result[0].timezone);
-				
+
 				var startTime = getTimezoneLocalTime(result[0].timezone, (new Date).getTime()).substring(0,11)+"00:00:00.000Z";
 				var localStartTime=new Date(Date.parse(startTime));
 				var offset=(new timezoneJS.Date(new Date(), result[0].timezone)).getTimezoneOffset(); // offset in minutes
-				var queryStartTime;			
-	
+				var queryStartTime;
+
 				if(option==="today"){
 					var todayStartTime=new Date(localStartTime.getTime()+(offset *60*1000));
 					console.log("todayStartTime in gmt:"+todayStartTime.toISOString());
@@ -1004,16 +1155,16 @@ router.getOrdersShop=function(takitId,option,lastOrderId,limit,next){
 				}else if(option==="week"){
 					var weekStartTime=new Date(localStartTime.getTime()-24*60*60*6*1000+(offset *60*1000));
 					console.log("weekStartTime in gmt:"+weekStartTime.toISOString());
-					queryStartTime=weekStartTime.toISOString();	
+					queryStartTime=weekStartTime.toISOString();
 				}else if(option==="month"){
-					var tomorrow= new Date(localStartTime.getTime()+(offset *60*1000));	        		
+					var tomorrow= new Date(localStartTime.getTime()+(offset *60*1000));
 					var monthAgo=moment(tomorrow).subtract(1,'M').toDate();
 					queryStartTime=monthAgo.toISOString();
 				}else{
 					return;
 				}
 				console.log("queryStartTime:"+queryStartTime);
-				queryOrders(queryStartTime); 
+				queryOrders(queryStartTime);
 			  }
 		  }
 	});
@@ -1021,22 +1172,22 @@ router.getOrdersShop=function(takitId,option,lastOrderId,limit,next){
 
 
 router.getPeriodOrdersShop=function(takitId,startTime,endTime,lastOrderId,limit,next){
-	console.log("takitId:"+takitId+" startTime:"+startTime+" end:"+endTime);	
-	
-	if(lastOrderId == -1){	
+	console.log("takitId:"+takitId+" startTime:"+startTime+" end:"+endTime);
+
+	if(lastOrderId == -1){
 		var command="SELECT *FROM orders WHERE takitId=? AND orderedTime BETWEEN ? AND ? AND orderId > ?  ORDER BY orderId DESC LIMIT "+limit;
 	}else{
 		var command="SELECT *FROM orders WHERE takitId=? AND orderedTime BETWEEN ? AND ? AND orderId < ?  ORDER BY orderId DESC LIMIT "+limit;
 	}
 	var values = [takitId,startTime,endTime,lastOrderId];
-	
+
 	performQueryWithParam(command, values, function(err,result) {
 		if (err){
 			console.error("getPeriodOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
 			next(err);
 		}else{
 			console.dir("[getPeriodOrders func Get MenuInfo]:"+result.info.numRows);
-			
+
 			if(result.info.numRows==0){
 				next("not exist orders");
 			}else{
@@ -1052,8 +1203,9 @@ router.getPeriodOrdersShop=function(takitId,startTime,endTime,lastOrderId,limit,
 		}
 	});
 
-		
+
 };
+
 
 
 //order's noti mode 에서 필요한 order를 가져옴.
@@ -1091,357 +1243,6 @@ router.getOrdersNotiMode=function(userId, next){
 
 
 
-///redis에 orders저장 
-router.setRedisOrders=function(takitId,option,num,today,next){
-	
-	console.log("takitId:"+takitId);	
-	console.log(option);
-	function queryOrders(startTime){	
-//		var params = {
-//			    TableName: "orders",
-//			    IndexName: "takitId-orderedTime-index",
-//			    Limit: num,
-//			    KeyConditionExpression: "#takitId=:takitId AND orderedTime > :start",
-//			    ExpressionAttributeNames: {
-//			        "#takitId": "takitId",
-//			    },
-//			    ExpressionAttributeValues: {
-//			    	":takitId": takitId,
-//			        ":start": startTime
-//			    },
-//			    ScanIndexForward:false
-//		};		
-//		if(ExclusiveStartKey!='0'){
-//			console.log("add ExclusiveStartKey");
-//			params.ExclusiveStartKey=ExclusiveStartKey;
-//		}
-//		console.log("param:"+JSON.stringify(params));
-		
-		docClient.query(params, function(err, data) {
-			console.log(data);
-			if (err) {
-		        console.error("setRedisOrders func Unable to scan the table. Error JSON:", JSON.stringify(err, null, 2));
-		        //next(err);
-		    } else {
-		        // print all the movies
-		        console.log("Scan succeeded.");
-		        
-		        //orders redis에 저장 
-		        var q=d3.queue();
-		        var id;
-		        
-		        for(var i=0; i<data.Items.length; i++){
-		        	id = data.Items[i].user_id;
-		        	redisLib.setRedisAll(today+"_"+id,data.Items[i],function(err,result){
-		        		if(err){
-		        			console.log(err);
-		        		}
-		        	});
-		        	router.getPushId(id,function(err,pushid){ //pushid redis에 저장 
-		        		if(err){
-		        			console.log(err);
-		        			throw err;
-		        		}else{
-		        			console.log("set pushid");
-		        			redisLib.setRedisOne(today+"_"+id,"pushid",pushid,function(err,result){
-		        				if(err){
-		        					console.log(err);
-		        				}else{
-		        					console.log("sucess pushid set!!!!");
-		        				}
-		        			});
-		        		}
-		        	});
-		        }
-		        
-		        if(typeof data.LastEvaluatedKey !== "undefined"){
-		        	console.log("Scanning for more..."); // 남은 주문정보 다시 스캔 
-		            router.setRedisOrders(takitId,option,num,data.LastEvaluatedKey,today,function(err,orders){
-		            			 if(err){
-		            				 console.log(err);
-		            				 throw err;
-		            			 }else{
-		            				 console.log(orders);
-		            			 }
-		            		  });
-		        }else{
-		        	console.log("scanning end");
-		        	next(null,data);
-		        }
-		        
-		    }
-		});	
-		
-		var command="SELECT *FROM orders WHERE takitId=? AND orderedTime > ?";
-		var values = [takitId,startTime,num];
-		c.query(command, values, function(err,result) {
-			  if (err){
-				  console.error("setRedisOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
-				  next(err);
-			  }else{
-				  console.dir("[setRedisOrders func Get MenuInfo]:"+result.info.numRows);
-				  if(result.info.numRows==0){
-					  next(null,result.info.numRows);
-				  }else{
-					  console.log("setRedisOrders func Query succeeded. "+JSON.stringify(result[0]));
-					  
-					  var q=d3.queue();
-				        var id;
-				        
-				        for(var i=0; i<data.Items.length; i++){
-				        	id = result[i].userId;
-				        	redisLib.setRedisAll(today+"_"+id,result[i],function(err,result){
-				        		if(err){
-				        			console.log(err);
-				        		}
-				        	});
-				        	router.getPushid(id,function(err,pushid){ //pushid redis에 저장 
-				        		if(err){
-				        			console.log(err);
-				        			throw err;
-				        		}else{
-				        			console.log("set pushid");
-				        			redisLib.setRedisOne(today+"_"+id,"pushid",pushid,function(err,result){
-				        				if(err){
-				        					console.log(err);
-				        				}else{
-				        					console.log("sucess pushid set!!!!");
-				        				}
-				        			});
-				        		}
-				        	});
-				        }
-					  next(null,result[0]);
-				  }
-			  }
-		});
-	}
-	
-	
-	
-//	var cafe_params = {
-//		    TableName : "cafeInfo",
-//		    
-//		    KeyConditionExpression: "#takitId = :takitId",
-//		    ExpressionAttributeNames:{
-//		        "#takitId": "takitId"
-//		    },
-//		    ExpressionAttributeValues: {
-//		        ":takitId": takitId
-//		    }
-//	};
-//	
-//	docClient.query(cafe_params, function(err, data) {
-//	    if (err) {
-//	        console.error("setRedisOrders query Unable to query. Error:", JSON.stringify(err, null, 2));
-//	        next(err);
-//	    } else {
-//	        console.log("setRedisOrders Query succeeded."+JSON.stringify(data));
-//	        console.log("timezone:"+data.Items[0].timezone);
-//	        var timezone = data.Items[0].timezone;
-//	        var queryStartTime;
-//        	var offset=(new timezoneJS.Date(new Date(), timezone)).getTimezoneOffset(); // offset in minutes
-//    		var currlocal=new Date((new Date).getTime() - (offset *60*1000));
-//    		console.log("currlocal:"+currlocal.toISOString()); // save it in DB
-//    		console.log("local date:"+currlocal.toISOString().substring(0,10));
-//
-//    		var startTime=currlocal.toISOString().substring(0,11)+"00:00:00.000Z";
-//    		var localStartTime=new Date(Date.parse(startTime));
-//
-//	        if(option==="today"){
-//	    		var todayStartTime=new Date(localStartTime.getTime()+(offset *60*1000));
-//	    		console.log("todayStartTime in gmt:"+todayStartTime.toISOString());
-//	    		queryStartTime=todayStartTime.toISOString();
-//	        }else if(option==="week"){
-//	        	var weekStartTime=new Date(localStartTime.getTime()-24*60*60*6*1000+(offset *60*1000));
-//	        	console.log("weekStartTime in gmt:"+weekStartTime.toISOString());
-//	    		queryStartTime=weekStartTime.toISOString();	
-//	        }else if(option==="month"){
-//	        	var tomorrow= new Date(localStartTime.getTime()+(offset *60*1000));	        		
-//	        	var monthAgo=moment(tomorrow).subtract(1,'M').toDate();
-//	        	queryStartTime=monthAgo.toISOString();
-//	        }else{
-//	        	return;
-//	        }
-//	        console.log("queryStartTime:"+queryStartTime);
-//	        queryOrders(queryStartTime);
-//	    }
-//	});
-	
-	var command="SELECT *FROM cafeInfo WHERE takitId=?";
-	var values = [takitId];
-	c.query(command, values, function(err,result) {
-		  if (err){
-			  console.error("getOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
-			  next(err);
-		  }else{
-			  console.dir("[getOrders func Get MenuInfo]:"+result.info.numRows);
-			  if(result.info.numRows==0){
-				  next(null,result.info.numRows);
-			  }else{
-				console.log("getOrders func Query succeeded. "+JSON.stringify(result[0]));
-				console.log("timezone:"+result[0].timezone);
-				var timezone = result[0].timezone;
-				var queryStartTime;
-				var offset=(new timezoneJS.Date(new Date(), timezone)).getTimezoneOffset(); // offset in minutes
-				var currlocal=new Date((new Date).getTime() - (offset *60*1000));
-				console.log("currlocal:"+currlocal.toISOString()); // save it in DB
-				console.log("local date:"+currlocal.toISOString().substring(0,10));
-				
-				var startTime=currlocal.toISOString().substring(0,11)+"00:00:00.000Z";
-				var localStartTime=new Date(Date.parse(startTime));
-				
-				if(option==="Today"){
-					var todayStartTime=new Date(localStartTime.getTime()+(offset *60*1000));
-					console.log("todayStartTime in gmt:"+todayStartTime.toISOString());
-					queryStartTime=todayStartTime.toISOString();
-				}else if(option==="Week"){
-					var weekStartTime=new Date(localStartTime.getTime()-24*60*60*6*1000+(offset *60*1000));
-					console.log("weekStartTime in gmt:"+weekStartTime.toISOString());
-					queryStartTime=weekStartTime.toISOString();	
-				}else if(option==="Month"){
-					var tomorrow= new Date(localStartTime.getTime()+(offset *60*1000));	        		
-					var monthAgo=moment(tomorrow).subtract(1,'M').toDate();
-					queryStartTime=monthAgo.toISOString();
-				}else{
-					return;
-				}
-				console.log("queryStartTime:"+queryStartTime);
-				queryOrders(queryStartTime);
-				  
-				next(null,result[0]);
-			  }
-		  }
-	});
-};
-
-router.setRedisPeriodOrders=function(takitId,num,startDate,endDate,next){
-	console.log("takitId:"+takitId+" startDate:"+startDate+" endDate:"+endDate);	
-//		var params = {
-//			    TableName: "orders",
-//			    IndexName: "takitId-orderedTime-index",
-//			    Limit: num,
-//			    KeyConditionExpression: "#takitId=:takitId AND orderedTime BETWEEN :startDate AND :endDate",
-//			    ExpressionAttributeNames: {
-//			        "#takitId": "takitId",
-//			    },
-//			    ExpressionAttributeValues: {
-//			    	":takitId": takitId,
-//			        ":startDate": startDate,
-//			        ":endDate": endDate
-//			    },
-//			    ScanIndexForward:false
-//		};
-//		
-//		if(ExclusiveStartKey!=0)
-//			params.ExclusiveStartKey=JSON.parse(ExclusiveStartKey);
-//		
-//		docClient.query(params, function(err, data) {
-//			if (err) {
-//		        console.error("Unable to scan the table. Error JSON:", JSON.stringify(err, null, 2));
-//		        next(err);
-//		    } else {
-//		    	
-//		    	var q=d3.queue();
-//		        var id;
-//		        
-//		        for(var i=0; i<data.Items.length; i++){
-//		        	id = data.Items[i].user_id;
-//		        	redisLib.setRedisAll(today+"_"+id,data.Items[i],function(err,result){
-//		        		if(err){
-//		        			console.log(err);
-//		        		}
-//		        	});
-//		        	router.getPushid(id,function(err,pushid){ //pushid redis에 저장 
-//		        		if(err){
-//		        			console.log(err);
-//		        			throw err;
-//		        		}else{
-//		        			console.log("set pushid");
-//		        			redisLib.setRedisOne(today+"_"+id,"pushid",pushid,function(err,result){
-//		        				if(err){
-//		        					console.log(err);
-//		        				}else{
-//		        					console.log("success pushid set!!!!");
-//		        				}
-//		        			});
-//		        		}
-//		        	});
-//		        }
-//		    	
-//		        // print all the movies
-//		        if (typeof data.LastEvaluatedKey !== "undefined") {
-//		            console.log("Querying for more...");
-//		            //params.ExclusiveStartKey = data.LastEvaluatedKey;
-//		            //docClient.scan(params, onScan);
-//		            router.setRedisPeriodOrders(takitId,num,startDate,endDate,data.LastEvaluateKey,function(err,orders){
-//		            	if(err){
-//		            		console.log(err);
-//		            		throw err;
-//		            	}else{
-//		            		console.log(orders);
-//		            	}
-//		            });
-//		        }
-//		        else{
-//		        	console.log("scanning end");
-//		        	next(null,data);
-//		        }
-//		    }
-//		});	
-		
-		
-		var command="SELECT *FROM orders WHERE takitId=? AND orderedTime BETWEEN ? AND ?";
-		var values = [takitId,startDate,endDate];
-		c.query(command, values, function(err,result) {
-			  if (err){
-				  console.error("getPeriodOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
-				  next(err);
-			  }else{
-				  console.dir("[getPeriodOrders func Get MenuInfo]:"+result.info.numRows);
-				  if(result.info.numRows==0){
-					  next(null,result.info.numRows);
-				  }else{
-					  console.log("getPeriodOrders func Query succeeded. "+JSON.stringify(result[0]));
-					  
-					  
-					  //after set redis 부분 
-					 
-					  var q=d3.queue();
-				      var id;
-				        
-				        for(var i=0; i<data.Items.length; i++){
-				        	id = data.Items[i].user_id;
-				        	redisLib.setRedisAll(today+"_"+id,data.Items[i],function(err,result){
-				        		if(err){
-				        			console.log(err);
-				        		}
-				        	});
-				        	router.getPushid(id,function(err,pushid){ //pushid redis에 저장 
-				        		if(err){
-				        			console.log(err);
-				        			throw err;
-				        		}else{
-				        			console.log("set pushid");
-				        			redisLib.setRedisOne(today+"_"+id,"pushid",pushid,function(err,result){
-				        				if(err){
-				        					console.log(err);
-				        				}else{
-				        					console.log("success pushid set!!!!");
-				        					next(null,result[0]);
-				        					
-				        					//after next의 위치 ? 
-				        				}
-				        			});
-				        		}
-				        	});
-				        }
-					  
-					  
-				  }
-			  }
-		});
-};
 
 
 router.updateOrderStatus=function(orderId,oldStatus, nextStatus,timeName,timeValue,cancelReason,next){
@@ -1505,6 +1306,241 @@ router.updateOrderStatus=function(orderId,oldStatus, nextStatus,timeName,timeVal
 };
 
 
+router.getCashInfo=function(cashId,next){
+   console.log("getCashInfo function start");
+
+   let command = "SELECT *FROM cash WHERE cashId=?";
+   let values = [cashId];
+
+   performQueryWithParam(command, values, function(err,result) {
+      if(err){
+         console.log("getCashInfo function err:"+JSON.stringify(err));
+         next(err);
+      }else{
+         if(result.info.numRows==='0'){
+            next("invalidId");
+         }else{
+            console.log(result);
+            decryptObj(result[0]);
+            next(null,result[0]);
+         }
+      }
+   });
+
+}
+
+router.checkCashPwd = function(cashId, password, next){
+   console.log("checkCashPwd function start");
+
+   let command = "SELECT password, salt FROM cash WHERE cashId=?";
+   let values = [cashId];
+
+   performQueryWithParam(command, values, function(err,result) {
+      if(err){
+         console.log("checkCashPwd function err:"+JSON.stringify(err));
+         next(err);
+      }else{
+         if(result.info.numRows==='0'){
+            next("invalid Id");
+         }else{
+            console.log("checkCashPwd function success");
+
+            let secretPwd = crypto.createHash('sha256').update(password+result[0].salt).digest('hex');
+
+            if(secretPwd === result[0].password){
+               console.log("correct password");
+               next(null,"correct password");
+            }else{
+               next("invalid Password");
+            }
+         }
+      }
+   });
+}
+
+
+router.updateBalanceCash=function(cashId,amount,next){
+
+   let command = "UPDATE cash SET balance=balance+? WHERE cashId = ?";
+   let values = [amount,cashId];
+
+   performQueryWithParam(command, values, function(err,result) {
+      if(err){
+         console.log("updateBalanceCash function err:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("updateBalanceCash:"+JSON.stringify(result));
+         next(null,"success");
+      }
+   });
+
+};
+
+
+router.getBalanceCash = function(cashId,next){
+
+   let command = "SELECT balance FROM cash WHERE cashId = ?";
+   let values = [cashId];
+
+   performQueryWithParam(command, values, function(err,result) {
+      if(err){
+         console.log("getBalanceCash function err:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("getBalanceCash:"+JSON.stringify(result));
+         next(null,result[0].balance);
+      }
+   });
+}
+
+router.insertCashList = function(cashList,next){
+   let command = "INSERT INTO cash(cashTuno,cashId,userId,transactionType,amount,transactionTime, branchCode, confirm, nowBalance)"+
+                  "VALUES(:cashTuno,:cashId,:userId,:transactionType,:amount,:transactionTime,:branchCode,:confirm, :nowBalance)";
+
+   performQueryWithParam(command, cashList, function(err,result) {
+      if(err){
+         console.log("insertCashList function err:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("insertCashList:"+JSON.stringify(result));
+         next(null,"success");
+      }
+   });
+}
+
+router.getCashList=function(cashId,next){
+   console.log("mariaDB.getCashList start!!");
+
+   let command = "SELECT * FROM cashList WHERE cashId =?"
+   let values = [cashId];
+
+   performQueryWithParam(command, values, function(err,result){
+      if(err){
+         console.log("getCashList function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("result:"+JSON.stringify(result));
+         if(result.info.numRows === '0'){
+            next("invalid cashId");
+         }else{
+            console.log("getCashList find cashList");
+            delete result.info;
+            next(null,result);
+         }
+      }
+   });
+}
+
+
+router.updateCashList = function(cashList,next){
+   console.log("mariaDB.updateCashList start!!");
+
+   let command = "UPDATE cashList SET transactionTime=:transactionTime, confirm=:confirm, nowBalance=:nowBalance WHERE cashTuno=:cashTuno";
+
+   performQueryWithParam(command, cashList, function(err,result){
+      if(err){
+         console.log("getCashList function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("result:"+JSON.stringify(result));
+         if(result.info.numRows === '0'){
+            next("invalid cashId");
+         }else{
+            console.log("getCashList find cashList");
+            delete result.info;
+            next(null,result);
+         }
+      }
+   });
+}
+
+
+router.findBranchName=function(branchName,bankName,next){
+	console.log("mariaDB.findBranchName "+ branchName, "and bankName "+bankName);
+	let command="SELECT code, branchName from bankInfo where branchName LIKE _utf8 \'"+branchName+"%\' and bankName _utf8 LIKE \'"+bankName+"%\'";
+
+	performQuery(command,function(err, result) {
+      if (err){
+         console.log("findBranchName Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("result:"+JSON.stringify(result));
+         if(result.info.numRows === '0'){
+            next(null,[]);
+         }else{
+            console.dir("findBranchName result:"+result.info.numRows);
+            delete result.info;
+            next(null,result);
+         }
+      }
+	});
+}
+
+
+router.getDepositedCash = function(cashList,next){
+   console.log("mariaDB.getDepositedCash start!!");
+
+   cashList.depositMemo = encryption(depositMemo,config.cPwd);
+   let command = "SELECT * FROM cashList WHERE cashId =:depositMemo and amount=:amount and branchCode=:branchCode and transactionTime LIKE \'"+cashList.depositDate+"%\'";
+
+   performQueryWithParam(command, cashList, function(err,result){
+      if(err){
+         console.log("getCashList function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("result:"+JSON.stringify(result));
+         if(result.info.numRows === '0'){
+            next("incorrect depositor");
+         }else{
+            console.log("getDepositedCash find cashList");
+            next(null,result[0]);
+         }
+      }
+   });
+}
+
+
+
+router.getPushIdWithCashId = function(cashId,next){
+   let command = "SELECT pushId, platform FROM userInfo LEFT JOIN cash ON userInfo.userId=cash.userId WHERE cashId=?";
+   let values = [cashId];
+
+   performQueryWithParam(command, cashInfo, function(err,result){
+      if(err){
+         console.log("getPushIdWithCashId function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("result:"+JSON.stringify(result));
+         if(result.info.numRows === '0'){
+            next(null,"incorrect cashId");
+         }else{
+            console.log("getPushIdWithCashId function success");
+            next(null,result[0]);
+         }
+      }
+   });
+}
+
+router.getBankName = function(branchCode, next){
+   console.log("getBankName start");
+   let command = "SELECT bankName, branchName FROM bankInfo WHERE code=?";
+   let values = [branchCode];
+
+   performQueryWithParam(command, cashInfo, function(err,result){
+      if(err){
+         console.log("getBankName function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("getBankName result:"+JSON.stringify(result));
+         if(result.info.numRows === '0'){
+            next("incorrect branchCode");
+         }else{
+            console.log("getBankName function success");
+            next(null,result[0]);
+         }
+      }
+   });
+};
 
 
 

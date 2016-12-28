@@ -1,12 +1,15 @@
-var express = require('express');
-var router = express.Router();
-var request = require('request');
-var mariaDB=require('./mariaDB');
-var s3=require('./s3');
-var d3=require('d3-queue');
-var redisLib=require('./redisLib');
-var gcm = require('node-gcm');
-var config=require('../config');
+const express = require('express');
+const router = express.Router();
+const request = require('request');
+const mariaDB=require('./mariaDB');
+const s3=require('./s3');
+const d3=require('d3-queue');
+const gcm = require('node-gcm');
+const config=require('../config');
+const redis = require('redis');
+const redisCli = redis.createClient();
+const async = require('async');
+const noti = require('./notification');
 
 var FACEBOOK_SHOP_APP_SECRET
 var FACEBOOK_SHOP_APP_ID;
@@ -107,7 +110,7 @@ router.kakaoLogin=function(req,res){
    mariaDB.existShopUser(req.body.referenceId,function(err,shopUserInfo){
    	if(err){
       	console.log(err);
-         res.end({"result":"InvalidId"});
+         res.send(JSON.stringify({"result":"InvalidId"}));
       }else{
 			req.session.uid = shopUserInfo[0].userId;
 			//body.shopUserInfo={};
@@ -144,7 +147,7 @@ router.emailLogin=function(req,res){
 	mariaDB.existEmailAndPassword(req.body.email, req.body.password, function(err,result){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"failure"}));
+			res.send(JSON.stringify({"result":"invalidId"}));
 		}else{
 			mariaDB.existShopUser(req.body.referenceId,function(err,shopUserInfo){
 				if(err){
@@ -247,12 +250,12 @@ router.secretLogin=function(req,res){
 		});
 	}else{
 		console.log('secretLogin facebook or kakaotalk');
-		router.existUserEmail(req.body.email,function(err,userInfo){
+		mairaDB.existUserEmail(req.body.email,function(err,userInfo){
 	      if(err){
    	      console.log(err);
 				res.send(JSON.stringify({"result":"failure"}));
 			}else{
-				router.getShopUserInfo(userInfo.userId,function(err,shopUserInfos){
+				mariaDB.getShopUserInfo(userInfo.userId,function(err,shopUserInfos){
             	if(err){
 						console.log(err);
                	res.send(JSON.stringify({"result":"failure"}));
@@ -305,38 +308,105 @@ router.secretLogin=function(req,res){
 	}
 }
 
-
-
-
-router.todayManager=function(req,res){
-
-	console.log("todayManager comes!!!");
-	//1. mariaDB에서 이전 manager 찾기
-	mariaDB.getShopPushId(req.body.takitId,function(err,result){
-		//2.sendGCM - manager변경 된다는 내용
-		let title = "manager 변경 : "+req.body.takitId; 
-		let content = req.body.takitId+"의 manager가 변경됩니다."		
-
-		noti.sendGCM(config.SHOP_SERVER_API_KEY,title,content) //(API_KEY,title,content, custom, GCMType, messageId, pushId, platform, next)		
-		
-		mariaDB.changeManager(req.session.uid, req.body.takitId, function(err,result){
-      	if(err){
-         	console.log(err);
-         	res.send(JSON.stringify({"result":"failure"}));
-      	}else{
-         	console.log(result);
-         	res.send(JSON.stringify({"result":"success"}));
-
-
-      	}	
-   	});
-	}); 
+//shop 운영 on/ off
+router.openShop=function(req,res){
+	console.log("start openShop function");
+	console.log(req.body);
+	mariaDB.updateShopBusiness(req.body.takitId,"on",function(err,result){
+		if(err){
+			console.log(err);
+			res.send(JSON.stringify({"result":"failure"}));
+		}else{
+			console.log("openShop function success");
+			res.send(JSON.stringify({"result":"success"}));
+		}
+	});
 
 };
 
+router.closeShop=function(req,res){
+	console.log("start closeShop function");
+	mariaDB.updateShopBusiness(req.body.takitId,"off",function(err,result){
+		if(err){
+			console.log(err);
+			res.send(JSON.stringify({"result":"failure"}));
+		}else{
+			console.log("closeShop function success");
+			res.send(JSON.stringify({"result":"success"}));
+		}
+	});
+}
+
+
+//오늘 알림 받는 shop member 지정
+router.changeNotiMember=function(req,res){
+   console.log("changeNotiMember comes!!!");
+   //1. mariaDB에서 이전 noti 받는 member 찾기 (GCMNoti==="on" 인 사람)
+	//2.incr redis
+	//3.set 스케줄
+	//4.send noti
+	//4.change noti member
+	let shopUserInfo={};
+	const GCM = {};
+	GCM.title = "주문 알림 멤버 변경"+req.body.takitId;
+	GCM.content = req.body.takitId+"의 알림이 다른 멤버로 변경 됩니다. 원하지 않는 경우 타킷운영자 앱을 실행해주세요.";
+	GCM.GCMType = "change_manager";
+	GCM.custom = {};
+
+	console.log(GCM);	
+	async.waterfall([function(callback){
+		mariaDB.getShopPushId(req.body.takitId,callback); //현재 알림 멤버의 pushId,userId, ect 찾기
+	},function(result,callback){
+		shopUserInfo=result;
+		redisCli.incr("gcm",callback);
+	},function(messageId,callback){
+		GCM.messageId = messageId;
+		noti.setRedisSchedule(shopUserInfo.userId+"_gcm_shop_"+messageId,shopUserInfo.phone,GCM,callback); ///(keyName,phone,SMS,next){
+
+	},function(result,callback){
+		getUserInfo(shopUserInfo.userId,callback)
+	},function(userInfo,callback){
+		GCM.custom.email=userInfo.email;
+
+		async.parallel([function(callback){
+			noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform,callback); //현재 알림 멤버에게 gcm보내줌 
+		},function(callback){
+			let onMyShopList= JSON.parse(shopUserInfo.myShopList);
+			onMyShopList[0].GCMNoti = "on";
+			let offMyShopList=JSON.parse(shopUserInfo.myShopList);
+			offMyShopList[0].GCMNoti = "off";
+			console.log(offMyShopList);
+			console.log("off:"+JSON.stringify(offMyShopList));
+			mariaDB.updateNotiMember(req.session.uid, req.body.takitId, JSON.stringify(onMyShopList), JSON.stringify(offMyShopList),callback); 
+		}],callback);
+
+	}],function(err,result){
+		if(err){
+			console.log(err);
+			res.send(JSON.stringify({"result":"failure"}));
+		}else{
+			console.log("change Noti Member success result:"+JSON.stringify(result));
+			res.send(JSON.stringify({"result":"success"}));
+		}
+	});
+};
+
+router.successGCM=function(req,res){
+   console.log("messageId : "+req.body.messageId);
+   redisCli.del(req.session.uid+"_gcm_shop_"+req.body.messageId,function(err,result){
+      if(err){
+         res.send(JSON.stringify({"result":"failure"}));
+      }else{
+         console.log("!!!!!!!!!!!success gcm 성공!!!!!!" +result);
+         res.send(JSON.stringify({"result":"success"}));
+      }
+   })
+}
+
+
 router.sleepMode=function(req,res){
    console.log("shop sleepMode comes!!!!");
-   redisCli.keys(req.session.uid+"_gcm_*",function(err,result){
+   redisCli.keys(req.session.uid+"_gcm_shop_*",function(err,result){
       if(err){
          console.log(err);
          res.send(JSON.stringify({"result":"failure"}));
@@ -364,6 +434,67 @@ router.sleepMode=function(req,res){
       }
    });
 }
+
+router.getShopInfo=function(req,res){
+	console.log("getShopInfo");
+
+	mariaDB.getShopInfo(req.body.takitId,function(err,shopInfo){
+		if(err){
+			console.log(err);
+			res.send(JSON.stringify({"result":"failure"}));
+		}else{
+			delete shopInfo.account;
+			delete shopInfo.orderNumberCounter;
+			delete shopInfo.orderNumberCounterTime;
+
+			console.log("success");
+			let response={};
+			response.shopInfo=shopInfo;
+			response.result = "success";
+			res.send(JSON.stringify(response));
+		}
+	});
+}
+
+router.refreshInfo=function(req,res){
+	console.log("enter refreshInfo shop");
+
+	async.parallel([function(callback){
+		mariaDB.getShopUserInfo(req.session.uid,callback); //GCMNoti정보 받아오기 위해
+	},function(callback){
+		mariaDB.getShopInfo(req.body.takitId, callback); //shop on/off 받아오기 위해
+	}],function(err,result){
+		if(err){
+			console.log(err);
+			res.send(JSON.stringify({"result":"failure"}));
+		}else{
+			console.log(result);
+
+			let response = {};
+			response.shopUserInfo={};
+			response.shopInfo = result[1];
+			for(let i=0; i<result.length; i++){ //getShopUserInfo가 여러개 shop 가지고 있는 user들을 여러명 검색하므로 이 작업 필요
+				if(result[0][i].takitId === req.body.takitId){
+					console.log("find correct takitId");
+					delete result[0][i].password;
+					delete result[0][i].salt;
+					delete result[0][i].shopPushId;
+					response.shopUserInfo = result[0][i];
+					response.result = "success";
+
+					break;
+				}/*else{
+					response.result="failure";
+					delete response.shopUserInfo;
+				}*/
+				//TODO : getShopUserInfo with takitId 를 새로 만드는게 낫나 흠흠,,
+				//잘 모르겠,,
+			}
+			res.send(JSON.stringify(response));
+		}
+	});
+}
+
 
 
 /*

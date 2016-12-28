@@ -5,6 +5,8 @@ let https = require("https");
 let gcm = require('node-gcm');
 let nodemailer = require("nodemailer");
 let config = require('../config');
+let Scheduler = require('redis-scheduler');
+let scheduler = new Scheduler();
 
 router.sendSMS=function(content,receivers){
 	console.log("comes sendSMS : "+content);
@@ -53,65 +55,72 @@ router.sendSMS=function(content,receivers){
 }
 
 
-
-
-router.sendGCM=function(API_KEY,title,content, custom, GCMType, messageId, pushId, platform, next){
-
-	let sender = new gcm.Sender(API_KEY);
-
-	console.log("content:"+content);
-
-	let message;
-	
-	if(platform === "ios"){
-		message = new gcm.Message({
-			//priority: 'high',
-	    	collapseKey: 'takit',
-	    	timeToLive: 3,
-			contentAvailable: true,
-	    	data: {	
-				sound:'default',
-	      	custom: custom,
-				GCMType: GCMType,
-				notId:messageId,
-	   	},
-	   	notification: {
-	        title: title,
-	        body: content
-	    	}
+router.setRedisSchedule = function(keyName,phone,SMS,next){
+	console.log("start setRedisSchedule:"+keyName);
+	scheduler.schedule({ key: keyName, expire: 60000, handler: function(){
+		console.log("start SMS event"+SMS.content);
+			router.sendSMS(SMS.title+" "+SMS.content,[phone]);
+		}}, function(err){
+			if (err){
+				console.error(err);
+				next(err);
+			}else{
+				console.log('scheduled successfully!');
+				next(null,"success");
+			}
 		});
-	}else{
-		message = new gcm.Message({
+}
+
+router.sendGCM=function(API_KEY,MSG,pushId, platform, next){
+
+   let sender = new gcm.Sender(API_KEY);
+
+   console.log("MSG content:"+JSON.stringify(MSG));
+
+   let message;
+
+   if(platform === "ios"){
+      message = new gcm.Message({
+         priority: 'high',
+         collapseKey: 'takit',
+         timeToLive: 3,
+         contentAvailable: true,
+         data: {
+            sound:'default',
+            custom: MSG.custom,
+            GCMType: MSG.GCMType,
+            notId:MSG.messageId,
+         },
+         notification: {
+           title: MSG.content,
+           body: MSG.title
+         }
+      });
+   }else{
+      message = new gcm.Message({
+         priority: 'high',
 			collapseKey: 'takit',
          timeToLive: 3,
-			data : {
-      		title : title,
-      		message : content,
-      		GCMType : GCMType,
-      		custom  : custom,
-      		"content-available": 1,
-      		notId: messageId,
-				sound:'default',
-    		}
-		});
-	}
-
-	console.log("title:"+title);
-	console.log("content:"+content);
-	console.log("custom:"+custom);
-	console.log("pushId:"+pushId);
-
-
-
+         data : {
+            title : MSG.title,
+            message : MSG.content,
+            GCMType : MSG.GCMType,
+            custom  : MSG.custom,
+            "content-available": 1,
+            notId: MSG.messageId,
+            sound:'default',
+         }
+      });
+   }
 	sender.send(message, {"registrationTokens":pushId}, 4, function (err, result) {
-		if(err){
-			console.log("err sender:"+JSON.stringify(err));
-			next(err);
-		}else{
-			console.log("success sender:"+JSON.stringify(result));
-			next(null,result);
-		}
-	});
+        if(err){
+           console.log("err sender:"+JSON.stringify(err));
+           next(err);
+        }else{
+           console.log("success sender:"+JSON.stringify(result));
+           next(null,result);
+        }
+     });
 }
 
 router.sendEmail=function(email,subject,content, next){

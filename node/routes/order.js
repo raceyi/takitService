@@ -12,110 +12,116 @@ let scheduler = new Scheduler();
 let	redis = require('redis');
 let redisCli = redis.createClient(); 
 
-function sendOrderMSG(API_KEY,order,phone,pushId,platform,userId,next){
-	console.log("[[response order]]:"+JSON.stringify(order));
-	delete order.userId;
-	delete order.userName;
+function updateOrderStatus(order){
+   let title;
 
-	let title;
-
-	switch (order.orderStatus){
+   switch (order.orderStatus){
       case 'paid' :
-         title='주문 '+order.orderName; break;
+         title='[타킷] 주문 '+order.orderName; break;
       case 'checked' :
-         title='주문접수 '+order.orderName; break;
+         title='[타킷] 주문접수 '+order.orderName; break;
       case 'completed' :
-         title='주문준비완료 '+order.orderName; break;
+         title='[타킷] 주문준비완료 '+order.orderName; break;
       case 'cancelled' :
-         title='주문취소 '+order.orderName; break;
+         title='[타킷] 주문취소 '+order.orderName; break;
       default :
-         title = 'Takit';
+         title = '[타킷]';
    }
 
+   return title;
+}
 
-	let content="주문번호"+order.orderNO+" 주문내역:"+order.orderName ;
+//1. user - SMS noti 필요한 사람
+//2. user - SMS noti 필요 없는 사람
+function sendOrderMSGUser(order,userInfo,next){
+   const GCM = {};
+   GCM.title = updateOrderStatus(order);
+   GCM.content = "주문번호 "+order.orderNO;
 
-	if(order.hasOwnProperty('cancelReason') && order.cancelReason!==null && order.cancelReason !== ""){
-		content += '취소사유:'+JSON.stringify(order.cancelReason);
-	}
+   if(order.hasOwnProperty('cancelReason') && order.cancelReason!==null && order.cancelReason !== ""){
+      GCM.content += '취소사유:'+JSON.stringify(order.cancelReason);
+   }
 
-	let GCMType = "order";
+   GCM.GCMType = "order";
+   GCM.custom = JSON.stringify(order);
 
-	redisCli.incr("gcm_order",function(err,result){
-	
-		console.log("gcm message NO : " +result);
-		let messageId = result;
-		scheduler.schedule({ key: userId+"_gcm_"+messageId, expire: 60000, handler: function(){
-         	console.log("start SMS event"+content);
-				console.log("phone : "+phone); 
-         	noti.sendSMS(title+" "+content,[phone]);
-         }}, function(err){
-            if (err){
-               console.error(err);
-					next(err);
-            }else{
-					console.log('scheduled successfully!');
-					noti.sendGCM(API_KEY,title, content, JSON.stringify(order), GCMType, messageId, pushId, platform, function(err,result){
-         			if(err){
-            			console.log(err);
-            			next(err);
-         			}else{
-							console.log("gcm successfully!!!!!");
-                  	const response={}
-                  	response.order = order;
-                  	response.messageId = messageId;
-                  	next(null,response);
-						}
-      			});
-            }
+
+   //noti 받는 사람
+   if(userInfo.SMSNoti==="on"){
+		console.log("SMSNoti on!!!!");
+      async.waterfall([function(callback){
+         redisCli.incr("gcm",callback);
+      },function(messageId,callback){
+         GCM.messageId = messageId;
+         const SMS = {};
+         SMS.title = GCM.title;
+         SMS.content = GCM.content+"  MyPage 업데이트 버튼을 눌러주세요";
+         noti.setRedisSchedule(order.userId+"_gcm_user_"+messageId,order.userPhone,SMS,callback);
+      },function(result,callback){
+         noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId], userInfo.platform, callback);
+      }],function(err,result){
+         if(err){
+            console.log(err);
+            next(err);
+         }else{
+            const response={}
+            response.order = order;
+            response.messageId = GCM.messageId;
+            next(null,response);
+         }
       });
+   }else{ //noti받지 않는 사람
+		console.log("SMSNoti off!!!!");
+      noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId], userInfo.platform, function(err,result){
+         if(err){
+            console.log(err);
+            next(err);
+         }else{
+            const response={}
+            response.order = order;
+            response.messageId = GCM.messageId;
+            next(null,response);
+         }
+      });
+   }
 
+}
+
+
+function sendOrderMSGShop(order, shopUserInfo,next){
+   const GCM = {};
+   GCM.title = updateOrderStatus(order);
+   GCM.content = "주문번호 "+order.orderNO+" 주문내역:"+order.orderName;
+
+   if(order.hasOwnProperty('cancelReason') && order.cancelReason!==null && order.cancelReason !== ""){
+      GCM.content += '취소사유:'+JSON.stringify(order.cancelReason);
+   }
+
+   GCM.GCMType = "order";
+   GCM.custom = JSON.stringify(order);
+
+   async.waterfall([function(callback){
+      redisCli.incr("gcm",callback);
+   },function(messageId,callback){
+      GCM.messageId = messageId;
+      const SMS = {};
+      SMS.title = GCM.title;
+      SMS.content = GCM.content+" 주문테이블을 업데이트 해주세요";
+      noti.setRedisSchedule(shopUserInfo.userId+"_gcm_shop_"+messageId,shopUserInfo.phone,SMS,callback);
+   },function(result,callback){
+      noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform, callback);
+   }],function(err,result){
+      if(err){
+         console.log(err);
+         next(err);
+      }else{
+         const response={}
+         response.order = order;
+         response.messageId = GCM.messageId;
+         next(null,response);
+      }
 	});
 }
-
-router.successGCM=function(req,res){
-	console.log("messageId : "+req.body.messageId);
-	redisCli.del(req.session.uid+"_gcm_"+req.body.messageId,function(err,result){
-		if(err){
-			res.send(JSON.stringify({"result":"failure"}));
-		}else{
-			console.log("!!!!!!!!!!!success gcm 성공!!!!!!" +result);
-			res.send(JSON.stringify({"result":"success"}));
-		}
-	})
-}
-
-router.sleepMode=function(req,res){
-	console.log("sleepMode comes!!!!");
-	redisCli.keys(req.session.uid+"_gcm_*",function(err,result){
-		if(err){
-			console.log(err);
-			res.send(JSON.stringify({"result":"failure"}));
-		}else{
-			console.log(result);
-			for(let i=0; i<result.length; i++){
-	         console.log(result[i]);
-	         redisCli.del(result[i],function(err,reply){
-					if(err){
-						console.log(err);
-						res.send(JSON.stringify({"result":"failure"}));
-					}else{
-						console.log(reply);
-					}
-				});
-
-				if(i === result.length-1){
-					res.send(JSON.stringify({"result":"success"}));
-				}
-	      }
-
-			if(result[0] === null || result[0] === undefined){
-				res.send(JSON.stringify({"result":"success"}));
-			}
-		}
-	});
-}
-
 
 
 function getTimezoneLocalTime(timezone,timeInMilliSec,next){ // return current local time in timezone area
@@ -139,15 +145,17 @@ router.saveOrder=function(req, res){
 	order.orderStatus="paid";
 	order.orderedTime = new Date().toISOString();
 
-	let cafeInfo;
+	let shopInfo;
 
 	async.waterfall([function(callback){
-		mariaDB.getCafeInfo(req.body.takitId,callback);
+      /*mariaDB.checkCashPwd(req.body.cashId.toUpperCase(),req.body.password,callback);
+   },function(result,callback){*/
+		mariaDB.getShopInfo(req.body.takitId,callback);
 	},function(result,callback){
-		cafeInfo = result;
-		console.log("cafeInfo:"+JSON.stringify(cafeInfo));
+		shopInfo = result;
+		console.log("shopInfo:"+JSON.stringify(shopInfo));
 		let orderedTime=order.orderedTime;
-		console.log("timezone:"+cafeInfo.timezone);
+		console.log("timezone:"+shopInfo.timezone);
 		console.log("orderTime:"+orderedTime);
 
 		let UTCOrderTime=new Date(orderedTime);
@@ -156,7 +164,7 @@ router.saveOrder=function(req, res){
     console.log("getTime:"+currTime.getTime()+" inputTime:"+UTCOrderTime.getTime());
     console.log("UTCOrderTime in ISO:"+ UTCOrderTime.toISOString());
     /////////////////////////////////////
-    getTimezoneLocalTime(cafeInfo.timezone,UTCOrderTime.getTime(),callback);
+    getTimezoneLocalTime(shopInfo.timezone,UTCOrderTime.getTime(),callback);
 	}],function(err,localOrderedTime){
 		if(err){
 			console.log(err);
@@ -165,40 +173,45 @@ router.saveOrder=function(req, res){
 			order.localOrderedHour=localOrderedTime.hour;
 			order.localOrderedDay = localOrderedTime.day;
 			order.localOrderedDate=localOrderedTime.time.substring(0,10);
-			
-			async.waterfall([function(callback){
-      	mariaDB.getOrderNumber(req.body.takitId,callback);
-   		},function(orderNO,callback){
-      		order.orderNO=orderNO;
-      		console.log("orderNO:"+orderNO);
-      		mariaDB.saveOrder(order,cafeInfo,callback);
-   		},function(orderId,callback){
+		
+			if(shopInfo.business === "on"){	
+				async.waterfall([function(callback){
+      		mariaDB.getOrderNumber(req.body.takitId,callback);
+   			},function(orderNO,callback){
+      			order.orderNO=orderNO;
+      			console.log("orderNO:"+orderNO);
+      			mariaDB.saveOrder(order,shopInfo,callback);
+   			},function(orderId,callback){
 
-      		console.log(orderId);
-      		async.parallel([function(callback){
-         		mariaDB.getOrder(orderId,callback);
-      		},function(callback){
-         		mariaDB.getShopPushId(req.body.takitId,callback);
-      		}],callback);
+      			console.log(orderId);
+      			async.parallel([function(callback){
+         			mariaDB.getOrder(orderId,callback);
+      			},function(callback){
+         			mariaDB.getShopPushId(req.body.takitId,callback);
+      			}],callback);
 
-   		},function(result,callback){
-      		console.log("getShopPushId result:"+JSON.stringify(result));
-            console.log(result[0]);
-				console.log(result[1]);
-				console.log(result[1].shopPushId);
-				console.log(result[1].platform);
-				console.log(result[1].userId);
-				console.log("managerPhone number :"+result[0].managerPhone);
-				sendOrderMSG(config.SHOP_SERVER_API_KEY,result[0],result[0].managerPhone,[result[1].shopPushId],result[1].platform,result[1].userId,callback); //result[0]:order, result[1] shopPushId's result
-   		}],function(err,response){
-      		if(err){
-         		res.end(JSON.stringify({"result":"failure"}));
-      		}else{
-         		console.log("save order result:"+JSON.stringify(response));
-         		response.result="success";
-         		res.end(JSON.stringify(response));
-     			 }
-   		});
+   			},function(result,callback){
+      			console.log("getShopPushId result:"+JSON.stringify(result));
+            	console.log(result[0]);
+					console.log(result[1]);
+					console.log(result[1].shopPushId);
+					console.log(result[1].platform);
+					console.log(result[1].userId);
+					console.log("managerPhone number :"+result[1].phone);
+					sendOrderMSGShop(result[0],result[1],callback); //result[0]:order, result[1] :shopUserInfo(shopPushId, userId, platform)
+   			}],function(err,response){
+      			if(err){
+         			res.end(JSON.stringify({"result":"failure","error":err}));
+      			}else{
+         			console.log("save order result:"+JSON.stringify(response));
+         			response.result="success";
+         			res.end(JSON.stringify(response));
+     			 	}
+   			});
+			}else{
+				console.log("shop off time");
+				res.send(JSON.stringify({"result":"failure","error":"shop's off"}));
+			}
 		}
 	});
 };
@@ -254,256 +267,144 @@ router.getOrdersShop=function(req,res){
 	}
 };
 
+
 router.checkOrder=function(req,res){ // previous status must be "paid".
 	//1. order정보 가져옴
 	//2. shopUser인지 확인
 	//3. orderStatus update
-	//4. send a massege	
+	//4. send a massege
 
 	//check shop member
 	console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
-	
-	/*
-	function sendShopUser(order,next){
-        mariaDB.getShopPushId(order.takitId,"all",function(err,shopPushId){
-            console.log("pushId:"+shopPushId);
-            sendOrderMSG(config.SHOP_SERVER_API_KEY,order,shopPushId,function(err,result){
-                next(null,"success");
-            });
-        });
-
-    };
-	*/
-
-	function sendUser(order,next){
-		mariaDB.getPushId(order.userId,function(err,result){
-			console.log("pushId:"+result.pushId);
-			console.log("result:"+result.platform);
-			console.log("phone number:"+order.userPhone);
-			sendOrderMSG(config.SERVER_API_KEY,order,order.userPhone,[result.pushId],result.platform,order.userId,function(err,result){	
-				next(null,"success");
-			});
-		});
-		
-	};
-
-	
-    // Please check if req.session.uid is a member or manager of shop
-	mariaDB.getShopUserInfo(req.session.uid,function(err,shopUserInfo){
-		if(err){ 
-			res.end(JSON.stringify({"result":"failure", "err":err}));
+   let order={};
+	async.waterfall([function(callback){
+      // Please check if req.session.uid is a member or manager of shop
+		mariaDB.getShopUserInfo(req.session.uid,callback); //shop의 member인지 체크
+	},function(result,callback){
+      //주문상태 update
+		mariaDB.updateOrderStatus(req.body.orderId,'paid','checked','checkedTime',
+		new Date().toISOString(),req.body.cancelReason,callback);
+	},function(result,callback){
+		mariaDB.getOrder(req.body.orderId,callback);
+	},function(result,callback){
+      order = result;
+		mariaDB.getPushId(order.userId,callback);
+	},function(userInfo,callback){
+      console.log("shopUserInfo:"+userInfo);
+      sendOrderMSGUser(order,userInfo,callback);
+   }],function(err,result){
+		if(err){
+			console.log(err);
+			res.send(JSON.stringify({"result":"failure", "err":err}));
 		}else{
-			//주문상태 update
-			mariaDB.updateOrderStatus(req.body.orderId,'paid','checked','checkedTime',new Date().toISOString(),JSON.stringify(req.body.cancelReason),function(err,result){
-				if(err){
-					res.end(JSON.stringify({"result":"failure", "err":err}));
-				}else{
-							//update된 상태user, shopUser에게  msg보내줌
-						mariaDB.getOrder(req.body.orderId,function(err,order){
-							sendUser(order,function(err,result){
-								if(!err){
-									//sendShopUser(order,function(err,result){ //shopUser가 여러명일 경우에 보내질 수 있도록
-                             //           if(!err){
-                                            res.end(JSON.stringify({"result":"success"}));
-                               //         }
-                                 //   });
-								}
-							});
-						})
-				}
-			});		
+			res.send(JSON.stringify({"result":"success"}))
 		}
 	});
 };
 
 router.completeOrder=function(req,res){//previous status must be "checked".
-    //1. order정보 가져옴
-    //2. shopUser인지 확인
-    //3. orderStatus update
-    //4. send a massege 
+   //1. order정보 가져옴
+   //2. shopUser인지 확인
+   //3. orderStatus update
+   //4. send a massege
 
-    //check shop member
-    console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
-	
-	/*
-	function sendShopUser(order,next){
-        mariaDB.getShopPushId(order.takitId,"all",function(err,shopPushId){
-            console.log("pushId:"+shopPushId);
-            sendOrderMSG(config.SHOP_SERVER_API_KEY,order,shopPushId,function(err,result){
-                next(null,"success");
-            });
-        });
+   //check shop member
+   console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
 
-    };
-	*/
+   let order={};
 
-    function sendUser(order,next){
-        mariaDB.getPushId(order.userId,function(err,result){
-            console.log("pushId:"+result.pushId);
-            sendOrderMSG(config.SERVER_API_KEY,order,order.userPhone,[result.pushId],result.platform,order.userId,function(err,result){
-                next(null,"success");
-            });
-        });
-
-    };
-
-
-    // Please check if req.session.uid is a member or manager of shop
-    mariaDB.getShopUserInfo(req.session.uid,function(err,shopUserInfo){
-        if(err){
-            res.end(JSON.stringify({"result":"failure", "err":err}));
-        }else{
-            //주문상태 update
-            mariaDB.updateOrderStatus(req.body.orderId,'checked','completed','completedTime',new Date().toISOString(),req.body.cancelReason,function(err,result){
-                if(err){
-                    res.end(JSON.stringify({"result":"failure", "err":err}));
-                }else{
-                            //update된 상태user, shopUser에게  msg보내줌
-                        mariaDB.getOrder(req.body.orderId,function(err,order){
-                            sendUser(order,function(err,result){
-                                if(!err){
-												//sendShopUser(order,function(err,result){
-                                       // if(!err){
-                                            res.end(JSON.stringify({"result":"success"}));
-                                       // }
-                                    //});
-                                }
-                            });
-                        })
-                }
-            });
-
-
-        }
-    });
-
-
-
+   async.waterfall([function(callback){
+      // Please check if req.session.uid is a member or manager of shop
+      mariaDB.getShopUserInfo(req.session.uid,callback);
+   },function(result,callback){
+      //주문상태 update
+      mariaDB.updateOrderStatus(req.body.orderId,'checked','completed','completedTime',
+      new Date().toISOString(),req.body.cancelReason,callback);
+   },function(result,callback){
+      //update된 상태user, shopUser에게  msg보내줌
+      mariaDB.getOrder(req.body.orderId,callback);
+   },function(result,callback){
+      order = result;
+      mariaDB.getPushId(order.userId,callback);
+   },function(userInfo,callback){
+      sendOrderMSGUser(order,userInfo,callback);
+   }],function(err,result){
+      if(err){
+          res.send(JSON.stringify({"result":"failure", "err":err}));
+      }else{
+         res.send(JSON.stringify({"result":"success"}));
+      }
+   });
 };
 
 
 //user가 취소할때
 router.cancelOrderUser=function(req,res){
 
-    //1. shopUser인지 확인
-	//2. order정보 가져와서 'paid' 상태에서만 취소가능
-    //3. orderStatus update
-    //4. send a massege 
+   //1. shopUser인지 확인
+   //2. order정보 가져와서 'paid' 상태에서만 취소가능
+   //3. orderStatus update
+   //4. send a massege
 
-    //check shop member
-    console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
-
-	/*if("manager"){
-	
-		}else if("all"){
-		
-		}  manager만 보낼 수 있게..  all은 모든 멤버들이 다 받을 수 있게*/
+   //check shop member
+   console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
 
 
-    function sendShopUser(order,next){
-        mariaDB.getShopPushId(order.takitId,function(err,shopUserInfo){
-            console.log("get shop pushId result:"+shopUserInfo);
-            sendOrderMSG(config.SHOP_SERVER_API_KEY,order,order.managerPhone,[shopUserInfo.shopPushId],shopUserInfo.platform,shopUserInfo.userId,function(err,result){
-               next(null,"success");
-            });
-				
-        });
+   async.waterfall([function(callback){
+      //orderStatus가 paid 일 때만 주문 취소 가능 .. -> oldStatus = 'paid'로 지정
+      mariaDB.updateOrderStatus(req.body.orderId,'paid','cancelled','cancelledTime',new Date().toISOString(),req.body.cancelReason,callback);
+   },function(result,callback){
+      mariaDB.getOrder(req.body.orderId,callback);
+   },function(result,callback){
+      order = result
+      mariaDB.getShopPushId(order.takitId,callback);
+   },function(shopUserInfo,callback){
+      sendOrderMSGShop(order,shopUserInfo,callback);
+   }],function(err,result){
+      if(err){
+         console.log(err);
+         res.send(JSON.stringify({"result":"failure", "err":err}));
+      }else{
+			console.log(result);
+         res.send(JSON.stringify({"result":"success"}));
+      }
+   });
 
-    };
-	
-    	// Please check if req.session.uid is a member or manager of shop
-	mariaDB.getOrder(req.body.orderId,function(err,order){
-        if(err){
-			res.end(JSON.stringify({"result":"failure", "err":err}));
-		}else{
-			console.log("success getOrder");
-			if(order.orderStatus === 'paid'){
-				//주문상태 update
-            	mariaDB.updateOrderStatus(req.body.orderId,'paid','cancelled','cancelledTime',new Date().toISOString(),req.body.cancelReason,function(err,result){
-                	if(err){
-                    	res.end(JSON.stringify({"result":"failure", "err":err}));
-                		}else{
-                            //update된 상태user, shopUser에게  msg보내줌
-                        	mariaDB.getOrder(req.body.orderId,function(err,order){
-                                sendShopUser(order,function(err,result){
-									if(!err){
-                                    	res.end(JSON.stringify({"result":"success"}));
-                                    }
-                                });	
-							});
-                		}
-            		});
-			}else{
-				res.end(JSON.stringify({"result":"failure"}))
-			}
-		}
-	});
-	
-	
 	///cancel 후 환불
 
-	
 };
 
 //shop에서 취소할때,
 router.shopCancelOrder=function(req,res){
-	    //1. order정보 가져옴
-    //2. shopUser인지 확인
-    //3. orderStatus update
-    //4. send a massege 
+   //1. order정보 가져옴
+   //2. shopUser인지 확인
+   //3. orderStatus update
+   //4. send a massege
 
-    //check shop member
-    console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
-	
-	/*
-	function sendShopUser(order,next){
-        mariaDB.getShopPushId(order.takitId,"all",function(err,shopPushId){
-            console.log("pushId:"+shopPushId);
-            sendOrderMSG(config.SHOP_SERVER_API_KEY,order,shopPushId,function(err,result){
-                next(null,"success");
-            });
-        });
+   //check shop member
+   console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
 
-    };*/
+   let order={};
 
-    function sendUser(order,next){
-        mariaDB.getPushId(order.userId,function(err,result){
-            console.log("pushId:"+result.pushId);
-				console.log("platform:"+result.platform);
-            sendOrderMSG(config.SERVER_API_KEY,order,order.userPhone,[result.pushId],result.platform,order.userId,function(err,result){
-                next(null,"success");
-            });
-        });
-
-    };
-
-
-    // Please check if req.session.uid is a member or manager of shop
-    mariaDB.getShopUserInfo(req.session.uid,function(err,shopUserInfo){
-        if(err){
-            res.end(JSON.stringify({"result":"failure", "err":err}));
-        }else{
-            //주문상태 update
-            mariaDB.updateOrderStatus(req.body.orderId,'','cancelled','cancelledTime',new Date().toISOString(),req.body.cancelReason,function(err,result){
-                if(err){
-                    res.end(JSON.stringify({"result":"failure", "err":err}));
-                }else{
-                            //update된 상태user, shopUser에게  msg보내줌
-                        mariaDB.getOrder(req.body.orderId,function(err,order){
-                            sendUser(order,function(err,result){
-                                if(!err){
-											//sendShopUser(order,function(err,result){
-                                	//	if(!err){
-											res.end(JSON.stringify({"result":"success"}));
-                                	//	}
-									//});
-								}
-                            });
-                        })
-                }
-            });
-        }
-    });	
+   async.waterfall([function(callback){
+      mariaDB.getShopUserInfo(req.session.uid,callback);
+   },function(result,callback){
+      mariaDB.updateOrderStatus(req.body.orderId,'','cancelled','cancelledTime',
+      new Date().toISOString(),req.body.cancelReason,callback);
+   },function(result,callback){
+      mariaDB.getOrder(req.body.orderId,callback);
+   },function(result,callback){
+      order = result;
+      mariaDB.getPushId(order.userId,callback);
+   },function(userInfo,callback){
+      sendOrderMSGUser(order,userInfo,callback);
+   }],function(err,result){
+      if(err){
+         res.send(JSON.stringify({"result":"failure", "err":err}));
+      }else{
+         res.send(JSON.stringify({"result":"success"}));
+      }
+   });
 };
 
 	
