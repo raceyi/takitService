@@ -30,7 +30,14 @@ page-shoptable {
         height:min-content !important;
         > .scroll-content{
             position:relative !important;
+             overflow-y: hidden;
         }
+    }
+
+    ion-content{
+        position:relative !important;
+        height: 100% !important;
+        width: 100% !important;
     }
 
     ion-content.infiniteScroll{
@@ -38,6 +45,11 @@ page-shoptable {
         ion-label {
             margin: 0px 0px 0px 0px !important;
         }
+        .scroll-content{
+            margin-top:0px !important;
+            margin-bottom:0px !important;
+        }
+
     }
 
     .segment-md>.segment-button {

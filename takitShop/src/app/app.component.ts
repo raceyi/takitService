@@ -15,6 +15,8 @@ import{SelectorPage} from '../pages/selector/selector';
 import{PrinterPage} from '../pages/printer/printer';
 import {ServiceInfoPage} from '../pages/serviceinfo/serviceinfo';
 import {CashPage} from '../pages/cash/cash';
+import {UserInfoPage} from '../pages/userinfo/userinfo';
+
 declare var cordova:any;
 
 @Component({
@@ -157,13 +159,14 @@ export class MyApp {
     });
   }
 
-    shoplistHandler(userinfo){
+    shoplistHandler(userinfo:any){
         console.log("myshoplist:"+userinfo.myShopList);
         if(!userinfo.hasOwnProperty("myShopList")|| userinfo.myShopList==null){
             this.storageProvider.errorReasonSet('등록된 상점이 없습니다.');
             this.rootPage=ErrorPage;
         }else{
              this.storageProvider.myshoplist=JSON.parse(userinfo.myShopList);
+             this.storageProvider.userInfoSetFromServer(userinfo);
              if(this.storageProvider.myshoplist.length==1){
                 console.log("move into ShopTablePage");
                 this.storageProvider.myshop=this.storageProvider.myshoplist[0];
@@ -198,6 +201,10 @@ export class MyApp {
    openCash(){
         this.app.getRootNav().push(CashPage);
    }
+
+    openUserInfo(){
+        this.app.getRootNav().push(UserInfoPage);
+    }
 
    openLogout(){
       let confirm = this.alertCtrl.create({

@@ -136,6 +136,7 @@ export class ErrorPage{
             this.storageProvider.errorReasonSet('등록된 상점이 없습니다.');
         }else{
              this.storageProvider.myshoplist=JSON.parse(userinfo.myShopList);
+             this.storageProvider.userInfoSetFromServer(userinfo);
              if(this.storageProvider.myshoplist.length==1){
                 console.log("move into ShopTablePage");
                 this.storageProvider.myshop=this.storageProvider.myshoplist[0];

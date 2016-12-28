@@ -96,7 +96,7 @@ export class MyApp {
                                     if(res.userInfo.hasOwnProperty("shopList")){
                                         this.storageProvider.shoplistSet(JSON.parse(res.userInfo.shopList));
                                     }
-                                    this.storageProvider.userInfoSet(res.userInfo.email,res.userInfo.name,res.userInfo.phone);
+                                    this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     console.log("shoplist...:"+JSON.stringify(this.storageProvider.shoplist));
                                     this.rootPage=TabsPage;
                                 }else if(res.result=='invalidId'){
@@ -122,7 +122,7 @@ export class MyApp {
                                     if(res.userInfo.hasOwnProperty("shopList")){
                                         this.storageProvider.shoplistSet(JSON.parse(res.userInfo.shopList));
                                     }
-                                    this.storageProvider.userInfoSet(res.userInfo.email,res.userInfo.name,res.userInfo.phone);
+                                    this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     this.rootPage=TabsPage;
                                 }else if(res.result=='invalidId'){
                                     console.log("사용자 정보에 문제가 발생했습니다. 로그인 페이지로 이동합니다.");
@@ -147,7 +147,7 @@ export class MyApp {
                                         //save shoplist
                                         this.storageProvider.shoplistSet(JSON.parse(res.userInfo.shopList));
                                     }
-                                    this.storageProvider.userInfoSet(res.userInfo.email,res.userInfo.name,res.userInfo.phone);
+                                    this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     this.rootPage=TabsPage;
                                 }else{ 
                                     console.log("사용자 정보에 문제가 발생했습니다. 로그인 페이지로 이동합니다.");
@@ -183,7 +183,9 @@ export class MyApp {
 
   removeStoredInfo(){
         this.storage.clear(); 
-        this.storage.remove("id"); //So far, it doesn't work. Please remove this line later
+        this.storage.remove("id"); //So far, clear() doesn't work. Please remove this line later
+        this.storage.remove("refundBank");
+        this.storage.remove("refundAccount");
         this.storageProvider.dropCartInfo().then(()=>{
             console.log("move into LoginPage"); //Please exit App and then restart it.
             if(this.storageProvider.login==true){

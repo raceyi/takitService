@@ -9,8 +9,15 @@
         <ion-icon name="print"></ion-icon>&nbsp;&nbsp;프린터설정
       </button>
       <button class="menu" color="white" ion-button icon-left full menuClose (click)="openCash()">
-        <ion-icon name="cash"></ion-icon>&nbsp;&nbsp;캐쉬관리  
+        <ion-icon name="cash"></ion-icon>&nbsp;&nbsp;캐쉬인출   
       </button>
+      <button class="menu" color="white" ion-button icon-left full menuClose>
+        <ion-icon name="cash"></ion-icon>&nbsp;&nbsp;매출보기  
+      </button>
+      <button class="menu" color="white" ion-button icon-left full  menuClose [hidden]="storageProvider.id==undefined || storageProvider.tourMode==true" (click)="openUserInfo()">
+        <ion-icon name="person"></ion-icon>&nbsp;&nbsp;회원정보
+      </button>
+
       <button class="menu" color="white" ion-button icon-left full menuClose (click)="openServiceInfo()">
         <ion-icon name="information-circle"></ion-icon>&nbsp;&nbsp;서비스정보 
       </button>

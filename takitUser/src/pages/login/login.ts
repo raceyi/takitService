@@ -104,7 +104,7 @@ export class LoginPage {
                                     if(res.userInfo.hasOwnProperty("shopList")){
                                         this.storageProvider.shoplistSet(JSON.parse(res.userInfo.shopList));
                                     }
-                                    this.storageProvider.userInfoSet(res.userInfo.email,res.userInfo.name,res.userInfo.phone);
+                                    this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     console.log("move into TabsPage");
                                     this.navController.setRoot(TabsPage);
                                 }else if(res.result=='invalidId'){
@@ -154,7 +154,7 @@ export class LoginPage {
                                         console.log("shoplist:"+res.userInfo.shopList);
                                         this.storageProvider.shoplistSet(JSON.parse(res.userInfo.shopList));
                                     }
-                                    this.storageProvider.userInfoSet(res.userInfo.email,res.userInfo.name,res.userInfo.phone);
+                                    this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     console.log("move into TabsPage");
                                     this.navController.setRoot(TabsPage);
                                 }else if(res.result=='invalidId'){
@@ -223,7 +223,7 @@ export class LoginPage {
                                     if(res.userInfo.hasOwnProperty("shopList")){
                                         this.storageProvider.shoplistSet(JSON.parse(res.userInfo.shopList));
                                     }
-                                    this.storageProvider.userInfoSet(res.userInfo.email,res.userInfo.name,res.userInfo.phone);
+                                    this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     console.log("move into TabsPage");
                                     this.navController.setRoot(TabsPage);
                                 }else{

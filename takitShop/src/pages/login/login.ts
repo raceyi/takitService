@@ -52,6 +52,7 @@ export class LoginPage {
             this.navController.setRoot(ErrorPage);
         }else{
             this.storageProvider.myshoplist=JSON.parse(userinfo.myShopList);
+            this.storageProvider.userInfoSetFromServer(userinfo);
             if(this.storageProvider.myshoplist.length==1){
                 console.log("move into ShopTablePage");
                 this.storageProvider.myshop=this.storageProvider.myshoplist[0];

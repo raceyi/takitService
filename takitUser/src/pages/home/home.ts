@@ -34,7 +34,6 @@ export class HomePage{
         private http:Http,private serverProvider:ServerProvider){
          console.log("homePage constructor screen:"+ window.screen.availWidth+" "+window.screen.width+" "+window.screen.availHeight+ " "+window.screen.height);
          console.log("cordova.file.dataDirectory:"+cordova.file.dataDirectory);
-
      }
 
      ionViewDidEnter(){

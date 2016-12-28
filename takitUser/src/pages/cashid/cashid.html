@@ -5,62 +5,33 @@
     </ion-title>
   </ion-navbar>
 </ion-header>
-<!--
-<ion-content padding>
-      <div padding>
-      <ion-item>
-          <ion-input [focuser]="focusEmail" type="text"  placeholder="캐쉬아이디" [(ngModel)]="email" ></ion-input>
-      </ion-item>
-      <ion-item>
-          <ion-label class="explain">- 영문, 숫자를 조합하여 7자리 캐쉬아이디를 설정해주세요
-          </ion-label>
-      </ion-item>
-      <ion-item>
-          <ion-input [focuser]="focusPassword" type="number"  placeholder="비밀번호" [(ngModel)]="password" ></ion-input>
-      </ion-item>
-      <p [hidden]="paswordGuideHide">{{paswordGuide}}</p>
-      <ion-item>
-          <ion-input [focuser]="focusPasswordCheck" type="number"  placeholder="비밀번호확인" [(ngModel)]="passwordCheck"></ion-input>
-      </ion-item>
-      <p [hidden]="passwordMatch">비밀번호가 일치하지 않습니다.</p> 
 
-      <button ion-button full (click)="configureCashId()"> 설정 </button> 
-    </div>
-</ion-content>
-
--->
 <ion-content padding>
       <div padding>
       <ion-item>
           <ion-label fixed>캐쉬아이디</ion-label>
-          <ion-input  type="text" placeholder="영문,숫자 조합 7자리"></ion-input>
+          <ion-input  type="text" placeholder="영문,숫자 조합 5~7자리" pattern="[0-9a-zA-Z]{5,7}" [disabled]="storageProvider.cashId.length!=0" [(ngModel)]="cashId"></ion-input>
       </ion-item>
-      <!--
-      <ion-item>
-          <ion-label class="explain">-영문, 숫자 조합 7자리
+      <ion-item [hidden]="cashIdComment">
+          <ion-label class="explain">-영문, 숫자 조합 5~7자리
           </ion-label>
       </ion-item>
-      -->
       <ion-item>
           <ion-label fixed>비밀번호</ion-label>
-          <ion-input  type="password" placeholder="6자리 숫자" ></ion-input>
+          <ion-input  type="password" placeholder="6자리 숫자" type="number" pattern="[0-9]{6}" [(ngModel)]="password" ></ion-input>
       </ion-item>
-      <!-- Pleas use https://github.com/Paldom/PinDialog later 
-      <ion-item>
+      <ion-item [hidden]="passwordComment" >
           <ion-label class="explain">-6자리 숫자
           </ion-label>
       </ion-item>
-      -->
       <ion-item>
           <ion-label fixed>비밀번호확인</ion-label>
-          <ion-input  type="password" ></ion-input>
+          <ion-input  type="password" placeholder="비밀번호 6자리" type="number" pattern="[0-9]{6}" [(ngModel)]="passwordConfirm"></ion-input>
       </ion-item>
-      <!--
-      <ion-item>
-          <ion-label hidden="true" class="explain">-비밀번호가 일치하지 않습니다.
+      <ion-item [hidden]="passwordMismatch">
+          <ion-label class="explain">-비밀번호가 일치하지 않습니다.
           </ion-label>
       </ion-item>
-      -->
-      <button ion-button full > 설정 </button> 
+      <button ion-button full (click)="configureCashId()"> 설정 </button> 
     </div>
 </ion-content>

@@ -33,6 +33,14 @@ export class ShopTablePage {
   printColor="gray";
   printerEmitterSubscription;
 
+  getTodayString(){
+    var d = new Date();
+    var mm = d.getMonth() < 9 ? "0" + (d.getMonth() + 1) : (d.getMonth() + 1); // getMonth() is zero-based
+    var dd  = d.getDate() < 10 ? "0" + d.getDate() : d.getDate();
+    var dString=d.getFullYear()+'-'+(mm)+'-'+dd;
+    return dString;
+  }
+
   constructor(public navController: NavController,private app:App,private storageProvider:StorageProvider,
       private http:Http,private alertController:AlertController,private ngZone:NgZone,private ionicApp: IonicApp,
       private printerProvider:PrinterProvider,private platform:Platform,private menuCtrl: MenuController,
@@ -44,10 +52,9 @@ export class ShopTablePage {
     
     var date=new Date();
     var month=date.getMonth()+1;
-//  Why initialization of startDate and endDate doesn't work?    
-//    this.startDate=date.getFullYear().toString()+'-'+month+'-'+date.getDate();
-//    this.endDate=date.getFullYear().toString()+'-'+month+'-'+date.getDate();
-//    this.currTime=date.getFullYear().toString()+'-'+month+'-'+date.getDate();
+
+    this.startDate=this.getTodayString();
+    this.endDate=this.getTodayString();
 
     console.log("startDate:"+this.startDate);
     console.log("endDate:"+this.endDate);
@@ -205,6 +212,47 @@ export class ShopTablePage {
                 });
         });
 
+        let body = JSON.stringify({takitId:this.storageProvider.myshop.takitId});
+        this.serverProvider.post("/shop/getShopInfo",body).then((res:any)=>{
+          console.log("/shop/getShopInfo "+JSON.stringify(res));
+          if(res.result=="success"){
+              this.ngZone.run(()=>{
+                if(res.shopInfo.business=="on"){
+                     this.storeColor="primary";
+                     this.storageProvider.storeOpen=true;
+                }else{
+                    this.storeColor="gray";
+                    this.storageProvider.storeOpen=false;
+                }
+              });
+          }else{
+              console.log("getShopInfo-HttpFailure... Please check the reason in server side");
+              let alert = this.alertController.create({
+                                title: '상점의 개점 여부를 알수 없습니다.',
+                                subTitle: '상점 정보를 읽어오는데 실패했습니다.',
+                                buttons: ['OK']
+                            });
+              alert.present();
+          }
+        },(err)=>{
+          if(err=="NetworkFailure"){
+              console.log("getShopInfo-서버와 통신에 문제가 있습니다");
+              let alert = this.alertController.create({
+                                title: '서버와 통신에 문제가 있습니다',
+                                subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                buttons: ['OK']
+                            });
+              alert.present();
+           }else{
+              console.log("getShopInfo-HttpFailure... Please check the reason in server side");
+              let alert = this.alertController.create({
+                                title: '상점의 개점 여부를 알수 없습니다.',
+                                subTitle: '상점 정보를 읽어오는데 실패했습니다.',
+                                buttons: ['OK']
+                            });
+              alert.present();
+           }
+        })  
     }
 
     convertOrderInfo(orderInfo){
@@ -512,10 +560,11 @@ export class ShopTablePage {
             this.pushNotification.on('notification',(data:any)=>{
               console.log("!!! shoporder-data:"+JSON.stringify(data));
               console.log("!!! shoporder-data.custom:"+JSON.stringify(data.additionalData.custom));
+              
                 if(this.Option!="period" ||(this.Option=="period" && this.hasItToday() )){
                      //Please check if order is new or existing one and then add it or modify it into orders.
                     var additionalData:any=data.additionalData;
-                    console.log("additionalData");
+                    console.log("!!! additionalData.GCMType:"+additionalData.GCMType);
                     if(additionalData.GCMType==="order"){
                       console.log("order is comming "+data.additionalData.custom);
                        this.ngZone.run(()=>{
@@ -547,15 +596,24 @@ export class ShopTablePage {
                         }
                         console.log("orders update:"+JSON.stringify(this.orders));
                        });
-                    }
-                }else if(additionalData.GCMType==="change_manager"){
+                    }else if(additionalData.GCMType==="change_manager"){
                      //I am not manager anymore. 
                      console.log("I am not a manager any more");
                      this.ngZone.run(()=>{
-                        this.notiColor="gray";
-                        this.storageProvider.myshop.GCMNoti=="off";
+                        var customInfo; 
+                        //Please look for the reason why the format of custom fields are different.
+                        if(typeof data.additionalData.custom === 'string')
+                            customInfo=JSON.parse(data.additionalData.custom);
+                        else
+                            customInfo=data.additionalData.custom;
+                        console.log("customInfo:"+ customInfo);
+                        console.log("customInfo.email:"+ customInfo.email);
+                       if(customInfo.email!=this.storageProvider.email){
+                          this.notiColor="gray";
+                          this.storageProvider.myshop.GCMNoti=="off";
+                       }
                      });
-                }
+                    }
                 this.confirmMsgDelivery(additionalData.notId).then(()=>{
                       console.log("confirmMsgDelivery success");
                 },(err)=>{
@@ -582,6 +640,7 @@ export class ShopTablePage {
                 console.log(data.image);
                 console.log(data.additionalData);
                 */
+                }
             });
 
             this.pushNotification.on('error', (e)=>{
@@ -693,9 +752,6 @@ export class ShopTablePage {
 
     updateStatus(order,request){
       return new Promise((resolve,reject)=>{
-        let headers = new Headers();
-        headers.append('Content-Type', 'application/json');
-        console.log(request+"-server:"+ ConfigProvider.serverAddress);
         let body= JSON.stringify({ orderId: order.orderId });
 
         console.log("body:"+JSON.stringify(body));
@@ -789,6 +845,75 @@ export class ShopTablePage {
     if(this.infiniteScroll!=undefined)
         this.infiniteScroll.enable(true);
     this.getOrders(-1);
+    let body= JSON.stringify({ takitId: this.storageProvider.myshop.takitId});
+    this.serverProvider.post("/shop/refreshInfo",body).then((res:any)=>{
+        console.log("res:"+JSON.stringify(res));
+        if(res.result=="success"){
+          this.ngZone.run(()=>{
+            if(res.shopUserInfo.GCMNoti=="on"){
+                this.notiColor="primary";
+                this.storageProvider.amIGotNoti=true;
+            }else{ // This should be "off"
+                this.notiColor="gray";
+                this.storageProvider.amIGotNoti=false;
+            }
+            if(res.shopInfo.business=="on"){
+                this.storeColor="primary";
+                this.storageProvider.storeOpen=true;
+            }else{ // This should be "off"
+                this.storeColor="gray";
+                this.storageProvider.storeOpen=false;
+            }
+          });
+        }else{
+            console.log("/shop/refreshInfo-failure ");
+        }
+    },(err)=>{
+      if(err=="NetworkFailure"){
+              let alert = this.alertController.create({
+                                title: '서버와 통신에 문제가 있습니다',
+                                subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                buttons: ['OK']
+                            });
+              alert.present();
+      }
+    });
+    
+  }
+
+  configureGotNoti(){
+    console.log("click configureGotNoti");
+      let body = JSON.stringify({takitId:this.storageProvider.myshop.takitId});      
+       console.log("body: "+body);
+      this.serverProvider.post("/shop/refreshInfo",body).then((res:any)=>{
+           console.log("refreshInfo res:"+JSON.stringify(res));
+          if(res.result=="success"){
+             if(res.shopUserInfo.GCMNoti=="on"){
+                this.notiColor="primary";
+                this.storageProvider.amIGotNoti=true;
+            }else{ // This should be "off"
+                this.notiColor="gray";
+                this.storageProvider.amIGotNoti=false;
+            }
+            if(res.shopInfo.business=="on"){
+                this.storeColor="primary";
+                this.storageProvider.storeOpen=true;
+            }else{ // This should be "off"
+                this.storeColor="gray";
+                this.storageProvider.storeOpen=false;
+            }
+            this.enableGotNoti();
+          }
+      },(err)=>{
+            if(err=="NetworkFailure"){
+              let alert = this.alertController.create({
+                                title: '서버와 통신에 문제가 있습니다',
+                                subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                                buttons: ['OK']
+                            });
+              alert.present();
+            }
+      });
   }
 
   enableGotNoti(){
@@ -842,12 +967,12 @@ export class ShopTablePage {
       return new Promise((resolve,reject)=>{
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        console.log("/shop/todayManager-server:"+ ConfigProvider.serverAddress);
+        console.log("/shop/changeNotiMember-server:"+ ConfigProvider.serverAddress);
         let body= JSON.stringify({ takitId: this.storageProvider.myshop.takitId });
 
         console.log("body:"+JSON.stringify(body));
-        //this.http.post(ConfigProvider.serverAddress+"/shop/todayManager",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-        this.serverProvider.post("/shop/todayManager",body).then((res:any)=>{   
+        //this.http.post(ConfigProvider.serverAddress+"/shop/changeNotiMember",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+        this.serverProvider.post("/shop/changeNotiMember",body).then((res:any)=>{   
           console.log("res:"+JSON.stringify(res));
           if(res.result=="success"){
                resolve(); 
@@ -862,11 +987,12 @@ export class ShopTablePage {
   }
 
   configureStore(){
-    console.log("configureStore(storeOpen):"+this.storageProvider.storeOpen);
+    console.log("click-configureStore(storeOpen):"+this.storageProvider.storeOpen);
     if(this.storageProvider.storeOpen===false){
         this.openStore().then(()=>{
             console.log("open shop successfully");
             this.storeColor="primary";
+            this.storageProvider.storeOpen=true;
         },(err)=>{
             if(err=="NetworkFailure"){
               let alert = this.alertController.create({
@@ -888,8 +1014,9 @@ export class ShopTablePage {
         this.closeStore().then(()=>{
             console.log("close shop successfully");
             this.storeColor="gray";
+            this.storageProvider.storeOpen=false;
         },(err)=>{
-            if(err=="HttpFailure"){
+            if(err=="NetworkFailure"){
               let alert = this.alertController.create({
                                 title: '서버와 통신에 문제가 있습니다',
                                 subTitle: '네트웍상태를 확인해 주시기바랍니다',
@@ -933,7 +1060,7 @@ export class ShopTablePage {
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
         console.log("openShop-server:"+ ConfigProvider.serverAddress);
-        let body= JSON.stringify({ });
+        let body= JSON.stringify({takitId: this.storageProvider.myshop.takitId});
 
         console.log("body:"+JSON.stringify(body));
         //this.http.post(ConfigProvider.serverAddress+"/shop/openShop",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
@@ -955,7 +1082,7 @@ export class ShopTablePage {
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
         console.log("closeShop-server:"+ ConfigProvider.serverAddress);
-        let body= JSON.stringify({ });
+        let body= JSON.stringify({takitId:this.storageProvider.myshop.takitId});
 
         console.log("body:"+JSON.stringify(body));
         //this.http.post(ConfigProvider.serverAddress+"/shop/closeShop",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{

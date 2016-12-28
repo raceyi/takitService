@@ -24,5 +24,10 @@ page-home {
     .takitId{
       color:gray !important;
       font-size:2.2rem !important;  
+      span{float:right}
+    }
+
+    .dummy{
+        height:60vh;
     }
 }

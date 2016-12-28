@@ -1,0 +1,24 @@
+<ion-header>
+  <ion-navbar >
+    <ion-title>회원 정보</ion-title>
+  </ion-navbar>
+</ion-header>
+
+<ion-content padding >
+<ion-row>
+<p>{{loginMethod}} 로그인 </p>  
+</ion-row>
+<ion-row>
+    <ion-input type="tel" disabled [(ngModel)]="phone"></ion-input> 
+</ion-row>
+<ion-item>
+    <ion-label fixed>이메일 </ion-label>
+    <ion-input  disabled [(ngModel)]="email" type="email"></ion-input> 
+</ion-item>
+
+<ion-item>
+    <ion-label fixed>이름</ion-label>
+    <ion-input  [(ngModel)]="name"  type="text" disabled></ion-input>  
+</ion-item>
+</ion-content>
+

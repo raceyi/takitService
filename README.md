@@ -62,7 +62,7 @@ License: GPL
 
  $ionic build ios
 
- $git checkout takitUser/platforms/android/src/com/htj/plugin/kakao/KakaoTalk.java
+ $git checkout platforms/android/src/com/htj/plugin/kakao/KakaoTalk.java
 
  $ionic build android 
 
@@ -214,8 +214,8 @@ License: GPL
 
 
 # Schedule
- 12월9일  안드로이드 앱완료 
- 12월29일   아이폰앱 승인 완료 
+ 12월24일  안드로이드 앱완료 
+ 1월11일   아이폰앱 승인 완료 
 
 # Ionic2 무료 강의 
 

@@ -17,8 +17,9 @@ import {ShopTablePage} from '../pages/shoptable/shoptable';
 import {UserSecretPage} from '../pages/usersecret/usersecret';
 import {ServiceInfoPage} from '../pages/serviceinfo/serviceinfo';
 import {CashPage} from '../pages/cash/cash';
-import{Focuser} from '../components/focuser/focuser';
+import {UserInfoPage} from '../pages/userinfo/userinfo';
 
+import{Focuser} from '../components/focuser/focuser';
 
 @NgModule({
   declarations: [
@@ -31,6 +32,7 @@ import{Focuser} from '../components/focuser/focuser';
     PrinterPage,
     ServiceInfoPage,
     CashPage,
+    UserInfoPage,
     Focuser
   ],
   imports: [
@@ -47,6 +49,7 @@ import{Focuser} from '../components/focuser/focuser';
     PrinterPage,
     ServiceInfoPage,
     CashPage,
+    UserInfoPage
   ],
   providers: [
     Storage,

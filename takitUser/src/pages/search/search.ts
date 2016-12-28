@@ -40,10 +40,6 @@ export class SearchPage {
     private platform:Platform,private http:Http ,private alertController:AlertController,private serverProvider:ServerProvider) {
       console.log("SearchPage constructor");
       console.log("this.platform.is('android'):"+this.platform.is('android'));
-      /* Please check if swipe works with side menu 
-      if(this.platform.is('android') && parseInt(Device.device.version[0])>4){
-            this.availableVersion=true;
-      }*/
   }
 
   ionViewDidEnter(){

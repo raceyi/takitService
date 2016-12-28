@@ -34,8 +34,8 @@ export class ShopCartPage{
         this.cart=this.storageProvider.cart;
         if(this.cart!=undefined){
             this.price=this.cart.total;
-            this.discount=Math.round(this.cart.total*0.005);
-            this.amount=Math.round(this.price*0.995);
+            this.discount=Math.round(this.cart.total*this.storageProvider.shopInfo.discountRate);
+            this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
         }
      }
 
@@ -62,8 +62,8 @@ export class ShopCartPage{
         //console.log("shopcartPage-ionViewWillEnter");
         this.cart=this.storageProvider.cart;        
         this.price=this.cart.total;
-        this.discount=Math.round(this.cart.total*0.005);
-        this.amount=Math.round(this.price*0.995);
+        this.discount=Math.round(this.cart.total*this.storageProvider.shopInfo.discountRate);
+        this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
         this.checkTakeoutAvailable();
         //console.log("takeoutAvailable:"+this.takeoutAvailable);
         if(this.takeoutAvailable==false){
@@ -214,8 +214,8 @@ export class ShopCartPage{
       this.storageProvider.saveCartInfo(this.storageProvider.takitId,JSON.stringify(cart)).then(()=>{
           this.cart=this.storageProvider.cart;
           this.price=this.cart.total;
-          this.discount=Math.round(this.cart.total*0.005);
-          this.amount=Math.round(this.price*0.995);
+          this.discount=Math.round(this.cart.total*this.storageProvider.shopInfo.discountRate);
+          this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
       });
     }
 
@@ -224,8 +224,8 @@ export class ShopCartPage{
       this.storageProvider.saveCartInfo(this.storageProvider.takitId,JSON.stringify(cart)).then(()=>{
           this.cart=this.storageProvider.cart;
           this.price=this.cart.total;
-          this.discount=Math.round(this.cart.total*0.005);
-          this.amount=Math.round(this.price*0.995);
+          this.discount=Math.round(this.cart.total*this.storageProvider.shopInfo.discountRate);
+          this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
       });
     }
 

@@ -1,14 +1,4 @@
 page-cash{
- .item {
-    padding-right: 5px;
-    padding-left: 5px;
-    }
-
-    .button-block {
-     margin-left: inherit; 
-     margin-right: inherit; 
-    }
-
     .segment-md>.segment-button {
         border-width: 2px !important;
         border-style: solid !important;
@@ -21,10 +11,6 @@ page-cash{
         color: white !important;
     }
 
-    .toolbar-background{
-        background:transparent;
-    }
-
     .available-amount{
         text-align: right;
     }
@@ -32,6 +18,20 @@ page-cash{
     .available-amount>span{
         color:#387ef5;
         font-size: 2.5rem;
+    }
+
+    .textSet{
+        font-size: 1.4rem;
+    }
+
+    .item {
+    padding-right: 5px;
+    padding-left: 5px;
+    }
+
+    .button-block {
+     margin-left: inherit; 
+     margin-right: inherit; 
     }
 
     ion-list .item .item-inner{
@@ -46,8 +46,8 @@ page-cash{
     border-top:0px;
     }
 
-    .textSet{
-    font-size: 1.4rem;
+    .toolbar-background{
+        background:transparent;
     }
 
     .cashId.item.item-input>.item-inner{
@@ -75,7 +75,7 @@ page-cash{
 
     .explain{
     text-align: justify;
-    white-space: pre-line; //normal
+    white-space: pre-line;
     color:#7F7F7F;
     font-size: 1.3rem; 
     }
@@ -106,13 +106,13 @@ page-cash{
 
     .cashIn-check-table>ion-row>ion-col:last-child{
     background-color: #ffffff;
-    border-left: 1px solid #bebebe;
+    //border-left: 1px solid #bebebe;
     }
 
     .cashIn-check-table>ion-row{
     background-color: #EEEEEE;
     font-weight: bold;
-    border-bottom: 1px solid #bebebe;
+   //border-bottom: 1px solid #bebebe;
     }
 
     .cashIn-check-table>ion-row:last-child{
@@ -196,5 +196,187 @@ page-cash{
     
     .cashOut{
         width:30%;
+    }
+
+    .HistoryTable{
+    text-align: center;
+    font-size: 1.4rem;
+    }
+
+    .list-md > .item-block:first-child, .list-md > .item-wrapper:first-child .item-block {
+         border-top: 0px; 
+    }
+
+    .list-md > .item-block:last-child, .list-md > .item-wrapper:last-child .item-block {
+        border-bottom: 0px !important;
+    }
+
+    .list-ios > .item-block:first-child {
+        border-top: 0px;
+    }
+
+    .list-ios > .item-block:last-child, .list-ios > .item-wrapper:last-child .item-block {
+        border-bottom: 0px !important;
+    }
+
+    .transaction{
+        .button-ios {
+            margin: 0px; 
+            height: 1.6em;
+            font-size: 1.4rem !important;
+        }
+
+        .button-md {
+            margin: 0px; 
+            height: inherit;
+            font-size: 1.4rem !important;
+        }
+        .label-md {
+            margin:  0px; 
+        }
+    }
+
+    .transactionLabel{
+        background-color: #EEEEEE;
+        font-weight: bold;
+        text-align: center;
+        font-size: 1.4rem;
+        border-bottom: 1px solid #bebebe;
+    }
+
+    ion-row.transaction{
+        border-bottom: 1px solid #bebebe;
+
+    }
+
+    ion-row.transaction>ion-col{
+//        margin: 3px 0px 3px 0px;
+        text-align: center;
+        font-size: 1.4rem;
+    }
+
+    .infiniteScroll{
+        ion-label{
+            margin: 0px 0px 0px 0; 
+        }
+    }
+
+    .explanations{
+        .label-md {
+            margin: 0px 0px 0px 0 !important; 
+        }
+    }
+
+    .dummy{
+        height:40vh;
+    }
+
+    .scrollDummy{
+        height:80vh;
+    }
+
+    .list-ios {
+        margin: inherit;
+    }
+    //////////////////////////////////////////////////////////////////////////////
+    .input-cover { // !!! ios only for showing input element with keypad.  !!!
+        position: static;
+    }
+    /////////////////////////////////////////////
+    // 캐쉬 정보 수동입력 
+    .transferDate{
+        .label-md {   
+            margin: inherit !important;
+        }
+        .label-md {
+            color: #000000 !important; 
+        }
+        .list-md .item-block .item-inner {
+            border-bottom: 0px !important;
+        }
+    }
+    .cashIn-check{
+        ion-row{
+            background:white !important;
+        }
+        .label-md {
+             margin: 0px 0px 0px 0 !important; 
+              width:50% !important; 
+              color:#000000 !important;
+              text-align: left !important;
+        }
+    }
+
+    .selectButton{
+        padding-right: 0px;
+        padding-left: 0px;
+        .item-md .item-button {
+             padding: 0 !important; 
+             margin:0px !important;
+        }
+        padding: 0px !important;
+        margin:0px !important;
+        box-shadow: none !important; 
+    }
+
+    ion-datetime{
+        width: 50% !important;
+    }
+    ion-col{
+        padding: 0px;
+    }
+
+    .searchbar-search-icon{
+        display: none;
+    }
+
+    .searchBarItems>ion-label{
+        margin:0px;
+    }
+
+    .searchbar-input{
+        padding-right:0px !important;
+        padding-left:0px !important;
+    }
+
+    ion-searchbar{
+        padding:1px !important;
+        min-height:inherit !important;
+    }  
+
+    .branchButton{
+        background-color: transparent !important;
+        color:black !important;
+        padding: 0px !important;
+        margin:0px !important;
+        box-shadow: none !important; 
+    }
+    .list-md .item-input.input-has-focus:last-child{
+        border-bottom-width: 0px;
+        box-shadow:inherit;
+    }
+
+    .list-md .item-input.ng-valid.input-has-value:not(.input-has-focus):last-child{
+        border-bottom-width: 0px;
+        box-shadow:inherit;
+    }
+
+    .list-md .item-input.ng-invalid.ng-touched:not(.input-has-focus):last-child{
+        border-bottom-width: 0px;
+        box-shadow:inherit;
+    }
+
+    ion-col.refundAccountRegButton{
+        padding: 5px !important;
+    }   
+
+     .transaction{
+         ion-col{
+             padding: 10px !important; 
+         }
+     }
+
+     ion-select.depositBankSelect{
+          max-width: 100%
     }
 }

@@ -52,4 +52,14 @@ page-search{
     .list-ios > .item-block:last-child, .list-ios > .item-wrapper:last-child .item-block {
         border-bottom: 0px;
     }
+
+    .dummy{
+        height:60vh;
+    }
+
+    .searchBarItems{
+        .label-md {
+            margin: 0px 0px 0px 0; 
+        }
+    }
 }

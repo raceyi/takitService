@@ -10,13 +10,14 @@
 </ion-row>
 <ion-row>
   <ion-col width-70>
-    <ion-input type="tel" [(ngModel)]="phone"></ion-input> 
+    <ion-input type="tel" [disabled]="!phoneChange" [(ngModel)]="phone"></ion-input> 
   </ion-col>
   <ion-col width-30>
-    <button ion-button full (click)="smsRequest()" >인증문자 요청 보내기</button>
+    <button ion-button full [hidden]="!phoneChange" (click)="changePhone()">수정</button>
+    <button ion-button full [hidden]="phoneChange" (click)="smsRequest()" >인증문자 요청 보내기</button>
   </ion-col>
 </ion-row>
-<ion-row>
+<ion-row [hidden]="phoneChange">
   <ion-col width-70>
   <ion-input type="tel" [(ngModel)]="verfiicationCode" placeholder="인증번호"></ion-input> 
   </ion-col>
@@ -31,15 +32,18 @@
 
 <ion-item>
     <ion-label fixed>이름</ion-label>
-    <ion-input  [(ngModel)]="name"  type="text"></ion-input>  
+    <ion-input  [(ngModel)]="name"  type="text" [disabled]="storageProvider.cashId.length!=0"></ion-input>  
 </ion-item>
 <div [hidden]="loginMethod!='이메일'">
+  <ion-item>
+    <ion-input [focuser]="focusOldPassword" type="password" placeholder="기존비밀번호" [(ngModel)]="oldPassword" ></ion-input>
+</ion-item>
 <ion-item>
-    <ion-input [focuser]="focusPassword" type="password" (focus)="scrollUpForKeypad()" placeholder="비밀번호" [(ngModel)]="password" ></ion-input>
+    <ion-input [focuser]="focusPassword" type="password" placeholder="비밀번호" [(ngModel)]="password" ></ion-input>
 </ion-item>
 <p [hidden]="paswordGuideHide">{{paswordGuide}}</p>
 <ion-item>
-    <ion-input [focuser]="focusPasswordCheck" type="password"  (focus)="scrollUpForKeypad()" placeholder="비밀번호확인" [(ngModel)]="passwordCheck"></ion-input>
+    <ion-input [focuser]="focusPasswordCheck" type="password"  placeholder="비밀번호확인" [(ngModel)]="passwordCheck"></ion-input>
 </ion-item>
 <p [hidden]="passwordMatch">비밀번호가 일치하지 않습니다.</p> 
 </div>
