@@ -413,7 +413,7 @@ router.updateUserInfo=function(userInfo,next){
 
    performQueryWithParam(command,values,function(err,result){
      if(err){
-        console.error("updateUserInfo func Unable to query. Error:", JSON.stringify(err, null, 2));
+        console.log("updateUserInfo func Unable to query. Error:", JSON.stringify(err, null, 2));
         next(err);
      }else{
         console.log("Query succeeded. "+JSON.stringify(result));
@@ -424,41 +424,58 @@ router.updateUserInfo=function(userInfo,next){
 
 
 router.insertCashId = function(userId,cashId, password, next){
-   let secretCashId = encryption(cashId,config.cPwd);//cashId 에 대한 비밀번호 설정하기!
 
    let salt = crypto.randomBytes(16).toString('hex');
 	let secretPassword = crypto.createHash('sha256').update(password+salt).digest('hex');
 
-   let command = "INSERT INTO cash(userId, cashId, password, salt) values(?,?,?,?)";
-   let values = [userId, secretCashId, secretPassword, salt];
+   let command = "INSERT IGNORE INTO cash(userId, cashId, password, salt) values(?,?,?,?)";
+   let values = [userId, cashId, secretPassword, salt];
    
    performQueryWithParam(command,values,function(err,result){
 		if(err){
-         console.error("insertCashId func Unable to query. Error:", JSON.stringify(err));
+         console.log("insertCashId func Unable to query. Error:", JSON.stringify(err));
          next(err);
       }else{
-         console.log("insertCashId Query succeeded.");
-         next(null,"success");
+			if(result.info.affectedRows === '0'){
+            next(null,"duplicationCashId");
+         }else{
+         	console.log("insertCashId Query succeeded.");
+         	next(null,"success");
+			}
       }
 	});
 
 };
 
-router.updateCashInfo=function(userId,cashId,password,next){
-   let secretCashId = encryption(cashId,config.cPwd);//cashId 에 대한 비밀번호 설정하기!
+router.updateCashPassword=function(userId,cashId,password,next){
 
    let salt = crypto.randomBytes(16).toString('hex');
 	let secretPassword = crypto.createHash('sha256').update(password+salt).digest('hex');
 
    let command = "UPDATE cash SET password=?, salt=? WHERE userId=? and cashId=?";
-   let values = [secretPassword, salt, userId, secretCashId];
+   let values = [secretPassword, salt, userId, cashId];
 
    performQueryWithParam(command,values,function(err,result){
 		if(err){
-         console.error("insertCashId func Unable to query. Error:", JSON.stringify(err));
+         console.error("updateCashPassword func Unable to query. Error:", JSON.stringify(err));
          next(err);
       }else{
-         console.log("insertCashId Query succeeded.");
+         console.log("updateCashPassword Query succeeded.");
+         next(null,"success");
+      }
+   });
+}
+
+router.updateRefundCashInfo = function(cashId,amount,next){
+   let command = "UPDATE cash SET balance=balance+?,refundCount=refundCount+1 WHERE cashId = ?";
+   let values = [amount,cashId];
+
+   performQueryWithParam(command, values, function(err,result) {
+      if(err){
+         console.log("updateRefundCashInfo function err:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("updateRefundCashInfo:"+JSON.stringify(result));
          next(null,"success");
       }
    });
@@ -479,12 +496,33 @@ router.getCashInfo=function(cashId,next){
             next("invalidId");
          }else{
             console.log(result);
-            decryptObj(result[0]);
             next(null,result[0]);
          }
       }
    });
+}
 
+
+//cashId를 모를때 userId 통해서 cashId 찾음.
+router.getCashId = function(userId,next){
+   console.log("getCashId function start");
+
+   let command = "SELECT cashId FROM cash LEFT JOIN userInfo ON cash.userId=userInfo.userId WHERE cash.userId=?";
+   let values = [userId];
+
+   performQueryWithParam(command, values, function(err,result) {
+      if(err){
+         console.log("getCashId function err:"+JSON.stringify(err));
+         next(err);
+      }else{
+         if(result.info.numRows==='0'){
+            next("invalid userId");
+         }else{
+            console.log("getCashId function success");
+            next(null,result[0].cashId);
+         }
+      }
+   });
 }
 
 router.checkCashPwd = function(cashId, password, next){
@@ -1006,7 +1044,7 @@ router.saveOrder=function(order,shopInfo,next){
                let orderList=JSON.parse(order.orderList);
 
                orderList.menus.forEach(function(menu){
-                  let values = [orderResult.info.insertId,menu.menuNO,menu.menuName,menu.quantity,JSON.stringify(menu.options),menu.amount];
+                  let values = [orderResult.info.insertId,menu.menuNO,menu.menuName,menu.quantity,JSON.stringify(menu.options),menu.discountAmount];
 
                   performQueryWithParam(command, values, function(err,orderListResult) {
                      if(err){
@@ -1092,6 +1130,30 @@ router.getOrdersUser=function(userId,takitId,lastOrderId,limit,next){
 
 }
 
+function getLocalTimeWithOption(option,timezone){
+   let startTime = getTimezoneLocalTime(timezone, (new Date).getTime()).substring(0,11)+"00:00:00.000Z";
+   let localStartTime=new Date(Date.parse(startTime));
+   let offset=(new timezoneJS.Date(new Date(), timezone)).getTimezoneOffset(); // offset in minutes
+   let queryStartTime;
+
+   if(option==="today"){
+      let todayStartTime=new Date(localStartTime.getTime()+(offset *60*1000));
+      console.log("todayStartTime in gmt:"+todayStartTime.toISOString());
+      queryStartTime=todayStartTime.toISOString();
+   }else if(option==="week"){
+      let weekStartTime=new Date(localStartTime.getTime()-24*60*60*6*1000+(offset *60*1000));
+      console.log("weekStartTime in gmt:"+weekStartTime.toISOString());
+      queryStartTime=weekStartTime.toISOString();
+   }else if(option==="month"){
+      let tomorrow= new Date(localStartTime.getTime()+(offset *60*1000));
+      let monthAgo=moment(tomorrow).subtract(1,'M').toDate();
+      queryStartTime=monthAgo.toISOString();
+   }else{
+      return;
+   }
+   return queryStartTime;
+}
+
 
 //shop에서 주문내역 검색할 때
 router.getOrdersShop=function(takitId,option,lastOrderId,limit,next){
@@ -1143,26 +1205,8 @@ router.getOrdersShop=function(takitId,option,lastOrderId,limit,next){
 				console.log("getOrdersShop func Query succeeded. "+JSON.stringify(result));
 				console.log("timezone:"+result[0].timezone);
 
-				var startTime = getTimezoneLocalTime(result[0].timezone, (new Date).getTime()).substring(0,11)+"00:00:00.000Z";
-				var localStartTime=new Date(Date.parse(startTime));
-				var offset=(new timezoneJS.Date(new Date(), result[0].timezone)).getTimezoneOffset(); // offset in minutes
-				var queryStartTime;
+				let queryStartTime = getLocalTimeWithOption(option,result[0].timezone);
 
-				if(option==="today"){
-					var todayStartTime=new Date(localStartTime.getTime()+(offset *60*1000));
-					console.log("todayStartTime in gmt:"+todayStartTime.toISOString());
-					queryStartTime=todayStartTime.toISOString();
-				}else if(option==="week"){
-					var weekStartTime=new Date(localStartTime.getTime()-24*60*60*6*1000+(offset *60*1000));
-					console.log("weekStartTime in gmt:"+weekStartTime.toISOString());
-					queryStartTime=weekStartTime.toISOString();
-				}else if(option==="month"){
-					var tomorrow= new Date(localStartTime.getTime()+(offset *60*1000));
-					var monthAgo=moment(tomorrow).subtract(1,'M').toDate();
-					queryStartTime=monthAgo.toISOString();
-				}else{
-					return;
-				}
 				console.log("queryStartTime:"+queryStartTime);
 				queryOrders(queryStartTime);
 			  }
@@ -1306,6 +1350,106 @@ router.updateOrderStatus=function(orderId,oldStatus, nextStatus,timeName,timeVal
 };
 
 
+//////// 매출 및 통계 API /////////
+
+router.getSales = function(takitId, startTime,next){
+   //select sum(amount) from orders where takitId = "세종대@더큰도시락" and orderedTime < "2016-12-28";
+   console.log("takitId:"+takitId);
+
+   let command="SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND orderedTime > ?";
+	let values = [takitId,startTime];
+	performQueryWithParam(command, values, function(err,result) {
+      if (err){
+        console.error("querySales func Unable to query. Error:", JSON.stringify(err, null, 2));
+        next(err);
+      }else{
+         console.dir("[querySales func Get MenuInfo]:"+result.info.numRows);
+         if(result.info.numRows==0){
+           next("can't find sales");
+         }else{
+           console.log("querySales func Query succeeded. "+JSON.stringify(result.info));
+           next(null,result[0].sales);
+         }
+      }
+	});
+}
+
+router.getSalesPeriod = function(takitId,startTime, endTime, next){
+   console.log("takitId:"+takitId+" startTime:"+startDate+" end:"+endDate);
+
+   let command="SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND orderedTime BETWEEN ? AND ?" //startTime과 endTime 위치 중요!!
+   let values = [takitId,startTime,endTime];
+
+   performQueryWithParam(command, values, function(err,result) {
+      if (err){
+         console.error("getSalesPeriod func Unable to query. Error:", JSON.stringify(err, null, 2));
+         next(err);
+      }else{
+         console.dir("[getSalesPeriod func Get MenuInfo]:"+result.info.numRows);
+
+         if(result.info.numRows==0){
+            next("can't find sales");
+         }else{
+            console.log("getSalesPeriod func Query succeeded. "+JSON.stringify(result.info));
+            next(null,result[0].sales);
+         }
+      }
+   });
+}
+
+router.getStatsMenu = function(takitId,startTime,next){
+   //select menuName, SUM(quantity) FROM orderList where menuNO LIKE \'"+takitId+"%\'GROUP BY menuName";
+   console.log("getStatsMenu comes");
+
+   let command = "SELECT menuName, SUM(quantity) AS count, SUM(amount) AS menuSales FROM orderList WHERE menuNO LIKE\'"
+                  +takitId+"%\' AND orderedTime > ? GROUP BY menuName"
+   let values = [takitId,startTime];
+
+   performQueryWithParam(command,values,function(err,result){
+      if (err){
+         console.error("getStatsMenu func Unable to query. Error:", JSON.stringify(err, null, 2));
+         next(err);
+      }else{
+         if(result.info.numRows==0){
+            next("can't not find stats");
+         }else{
+            console.log("getStatsMenu func Query succeeded. "+JSON.stringify(result.info));
+            delete result.info;
+            next(null,result);
+         }
+      }
+   });
+}
+
+router.getPeriodStatsMenu = function(takitId,startTime,endTime,next){
+   console.log("getStatsMenu comes");
+
+   let command = "SELECT menuName, SUM(quantity) AS count, SUM(amount) AS menuSales FROM orderList WHERE menuNO LIKE\'"
+                  +takitId+"%\' AND orderedTime BETWEEN ? AND ? GROUP BY menuName"
+   let values = [takitId,startTime,endTime];
+
+   performQueryWithParam(command,values,function(err,result){
+      if (err){
+         console.error("getPeriodStatsMenu func Unable to query. Error:", JSON.stringify(err, null, 2));
+         next(err);
+      }else{
+         if(result.info.numRows==0){
+            next("can't not find stats");
+         }else{
+            console.log("getPeriodStatsMenu func Query succeeded. "+JSON.stringify(result.info));
+            delete result.info;
+            next(null,result);
+         }
+      }
+   });
+}
+
+////////////매출 및 통계 end////////////
+
+
+
+//////////////cash /////////////////
+
 router.getCashInfo=function(cashId,next){
    console.log("getCashInfo function start");
 
@@ -1394,8 +1538,9 @@ router.getBalanceCash = function(cashId,next){
 }
 
 router.insertCashList = function(cashList,next){
-   let command = "INSERT INTO cash(cashTuno,cashId,userId,transactionType,amount,transactionTime, branchCode, confirm, nowBalance)"+
-                  "VALUES(:cashTuno,:cashId,:userId,:transactionType,:amount,:transactionTime,:branchCode,:confirm, :nowBalance)";
+   console.log("insertCashList comes");
+	let command = "INSERT INTO cashList(cashId,userId,transactionType,amount,transactionTime,depositTime, bankCode, bankName, branchCode,confirm, nowBalance)"+
+                  "VALUES(:cashId,:userId,:transactionType,:amount,:transactionTime,:depositTime,:bankCode, :bankName,:branchCode, :confirm,:nowBalance)";
 
    performQueryWithParam(command, cashList, function(err,result) {
       if(err){
@@ -1408,11 +1553,17 @@ router.insertCashList = function(cashList,next){
    });
 }
 
-router.getCashList=function(cashId,next){
+
+router.getCashList=function(cashId,lastTuno,limit,next){
    console.log("mariaDB.getCashList start!!");
 
-   let command = "SELECT * FROM cashList WHERE cashId =?"
-   let values = [cashId];
+   let command;
+   if(lastTuno == -1){
+      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno > ? ORDER BY transactionTime DESC LIMIT "+limit;
+   }else{
+      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno < ? ORDER BY transactionTime DESC LIMIT "+limit;
+   }
+   let values = [cashId, lastTuno];
 
    performQueryWithParam(command, values, function(err,result){
       if(err){
@@ -1421,7 +1572,7 @@ router.getCashList=function(cashId,next){
       }else{
          console.log("result:"+JSON.stringify(result));
          if(result.info.numRows === '0'){
-            next("invalid cashId");
+				next(null,"0");
          }else{
             console.log("getCashList find cashList");
             delete result.info;
@@ -1430,58 +1581,54 @@ router.getCashList=function(cashId,next){
       }
    });
 }
-
 
 router.updateCashList = function(cashList,next){
    console.log("mariaDB.updateCashList start!!");
 
-   let command = "UPDATE cashList SET transactionTime=:transactionTime, confirm=:confirm, nowBalance=:nowBalance WHERE cashTuno=:cashTuno";
+   let command = "UPDATE cashList SET cashId=:cashId, transactionTime=:transactionTime, confirm=:confirm, nowBalance=:nowBalance WHERE cashTuno=:cashTuno";
 
    performQueryWithParam(command, cashList, function(err,result){
       if(err){
-         console.log("getCashList function Error:"+JSON.stringify(err));
+         console.log("updateCashList function Error:"+JSON.stringify(err));
          next(err);
       }else{
          console.log("result:"+JSON.stringify(result));
-         if(result.info.numRows === '0'){
-            next("invalid cashId");
-         }else{
-            console.log("getCashList find cashList");
-            delete result.info;
-            next(null,result);
-         }
+         next(null,"success");
       }
    });
 }
 
 
-router.findBranchName=function(branchName,bankName,next){
-	console.log("mariaDB.findBranchName "+ branchName, "and bankName "+bankName);
-	let command="SELECT code, branchName from bankInfo where branchName LIKE _utf8 \'"+branchName+"%\' and bankName _utf8 LIKE \'"+bankName+"%\'";
+router.getCashListWithTuno = function(cashTuno, next){
+   console.log("mariaDB.getCashList start!!");
 
-	performQuery(command,function(err, result) {
-      if (err){
-         console.log("findBranchName Error:"+JSON.stringify(err));
+   let command = "SELECT *FROM cashList where cashTuno = ?"
+   let values = [cashTuno];
+
+   performQueryWithParam(command, values, function(err,result){
+      if(err){
+         console.log("getCashListwithTuno function Error:"+JSON.stringify(err));
          next(err);
       }else{
          console.log("result:"+JSON.stringify(result));
          if(result.info.numRows === '0'){
-            next(null,[]);
+            next("invalid cashTuno");
          }else{
-            console.dir("findBranchName result:"+result.info.numRows);
-            delete result.info;
-            next(null,result);
+            console.log("getCashListwithTuno find cashList");
+            next(null,result[0]);
          }
       }
-	});
+   });
 }
 
 
 router.getDepositedCash = function(cashList,next){
    console.log("mariaDB.getDepositedCash start!!");
 
-   cashList.depositMemo = encryption(depositMemo,config.cPwd);
-   let command = "SELECT * FROM cashList WHERE cashId =:depositMemo and amount=:amount and branchCode=:branchCode and transactionTime LIKE \'"+cashList.depositDate+"%\'";
+	console.log("cashList:"+JSON.stringify(cashList));
+	let command = "SELECT * FROM cashList WHERE cashId =:depositMemo and amount=:amount and branchCode LIKE \'"
+                  +cashList.branchCode.substring(0,6)+"%\' and transactionTime LIKE \'"+cashList.depositDate+"%\'";
+
 
    performQueryWithParam(command, cashList, function(err,result){
       if(err){
@@ -1502,10 +1649,11 @@ router.getDepositedCash = function(cashList,next){
 
 
 router.getPushIdWithCashId = function(cashId,next){
-   let command = "SELECT pushId, platform FROM userInfo LEFT JOIN cash ON userInfo.userId=cash.userId WHERE cashId=?";
+  	console.log("getPushIdWithCashId:"+cashId);
+	let command = "SELECT pushId, platform FROM userInfo LEFT JOIN cash ON userInfo.userId=cash.userId WHERE cashId=?";
    let values = [cashId];
 
-   performQueryWithParam(command, cashInfo, function(err,result){
+   performQueryWithParam(command, values, function(err,result){
       if(err){
          console.log("getPushIdWithCashId function Error:"+JSON.stringify(err));
          next(err);
@@ -1521,12 +1669,32 @@ router.getPushIdWithCashId = function(cashId,next){
    });
 }
 
+/*router.getBankName = function(bankCode,next){
+   let command = "SELECT bankName FROM bankInfo where bankCode =?";
+   let values = [bankCode];
+
+   performQueryWithParam(command, values, function(err,result){
+      if(err){
+         console.log("getBankName function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("result:"+JSON.stringify(result));
+         if(result.info.numRows === '0'){
+            next("incorrect bankCode");
+         }else{
+            console.log("getBankName function success");
+            next(null,result[0].bankName);
+         }
+      }
+   });
+}*/
+
 router.getBankName = function(branchCode, next){
    console.log("getBankName start");
-   let command = "SELECT bankName, branchName FROM bankInfo WHERE code=?";
+   let command = "SELECT bankName, branchName FROM bank WHERE branchCode LIKE \'"+branchCode.substring(0,6)+"%\'";
    let values = [branchCode];
 
-   performQueryWithParam(command, cashInfo, function(err,result){
+   performQueryWithParam(command, values, function(err,result){
       if(err){
          console.log("getBankName function Error:"+JSON.stringify(err));
          next(err);
@@ -1543,5 +1711,41 @@ router.getBankName = function(branchCode, next){
 };
 
 
+router.findBranchName=function(branchName,bankName,next){
+	console.log("mariaDB.findBranchName "+ branchName, "and bankName "+bankName);
+	let command="SELECT branchCode, branchName FROM bank WHERE branchName LIKE _utf8 \'"+branchName+"%\' and bankName LIKE _utf8 \'"+bankName+"%\'";
+
+	performQuery(command,function(err, result) {
+      if (err){
+         console.log("findBranchName Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("result:"+JSON.stringify(result));
+         if(result.info.numRows === '0'){
+            next(null,[]);
+         }else{
+            console.dir("findBranchName result:"+result.info.numRows);
+            delete result.info;
+            next(null,result);
+         }
+      }
+	});
+}
+
+router.updateConfirmCount = function(cashId, confirmCount, next){
+   console.log("updateConfirmCount start confirmCount:"+confirmCount);
+   let command = "UPDATE cash SET confirmCount=? WHERE cashId=?";
+   let values = [confirmCount,cashId];
+
+   performQueryWithParam(command, values, function(err,result){
+      if(err){
+         console.log("updateConfirmCount function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("updateConfirmCount result:"+JSON.stringify(result));
+         next(null,result[0]);
+      }
+   });
+}
 
 module.exports = router;

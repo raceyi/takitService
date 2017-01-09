@@ -37,7 +37,7 @@ function existsSync(filename) {
 	    return false;
 	  }
 }
-
+/*
 function resultOCR(infile,outfile,req,res){
     function takitIdFound(){
     	console.log("!takitId found!");
@@ -106,7 +106,7 @@ function resultOCR(infile,outfile,req,res){
 	);
 	
 }
-
+*/
 function runOCR(infile,outfile,req,res){
 	console.log("[runOCR]"+ocr_command+" "+infile+" "+outfile);
 	exec(ocr_command+" "+infile+" "+outfile)

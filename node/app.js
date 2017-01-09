@@ -216,6 +216,7 @@ app.post('/shop/changeNotiMember',shopUsers.changeNotiMember);
 app.post('/shop/successGCM',shopUsers.successGCM);
 app.post('/shop/sleepMode',shopUsers.sleepMode);
 app.post('/shop/refreshInfo',shopUsers.refreshInfo);
+app.post('/shop/getSalesAndSatas',shopUsers.getSalesAndSatas);
 //app.post('/shop/couponSend', shopUsers.couponSend);
 //app.post('/shop/customerSearch', shopUsers.customerSearch);
 
@@ -224,6 +225,7 @@ app.post('/modifyCashPwd',cash.modifyCashPwd);
 app.post('/checkCashInfo',cash.checkCashInfo);
 app.post('/registRefundAccount',cash.registRefundAccount);
 app.post('/branchNameAutoComplete', cash.branchNameAutoComplete);
+app.post('/checkRefundCount', cash.checkRefundCount);
 app.post('/refundCash',cash.refundCash);
 app.post('/checkCashInstantly',cash.checkCashInstantly); //입금바로 확인
 app.post('/checkCashUserself',cash.checkCashUserself); //입금 수동 확인

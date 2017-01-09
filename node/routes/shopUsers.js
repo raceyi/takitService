@@ -495,6 +495,43 @@ router.refreshInfo=function(req,res){
 	});
 }
 
+router.getSalesAndSatas = function(req,res){
+	// 1. today
+	// 2. week
+	// 3. month
+	// 4. period
+		function finalCallback(err,result){
+			if(err){
+				console.log(err);
+				res.send(JSON.stringify({"result":"failure","error":err}));
+			}else{
+				console.log("getSalesAndSatas success");
+				res.send(JSON.stringify({"result":"success","sales":result[0],"stats":result[1]}))
+			}
+		}
+
+		if(req.body.option === "period"){
+			async.parallel([function(callback){
+				mariaDB.getSalesPeriod(req.body.takitId, req.body.startTime, req.body.endTime, callback);
+			},function(callback){
+				mariaDB.getPeriodStatsMenu(req.body.takitId,req.body.startTime,req.body.endTime,callback);
+			}],finalCallback);
+		}else{
+			async.waterfall([function(callback){
+				mariaDB.getShopInfo(req.body.takitId,callback);
+			},function(shopInfo,callback){
+				let startTime = mariaDB.getLocalTimeWithOption(req.body.option,shopInfo.timezone);
+
+				async.parallel([function(callback){
+					mariaDB.getSales(req.body.takitId,startTime,callback);
+				},function(result,callback){
+					mariaDB.getStatsMenu(req.body.takitId,startTime,callback);
+				}],callback);
+			}],finalCallback);
+		}
+
+}
+
 
 
 /*
