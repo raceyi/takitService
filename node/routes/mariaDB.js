@@ -1563,9 +1563,9 @@ router.getCashList=function(cashId,lastTuno,limit,next){
 
    let command;
    if(lastTuno == -1){
-      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno > ? AND transactionType='wrong' ORDER BY transactionTime DESC LIMIT "+limit;
+      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno > ? AND transactionType!='wrong' ORDER BY transactionTime DESC LIMIT "+limit;
    }else{
-      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno < ? AND transactionType='wrong' ORDER BY transactionTime DESC LIMIT "+limit;
+      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno < ? AND transactionType!='wrong' ORDER BY transactionTime DESC LIMIT "+limit;
    }
    let values = [cashId, lastTuno];
 
