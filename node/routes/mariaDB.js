@@ -1531,16 +1531,20 @@ router.getBalanceCash = function(cashId,next){
          console.log("getBalanceCash function err:"+JSON.stringify(err));
          next(err);
       }else{
-         console.log("getBalanceCash:"+JSON.stringify(result));
-         next(null,result[0].balance);
+			if(result.info.numRows === "0"){
+				next("incorrect cashId");
+			}else{
+         	console.log("getBalanceCash:"+JSON.stringify(result));
+         	next(null,result[0].balance);
+			}
       }
    });
 }
 
 router.insertCashList = function(cashList,next){
    console.log("insertCashList comes");
-	let command = "INSERT INTO cashList(cashId,userId,transactionType,amount,transactionTime,depositTime, bankCode, bankName, branchCode,confirm, nowBalance)"+
-                  "VALUES(:cashId,:userId,:transactionType,:amount,:transactionTime,:depositTime,:bankCode, :bankName,:branchCode, :confirm,:nowBalance)";
+	let command = "INSERT INTO cashList(cashId,transactionType,amount,transactionTime,depositTime, bankCode, bankName, branchCode,confirm, nowBalance)"+
+                  "VALUES(:cashId,:transactionType,:amount,:transactionTime,:depositTime,:bankCode, :bankName,:branchCode, :confirm,:nowBalance)";
 
    performQueryWithParam(command, cashList, function(err,result) {
       if(err){
@@ -1548,7 +1552,7 @@ router.insertCashList = function(cashList,next){
          next(err);
       }else{
          console.log("insertCashList:"+JSON.stringify(result));
-         next(null,"success");
+         next(null,result.info.insertId);
       }
    });
 }
@@ -1559,9 +1563,9 @@ router.getCashList=function(cashId,lastTuno,limit,next){
 
    let command;
    if(lastTuno == -1){
-      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno > ? ORDER BY transactionTime DESC LIMIT "+limit;
+      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno > ? AND transactionType='wrong' ORDER BY transactionTime DESC LIMIT "+limit;
    }else{
-      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno < ? ORDER BY transactionTime DESC LIMIT "+limit;
+      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno < ? AND transactionType='wrong' ORDER BY transactionTime DESC LIMIT "+limit;
    }
    let values = [cashId, lastTuno];
 
@@ -1585,11 +1589,28 @@ router.getCashList=function(cashId,lastTuno,limit,next){
 router.updateCashList = function(cashList,next){
    console.log("mariaDB.updateCashList start!!");
 
-   let command = "UPDATE cashList SET cashId=:cashId, transactionTime=:transactionTime, confirm=:confirm, nowBalance=:nowBalance WHERE cashTuno=:cashTuno";
+   let command = "UPDATE cashList SET cashId=:cashId,transactionType=:transactionType, transactionTime=:transactionTime, confirm=:confirm, nowBalance=:nowBalance WHERE cashTuno=:cashTuno";
 
    performQueryWithParam(command, cashList, function(err,result){
       if(err){
          console.log("updateCashList function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("result:"+JSON.stringify(result));
+         next(null,"success");
+      }
+   });
+}
+
+router.updateTransactionType = function(cashTuno,type,next){
+   console.log("mariaDB.updateTransactionType start!!");
+   let command ="UPDATE cashList SET transactionType=? where cashTuno=?";
+   let values = [cashTuno,type];
+
+
+   performQueryWithParam(command, values, function(err,result){
+      if(err){
+         console.log("getCashList function Error:"+JSON.stringify(err));
          next(err);
       }else{
          console.log("result:"+JSON.stringify(result));

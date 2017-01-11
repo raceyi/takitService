@@ -298,21 +298,21 @@ function checkAccountHistory(pageNO,count,startDate,next){
             async.whilst(function(){ return i < accHistory.Iqtcnt-count;},
             function(callback){
                let cashList = {};
-               
-               //cashList.userId = req.session.uid;
+              
                cashList.cashId = accHistory.Rec[i].BnprCntn.toUpperCase();
                cashList.transactionType = "deposit";
                cashList.amount = parseInt(accHistory.Rec[i].Tram);
                cashList.depositTime = accHistory.Rec[i].Trdd;
-               cashList.confirm = 0;
+               cashList.transactionTime = new Date().toISOString();
+					cashList.confirm = 0;
 					cashList.bankCode = accHistory.Rec[i].HnisCd;
 					cashList.branchCode = accHistory.Rec[i].HnbrCd;
 
                let NHisCd = ["010","011","012","013","014","015","016","017","018"];
 
-               for(let idx=0; i<NHisCd.length; idx++){
+               for(let idx=0; idx<NHisCd.length; idx++){
                   if(accHistory.Rec[i].HnisCd === NHisCd[idx]){
-                     cashList.branchCode = accHistory.Rec[i].HnisCd + accHistory.Rec[i].HnbrCd.substring(3,6);
+							cashList.branchCode = accHistory.Rec[i].HnisCd + accHistory.Rec[i].HnbrCd.substring(3,6);
                      break;
                   }
                }               
@@ -325,7 +325,8 @@ function checkAccountHistory(pageNO,count,startDate,next){
                   cashList.branchName = result.branchName;
                   console.log("insertCashList");
                   mariaDB.insertCashList(cashList,callback);
-               },function(result,callback){
+               },function(cashTuno,callback){
+						cashList.cashTuno = cashTuno;
                   async.parallel([function(callback){
                      redisCli.hmset('cash_'+startDate,'pageNO',pageNO,'count',count+i+1,callback);
                   },function(callback){
@@ -477,6 +478,7 @@ router.checkCashUserself = function(req,res){
          callback("redis cash_"+startDate+"is null");
       }
    },function(result,callback){
+		console.log("req.body:"+JSON.stringify(req.body));
       cashList.depositMemo = req.body.depositMemo.toUpperCase();
       cashList.amount = req.body.amount;
       cashList.depositDate = req.body.depositDate.substring(0,10);
@@ -506,6 +508,22 @@ router.checkCashUserself = function(req,res){
 }
 
 
+//user가 잘못된 캐쉬 목록 들어와서 삭제했을 때
+router.removeWrongCashList = function(req,res){
+   console.log("removeWrongCashList start!!");
+
+   mariaDB.updateTransactionType(req.body.cashTuno,"wrong",function(err,result){
+      if(err){
+         console.log(err);
+         res.send(JSON.stringify({"result":"failure","error":err}));
+      }else{
+         console.log(result);
+         res.send(JSON.stringify({"result":"success"}));
+      }
+   });
+}
+
+
 //user가 확인버튼 눌렀을 때
 router.addCash = function(req,res){
    async.waterfall([function(callback){
@@ -523,7 +541,8 @@ router.addCash = function(req,res){
 		cashList.cashId = req.body.cashId.toUpperCase();
       cashList.cashTuno = req.body.cashTuno;
       cashList.transactionTime = new Date().toISOString();
-      cashList.confirm = 1;
+		cashList.transactionType = "deposit"; 
+     	cashList.confirm = 1;
       cashList.nowBalance = balance;
       mariaDB.updateCashList(cashList,callback);
    }],function(err,result){
@@ -549,7 +568,7 @@ function pad(n, length) {
 
 
 // user가 캐쉬로 주문하여 캐쉬 빠짐
-router.payCash = function(userId,cashId,amount,next){
+router.payCash = function(cashId,amount,next){
    let balance;
    async.waterfall([function(callback){
       mariaDB.getBalanceCash(cashId.toUpperCase(),callback);
@@ -564,7 +583,6 @@ router.payCash = function(userId,cashId,amount,next){
          }
       },function(callback){
          const cashList = {};
-         cashList.userId = userId;
          cashList.cashId = cashId;
 			cashList.transactionType = "payment";
          cashList.amount = amount;
@@ -593,7 +611,7 @@ router.payCash = function(userId,cashId,amount,next){
 
 //////// 주문 취소로 cash로 환불 //////
 
-router.cancelCash = function(userId,cashId,amount,next){
+router.cancelCash = function(cashId,amount,next){
    async.waterfall([function(callback){
       mariaDB.updateBalanceCash(cashId.toUpperCase(), parseInt(amount),callback);
    },function(result,callback){
@@ -603,7 +621,6 @@ router.cancelCash = function(userId,cashId,amount,next){
 
 		console.log("amount :"+amount);
 		cashList.cashId = cashId.toUpperCase();
-      cashList.userId = userId;
       cashList.transactionType = "cancel";
       cashList.amount = amount;
       cashList.transactionTime = new Date().toISOString();
@@ -697,7 +714,6 @@ router.refundCash=function(req,res){
          mariaDB.updateRefundCashInfo(req.body.cashId.toUpperCase(), -parseInt(req.body.withdrawalAmount), callback)
       },function(callback){
          const cashList = {};
-         cashList.userId = req.session.uid;
          cashList.cashId = req.body.cashId.toUpperCase();
          cashList.transactionType = "refund";
          cashList.amount = req.body.withdrawalAmount;

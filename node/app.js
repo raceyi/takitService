@@ -233,6 +233,7 @@ app.post('/addCash',cash.addCash);  //입금한 cash 전환
 app.post('/payCash',cash.payCash); //지불
 app.post('/getBalanceCash',cash.getBalanceCash); 
 app.post('/getCashList',cash.getCashList);
+app.post('/removeWrongCashList',cash.removeWrongCashList);
 
 
 app.get('/cafe/shopHome',mariaDB.queryCafeHome);

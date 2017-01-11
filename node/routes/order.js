@@ -190,7 +190,7 @@ router.saveOrder=function(req, res){
       			},function(callback){
          			mariaDB.getShopPushId(req.body.takitId,callback);
       			},function(callback){
-         			cash.payCash(req.session.uid,req.body.cashId,req.body.amount,callback);
+         			cash.payCash(req.body.cashId,req.body.amount,callback);
 					}],callback);
 
    			},function(result,callback){
@@ -362,7 +362,7 @@ router.cancelOrderUser=function(req,res){
       order = result;
 		console.log("cancel order :"+order.amount);
       async.parallel([function(callback){
-         cash.cancelCash(req.session.uid,req.body.cashId,order.amount,callback); //cash로 다시 돌려줌
+         cash.cancelCash(req.body.cashId,order.amount,callback); //cash로 다시 돌려줌
       },function(callback){
          mariaDB.getShopPushId(order.takitId,callback);
       }],callback);
@@ -405,7 +405,7 @@ router.shopCancelOrder=function(req,res){
    },function(cashId,callback){
 		console.log("cancel order :"+JSON.stringify(order));
       async.parallel([function(callback){
-         cash.cancelCash(req.session.uid,cashId,order.amount,callback); //cash로 다시 돌려줌
+         cash.cancelCash(cashId,order.amount,callback); //cash로 다시 돌려줌
       },function(callback){
          mariaDB.getPushId(order.userId,callback);
       }],callback);
