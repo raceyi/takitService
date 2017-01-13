@@ -841,7 +841,7 @@ router.getBalnaceShop = function(req,res){
    })
 }
 
-router.getWithdrawalList = function(req,res){
+router.getWithdrawalListShop = function(req,res){
    console.log("getWithdrawalList comes");
    mariaDB.getWithdrawalList(req.body.takitId,function(err,result){
       if(err){
