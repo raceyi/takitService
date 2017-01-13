@@ -234,7 +234,10 @@ app.post('/payCash',cash.payCash); //지불
 app.post('/getBalanceCash',cash.getBalanceCash); 
 app.post('/getCashList',cash.getCashList);
 app.post('/removeWrongCashList',cash.removeWrongCashList);
-
+app.post('/shop/checkWithdrawalCount',cash.checkWithdrawalCountShop);
+app.post('/shop/withdrawCash',cash.withdrawCashShop);
+app.post('/shop/getBalance',cash.getBalnaceShop);
+app.post('/shop/getWithdrawalList',cash.getWithdrawalListShop);
 
 app.get('/cafe/shopHome',mariaDB.queryCafeHome);
 

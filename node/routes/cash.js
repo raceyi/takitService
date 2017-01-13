@@ -587,7 +587,6 @@ router.payCash = function(cashId,amount,next){
 			cashList.transactionType = "payment";
          cashList.amount = amount;
          cashList.transactionTime = new Date().toISOString();
-         cashList.branchCode = null;
          cashList.confirm = 1;
          cashList.nowBalance = balance-amount;
          mariaDB.insertCashList(cashList,callback);
@@ -624,7 +623,6 @@ router.cancelCash = function(cashId,amount,next){
       cashList.transactionType = "cancel";
       cashList.amount = amount;
       cashList.transactionTime = new Date().toISOString();
-      cashList.branchCode = null;
       cashList.confirm = 1;
       cashList.nowBalance = balance;
       mariaDB.insertCashList(cashList,callback);
@@ -678,29 +676,45 @@ router.checkRefundCount = function(req,res){
          res.send(JSON.stringify({"result":"failure"}));
       }else{
          console.log("result");
-         if(result.refundCount >4 && req.body.bankCode === NHCode){
+      	if(result.refundCount >=4 && req.body.bankCode === NHCode && result.balance >= 150){
             console.log("환불 4회 초과 입니다.")
-            res.send(JSON.stringify({"result":"success","charge":"150"}));
-         }else if(result.refundCount >4 && req.body.bankCode !== NHCode){
+            res.send(JSON.stringify({"result":"success","fee":"150"}));
+         }else if(result.refundCount >=4 && req.body.bankCode !== NHCode && result.balance >= 400){
             console.log("환불 4회 초과 입니다.")
-            res.send(JSON.stringify({"result":"success","charge":"400"}));
-         }else{
+            res.send(JSON.stringify({"result":"success","fee":"400"}));
+         }else if(result.refundCount <4){
             console.log("환불 4회 이하 입니다.")
-            res.send(JSON.stringify({"result":"success","charge":"0"}));
+            res.send(JSON.stringify({"result":"success","fee":"0"}));
+         }else{
+            res.send(JSON.stringify({"result":"failure","error":"check your balance"}))
          }
-      }
+		}
    });
 };
 
 
 //parameter: depositorName, bankCode,account,withdrawalAmount <-> deposit
 router.refundCash=function(req,res){
+	
+	let cashList={};
+	let cashInfo ={};
+	cashList.fee=0;
    async.waterfall([function(callback){
-      mariaDB.getBalanceCash(req.body.cashId.toUpperCase(), callback);
-   },function(balance,callback){
-      console.log("balance:"+balance);
+      mariaDB.getCashInfo(req.body.cashId.toUpperCase(), callback);
+   },function(result,callback){
+		cashInfo=result;
+      console.log( "cashInfo:"+cashInfo);
 		console.log("req.body:"+JSON.stringify(req.body));
-		if(balance >= req.body.withdrawalAmount){ //환불받으려는 금액보다 잔액이 많아야 환불 가능
+		if(cashInfo.refundCount >=4 && req.body.bankCode === NHCode){
+         console.log("환불 4회 초과 입니다. NH");
+			cashList.fee = 150;
+      }else if(cashInfo.refundCount >=4 && req.body.bankCode !== NHCode){
+         console.log("환불 4회 초과 입니다. other")
+			cashList.fee = 400;
+      }   
+	
+		console.log("fee:"+cashList.fee);
+		if(parseInt(cashInfo.balance) >= parseInt(req.body.withdrawalAmount)+cashList.fee){ //환불받으려는 금액보다 잔액이 많아야 환불 가능
          if(req.body.bankCode === NHCode){ //농협계좌로 환불할 때
             router.ReceivedTransferAccountNumber(req.body.account,req.body.withdrawalAmount,callback);
          }else{
@@ -711,13 +725,15 @@ router.refundCash=function(req,res){
       }
    },function(result,callback){
    	async.parallel([function(callback){
-         mariaDB.updateRefundCashInfo(req.body.cashId.toUpperCase(), -parseInt(req.body.withdrawalAmount), callback)
+         mariaDB.updateRefundCashInfo(req.body.cashId.toUpperCase(), -parseInt(req.body.withdrawalAmount)-cashList.fee, callback)
       },function(callback){
-         const cashList = {};
          cashList.cashId = req.body.cashId.toUpperCase();
          cashList.transactionType = "refund";
          cashList.amount = req.body.withdrawalAmount;
          cashList.transactionTime = new Date().toISOString();
+			cashList.bankName = req.body.bankName;
+			cashList.account = req.body.account;
+			cashList.nowBalance = parseInt(cashInfo.balance)-parseInt(req.body.withdrawalAmount)-cashList.fee;
          result.confirm = 1;
 
          mariaDB.insertCashList(cashList,callback);
@@ -733,6 +749,109 @@ router.refundCash=function(req,res){
    });
 
 }
+
+
+////////// 환불 API end.
+
+
+///////// shop -cash API ///////////
+
+router.checkWithdrawalCountShop = function(req,res){
+   console.log("checkShopWithdrawalCount start!!!");
+
+   mariaDB.getShopInfo(req.body.takitId,function(err,result){
+      if(err){
+         console.log("err");
+         res.send(JSON.stringify({"result":"failure","error":err}));
+      }else{
+         console.log("result");
+
+         if(result.withdrawalCount >=4 && req.body.bankCode === NHCode && result.balance >= 150){
+            console.log("인출 4회 초과 입니다. NH")
+            res.send(JSON.stringify({"result":"success","fee":"150"}));
+         }else if(result.withdrawalCount >=4 && req.body.bankCode !== NHCode && result.balance >= 400){
+            console.log("인출 4회 초과 입니다. other")
+            res.send(JSON.stringify({"result":"success","fee":"400"}));
+         }else if(result.withdrawalCount < 4){
+            console.log("인출 4회 이하 입니다.")
+            res.send(JSON.stringify({"result":"success","fee":"0"}));
+         }else{
+            res.send(JSON.stringify({"result":"failure","error":"check your balance"}))
+         }
+      }
+   });
+}
+
+
+//shop - cash인출 API
+//인출가능 금액,
+router.withdrawCashShop = function(req,res){
+   //takitId, amount
+   //1. shopInfo에서 해당shop 계좌 가져옴
+   //2. 계좌에 금액만큼 넣어줌.
+   let shopInfo={};
+   let fee =0;
+   async.waterfall([function(callback){
+      mariaDB.getShopInfo(req.body.takitId,callback);
+   },function(result,callback){
+      shopInfo=result;
+      console.log( "shopInfo:"+shopInfo);
+      console.log("req.body:"+JSON.stringify(req.body));
+      if(shopInfo.withdrawalCount >=4 && req.body.bankCode === NHCode){
+         console.log("인출 4회 초과 입니다. NH");
+         fee = 150;
+      }else if(shopInfo.withdrawalCount >=4 && req.body.bankCode !== NHCode){
+         console.log("인출 4회 초과 입니다. other")
+         fee = 400;
+      }
+
+      console.log("fee:"+cashList.fee);
+      if(parseInt(shopInfo.balance) >= parseInt(req.body.withdrawalAmount)+fee){ //환불받으려는 금액보다 잔액이 많아야 환불 가능
+         if(req.body.bankCode === NHCode){ //농협계좌로 환불할 때
+            router.ReceivedTransferAccountNumber(shopInfo.account,req.body.withdrawalAmount,callback);
+         }else{
+            router.ReceivedTransferOtherBank(req.body.bankCode,shopInfo.account,req.body.withdrawalAmount,callback);
+         }
+      }else{
+         callback("check your balance");
+      }
+   },function(result,callback){
+      mariaDB.updateWithdrawalShop(req.body.takitId,-parseInt(req.body.withdrawalAmount)-fee,callback);
+   },function(result,callback){
+      mariaDB.insertWithdrawalList(req.body.takitId,req.body.withdrawalAmount,fee,parseInt(shopInfo.balance)-parseInt(req.body.withdrawalAmount)-fee,callback);
+   }],function(err,result){
+      if(err){
+         console.log(err);
+         res.send(JSON.stringify({"result":"failure","error":err}));
+      }else{
+         console.log(result);
+         res.send(JSON.stringify({"result":"success"}));
+      }
+   });
+}
+
+
+router.getBalnaceShop = function(req,res){
+   mariaDB.getBalnaceShop(req.body.takitId,function(err,result){
+      if(err){
+         res.send(JSON.stringify({"result":"failure","error":err}));
+      }else{
+         res.send(JSON.stringify({"result":"success","sales":result.sales, "balance":result.balance}));
+      }
+   })
+}
+
+router.getWithdrawalList = function(req,res){
+   console.log("getWithdrawalList comes");
+   mariaDB.getWithdrawalList(req.body.takitId,function(err,result){
+      if(err){
+         res.send(JSON.stringify({"result":"failure","error":err}));
+      }else{
+         res.send(JSON.stringify({"result":"success", "withdrawalList": result}));
+      }
+   })
+}
+
 
 router.branchNameAutoComplete = function(req,res){
 	console.log("bankCodeAutoComplete comes(req:"+JSON.stringify(req.body)+")");

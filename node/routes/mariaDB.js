@@ -1543,8 +1543,8 @@ router.getBalanceCash = function(cashId,next){
 
 router.insertCashList = function(cashList,next){
    console.log("insertCashList comes");
-	let command = "INSERT INTO cashList(cashId,transactionType,amount,transactionTime,depositTime, bankCode, bankName, branchCode,confirm, nowBalance)"+
-                  "VALUES(:cashId,:transactionType,:amount,:transactionTime,:depositTime,:bankCode, :bankName,:branchCode, :confirm,:nowBalance)";
+	let command = "INSERT INTO cashList(cashId,transactionType,amount,fee, nowBalance,transactionTime,depositTime, bankCode, bankName, branchCode, branchName, account,confirm)"+
+                  "VALUES(:cashId,:transactionType,:amount,:fee, :nowBalance,:transactionTime,:depositTime,:bankCode, :bankName,:branchCode, :branchName, :account,:confirm)";
 
    performQueryWithParam(command, cashList, function(err,result) {
       if(err){
@@ -1563,9 +1563,9 @@ router.getCashList=function(cashId,lastTuno,limit,next){
 
    let command;
    if(lastTuno == -1){
-      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno > ? AND transactionType!='wrong' ORDER BY transactionTime DESC LIMIT "+limit;
+      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno > ? AND transactionType!='wrong' ORDER BY cashTuno DESC LIMIT "+limit;
    }else{
-      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno < ? AND transactionType!='wrong' ORDER BY transactionTime DESC LIMIT "+limit;
+      command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno < ? AND transactionType!='wrong' ORDER BY cashTuno DESC LIMIT "+limit;
    }
    let values = [cashId, lastTuno];
 
@@ -1768,5 +1768,102 @@ router.updateConfirmCount = function(cashId, confirmCount, next){
       }
    });
 }
+
+
+//shop-cash
+router.updateSalesShop = function(takitId,amount,next){
+   console.log("updateShopSales start");
+	let command = "UPDATE shopInfo SET sales=sales+?,balance=balance+? WHERE takitId=?";
+   let values = [amount,amount,takitId];
+
+	
+   performQueryWithParam(command, values, function(err,result){
+      if(err){
+         console.log("updateSalesShop function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("updateSalesShop result:"+JSON.stringify(result));
+         next(null,"success");
+      }
+   });
+}
+
+router.updateBalanceShop = function(takitId,amount,next){
+   let command = "UPDATE shopInfo SET balance=balance+? WHERE takitId=?";
+   let values = [amount,takitId];
+
+   performQueryWithParam(command, values, function(err,result){
+      if(err){
+         console.log("updateBalanceShop function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("updateBalanceShop result:"+JSON.stringify(result));
+         next(null,"success");
+      }
+   });
+}
+
+router.getBalnaceShop = function(takitId,next){
+   console.log("mariaDB.getBalnaceShop start!!");
+
+   let command = "SELECT sales,balance FROM shopInfo where takitId = ?"
+   let values = [takitId];
+
+   performQueryWithParam(command, values, function(err,result){
+      if(err){
+         console.log("getBalnaceShop function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("result:"+JSON.stringify(result));
+         if(result.info.numRows === '0'){
+            next("invalid takitId");
+         }else{
+            console.log("getBalnaceShop find cashList");
+            next(null,result[0]);
+         }
+      }
+   });
+}
+
+router.insertWithdrawalList = function(takitId, amount, fee, nowBalance, next){
+
+   console.log("mariaDB.insertWithdrawalList start!!");
+
+   let command = "INSERT INTO withdrawalList VALUES(?,?,?,?,?)"
+   let values = [takitId,amount,fee,nowBalance,new Date().toISOString()];
+
+   performQueryWithParam(command, values, function(err,result){
+      if(err){
+         console.log("insertWithdrawalList function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("result:"+JSON.stringify(result));
+         next(null,result.info.insertId);
+      }
+   });
+}
+
+router.getWithdrawalList = function(takitId,next){
+   console.log("mariaDB.getWithdrawalList start!!");
+
+   let command = "SELECT *FROM withdrawalList where takitId = ?"
+   let values = [takitId];
+
+   performQueryWithParam(command, values, function(err,result){
+      if(err){
+         console.log("getWithdrawalList function Error:"+JSON.stringify(err));
+         next(err);
+      }else{
+         console.log("result:"+JSON.stringify(result));
+         if(result.info.numRows === '0'){
+            next("invalid takitId");
+         }else{
+            console.log("getWithdrawalList find cashList");
+            next(null,result[0]);
+         }
+      }
+   });
+}
+
 
 module.exports = router;
