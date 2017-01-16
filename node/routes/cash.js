@@ -642,13 +642,13 @@ router.cancelCash = function(cashId,amount,next){
 
 router.registRefundAccount = function(req,res){
    async.waterfall([function(callback){
-      if(req.body.bank === NHCode){ //농협일때
+      if(req.body.bankCode === NHCode){ //농협일때
          router.InquireDepositorAccountNumber(req.body.account,callback);
       }else{ //타행일때
          router.InquireDepositorOtherBank(req.body.bankCode,req.body.account,callback);
       }
    },function(result,callback){
-      if(result.dpnm === req.body.name){ //dpnm Header에 있는 정보 아님
+      if(result.Dpnm === req.body.depositorName){ //Dpnm Header에 있는 정보 아님
          callback(null,"success");
       }else{
          callback("incorrect depositor");
@@ -841,9 +841,11 @@ router.getBalnaceShop = function(req,res){
    })
 }
 
+
+
 router.getWithdrawalListShop = function(req,res){
    console.log("getWithdrawalList comes");
-   mariaDB.getWithdrawalList(req.body.takitId,function(err,result){
+   mariaDB.getWithdrawalList(req.body.takitId,req.body.lastWithdNO,req.body.limit,function(err,result){
       if(err){
          res.send(JSON.stringify({"result":"failure","error":err}));
       }else{
@@ -863,7 +865,6 @@ router.branchNameAutoComplete = function(req,res){
       }
 	});
 };
-
 
 router.getBalanceCash = function(req,res){
    console.log("getBalanceCash comes(req:"+JSON.stringify(req.body)+")");

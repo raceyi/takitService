@@ -443,7 +443,6 @@ router.getShopInfo=function(req,res){
 			console.log(err);
 			res.send(JSON.stringify({"result":"failure"}));
 		}else{
-			delete shopInfo.account;
 			delete shopInfo.orderNumberCounter;
 			delete shopInfo.orderNumberCounterTime;
 
@@ -532,6 +531,20 @@ router.getSalesAndSatas = function(req,res){
 
 }
 
+
+router.getAccount = function(req,res){
+	console.log("getAccountShop start");
+
+	mariaDB.getAccountShop(req.body.takitId,function(err,result){
+		if(err){
+			console.log(err);
+			res.send(JSON.stringify({"result":"failure","error":err}));
+		}else{
+			console.log(result);
+			res.send(JSON.stringify({"result":"success","account":result.account, "bankName":result.bankName, "bankCode":result.bankCode, "depositer":result.depositer}));
+		}
+	});
+}
 
 
 /*

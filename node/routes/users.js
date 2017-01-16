@@ -471,15 +471,16 @@ router.modifyUserInfo = function(req,res){
       mariaDB.getUserInfo(req.session.uid,function(err,result){
          if(err){
             console.log(err);
-            res.send(JSON.stringify({"result":"failure", "error":"password fail"}));
+            res.send(JSON.stringify({"result":"failure", "error":err}));
          }else{
             console.log("getUserInfo success");
-
-            if(req.body.oldPassword === result.password){
+				let secretOldPwd = crypto.createHash('sha256').update(req.body.oldPassword+result.salt).digest('hex');
+				
+            if(secretOldPwd === result.password){
                mariaDB.updateUserInfo(userInfo,function(err,result){
                   if(err){
                      console.log(err);
-                     res.send(JSON.stringify({"result":"failure"}));
+                     res.send(JSON.stringify({"result":"failure","error":err}));
                   }else{
                      console.log("modify UserInfo:"+JSON.stringify(result));
                      res.send(JSON.stringify({"result":"success"}));
@@ -495,7 +496,7 @@ router.modifyUserInfo = function(req,res){
       mariaDB.updateUserInfo(userInfo,function(err,result){
          if(err){
             console.log(err);
-            res.send(JSON.stringify({"result":"failure"}));
+            res.send(JSON.stringify({"result":"failure","error":"hasn't oldPassword"}));
          }else{
             console.log("modify UserInfo:"+JSON.stringify(result));
             res.send(JSON.stringify({"result":"success"}));

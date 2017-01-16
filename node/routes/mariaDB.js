@@ -110,7 +110,11 @@ function decryptObj(obj){
 		
 	if(obj.hasOwnProperty('userPhone') && obj.userPhone !== null){
 		obj.userPhone=decryption(obj.userPhone,config.pPwd);
-	}	
+	}
+	
+	if(obj.hasOwnProperty('account') && obj.account !== null){
+      obj.account=decryption(obj.account,config.aPwd);
+   }	
 }
 
 
@@ -677,14 +681,14 @@ router.queryCafeHome=function(req, res){
 		  if (err){
 			  console.log(err);
 		  }else{
-			  console.dir("[queryCafeHome function's shopInfo]:"+result);
 			  if(result.info.numRows==="0"){
 				  console.log("queryCafeHome function's query failure");
 			  }else{
-				  result.forEach(function(item) {
-			            console.log(JSON.stringify(item));
-			            cafeHomeReponse.shopInfo=item;
-			            queryCafeHomeMenu(cafeHomeReponse,req, res);
+				  result.forEach(function(item){
+						delete item.account;
+			         console.log(JSON.stringify(item));
+			         cafeHomeReponse.shopInfo=item;
+			         queryCafeHomeMenu(cafeHomeReponse,req, res);
 				  });
 			  }
 		  }
@@ -839,6 +843,7 @@ router.getShopInfo=function(takitId,next){  // shopInfo 조회해서 next로 넘
 			if(result.info.numRows==="0"){
 				next("inexistant shop");
 			}else{
+				delete result[0].account;
 				decryptObj(result[0]);
 				next(null,result[0]);
 			}
@@ -866,6 +871,26 @@ router.getDiscountRate = function(takitId,next){
 	});
 
 };
+
+router.getAccountShop = function(takitId,next){
+   console.log("enter getAccountShop function");
+   let command="SELECT account,bankName,bankCode,depositer FROM shopInfo WHERE takitId =?";
+   let values=[takitId];
+   performQueryWithParam(command,values,function(err,result) {
+      if (err){
+         console.log("getAccountShop func Unable to query. Error:", JSON.stringify(err));
+         next(err);
+      }else{
+         console.dir("[exist getAccountShop]:"+result.info.numRows);
+         if(result.info.numRows==="0"){
+            next("incorrect takitId");
+         }else{
+				decryptObj(result[0]);
+            next(null,result[0]);
+         }
+      }
+   });
+}
 
 router.updateNotiMember=function(userId,takitId,onMyShopList,offMyShopList,next){
    let command="UPDATE shopUserInfo SET GCMNoti=(case when userId=? then 'on'"
@@ -1543,6 +1568,11 @@ router.getBalanceCash = function(cashId,next){
 
 router.insertCashList = function(cashList,next){
    console.log("insertCashList comes");
+
+	if(cashList.account !== undefined){
+		cashList.account = encryption(cashList.account,config.aPwd);
+   }
+
 	let command = "INSERT INTO cashList(cashId,transactionType,amount,fee, nowBalance,transactionTime,depositTime, bankCode, bankName, branchCode, branchName, account,confirm)"+
                   "VALUES(:cashId,:transactionType,:amount,:fee, :nowBalance,:transactionTime,:depositTime,:bankCode, :bankName,:branchCode, :branchName, :account,:confirm)";
 
@@ -1580,6 +1610,11 @@ router.getCashList=function(cashId,lastTuno,limit,next){
          }else{
             console.log("getCashList find cashList");
             delete result.info;
+				for(let i=0; i<result.length; i++){
+					if(result[i].account !== null){
+						decryptObj(result[i]);
+					}
+				}
             next(null,result);
          }
       }
@@ -1843,11 +1878,17 @@ router.insertWithdrawalList = function(takitId, amount, fee, nowBalance, next){
    });
 }
 
-router.getWithdrawalList = function(takitId,next){
+router.getWithdrawalList = function(takitId,lastWithdNO,limit,next){
    console.log("mariaDB.getWithdrawalList start!!");
 
-   let command = "SELECT *FROM withdrawalList where takitId = ?"
-   let values = [takitId];
+   let command;
+   if(lastWithdNO == -1){
+      command = "SELECT * FROM withdrawalList WHERE takitId =? AND withdNO > ? ORDER BY withdNO DESC LIMIT "+limit;
+   }else{
+      command = "SELECT * FROM withdrawalList WHERE takitId =? AND withdNO < ? ORDER BY withdNO DESC LIMIT "+limit;
+   }
+   let values = [takitId, lastWithdNO];
+
 
    performQueryWithParam(command, values, function(err,result){
       if(err){
@@ -1856,10 +1897,11 @@ router.getWithdrawalList = function(takitId,next){
       }else{
          console.log("result:"+JSON.stringify(result));
          if(result.info.numRows === '0'){
-            next("invalid takitId");
+            next(null,'0');
          }else{
-            console.log("getWithdrawalList find cashList");
-            next(null,result[0]);
+            console.log("getWithdrawalList success");
+            delete result.info;
+            next(null,result);
          }
       }
    });

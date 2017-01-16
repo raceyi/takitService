@@ -56,7 +56,7 @@ function sendOrderMSGUser(order,userInfo,next){
          GCM.messageId = messageId;
          const SMS = {};
          SMS.title = GCM.title;
-         SMS.content = GCM.content+"  MyPage 업데이트 버튼을 눌러주세요";
+         SMS.content = GCM.content+" 문자 전송을 원하지 않으시면 주문 알림 버튼을 눌러주세요.";
          noti.setRedisSchedule(order.userId+"_gcm_user_"+messageId,order.userPhone,SMS,callback);
       },function(result,callback){
          noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId], userInfo.platform, callback);
@@ -107,7 +107,7 @@ function sendOrderMSGShop(order, shopUserInfo,next){
       GCM.messageId = messageId;
       const SMS = {};
       SMS.title = GCM.title;
-      SMS.content = GCM.content+" 주문테이블을 업데이트 해주세요";
+      SMS.content = "주문번호 "+order.orderNO+" 새로고침 버튼을 눌러주세요";
       noti.setRedisSchedule(shopUserInfo.userId+"_gcm_shop_"+messageId,shopUserInfo.phone,SMS,callback);
    },function(result,callback){
       noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform, callback);
@@ -156,16 +156,10 @@ router.saveOrder=function(req, res){
 		shopInfo = result;
 		console.log("shopInfo:"+JSON.stringify(shopInfo));
 		let orderedTime=order.orderedTime;
-		console.log("timezone:"+shopInfo.timezone);
-		console.log("orderTime:"+orderedTime);
 
 		let UTCOrderTime=new Date(orderedTime);
-    ////////////////////////////////////////
-    let currTime=new Date();
-    console.log("getTime:"+currTime.getTime()+" inputTime:"+UTCOrderTime.getTime());
-    console.log("UTCOrderTime in ISO:"+ UTCOrderTime.toISOString());
-    /////////////////////////////////////
-    getTimezoneLocalTime(shopInfo.timezone,UTCOrderTime.getTime(),callback);
+		let currTime=new Date();
+		getTimezoneLocalTime(shopInfo.timezone,UTCOrderTime.getTime(),callback);
 	}],function(err,localOrderedTime){
 		if(err){
 			console.log(err);
