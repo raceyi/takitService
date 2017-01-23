@@ -156,9 +156,10 @@ router.existEmailAndPassword=function(email, password,next){
       	if(result.info.numRows==="0"){
         		next("invalidId");
     		}else{
+				console.log(result);
         		let userInfo = result[0];
         		let secretPassword = crypto.createHash('sha256').update(password+userInfo.salt).digest('hex');
-       
+      
         		if(secretPassword === userInfo.password){
         			console.log("password success!!");
         			decryptObj(userInfo);
@@ -314,6 +315,59 @@ router.deleteUserInfo=function(userId,next){
     });
 }
 
+router.updateUserInfo=function(userInfo,next){
+   console.log("update UserInfo function start");
+   const values={};
+   values.email = encryption(userInfo.email,config.ePwd);
+   values.salt = null;
+   values.password = null;
+   values.phone=null;
+   values.name = userInfo.name;
+
+   if(userInfo.hasOwnProperty('password') && userInfo.password !== null){
+      values.salt = crypto.randomBytes(16).toString('hex');
+      values.password = crypto.createHash('sha256').update(userInfo.password+values.salt).digest('hex');
+   }
+   if(userInfo.hasOwnProperty('phone') && userInfo.phone !== null){
+     values.phone = encryption(userInfo.phone,config.pPwd);
+   }
+
+   let command;
+   if(userInfo.hasOwnProperty('userId') && userInfo.userId !== null){
+     values.userId = userInfo.userId;
+     command = "UPDATE userInfo set password=:password, salt=:salt, email=:email, phone=:phone, name=:name where userId=:userId";
+   }else{
+     command = "UPDATE userInfo set password=:password, salt=:salt where email=:email";
+   }
+
+   performQueryWithParam(command,values,function(err,result){
+     if(err){
+        console.log("updateUserInfo func Unable to query. Error:", JSON.stringify(err, null, 2));
+        next(err);
+     }else{
+        console.log("Query succeeded. "+JSON.stringify(result));
+        next(null,"success");
+     }
+   });
+}
+
+
+
+router.updateSessionInfo = function(userInfo,next){
+   let command = "UPDATE userInfo set sessionId=:sessionId, lastLoginTime=:lastLoginTime, multiLoginCount=:multiLoginCount where userId=:userId";
+
+   performQueryWithParam(command,userInfo,function(err,result){
+     if(err){
+        console.log("updateUserInfo func Unable to query. Error:", JSON.stringify(err));
+        next(err);
+     }else{
+        console.log("updateSessionInfo Query succeeded. "+JSON.stringify(result));
+        next(null,"success");
+     }
+   });
+};
+
+
 //shop user 정보 가져옴.
 
 router.existShopUser=function(referenceId,next){
@@ -390,43 +444,6 @@ router.updateShopRefId= function(userId,referenceId,next){
 	});
 }
 
-router.updateUserInfo=function(userInfo,next){
-	console.log("update UserInfo function start");
-   const values={};
-   values.email = encryption(userInfo.email,config.ePwd);
-   values.salt = null;
-   values.password = null;
-   values.phone=null;
-   values.name = userInfo.name;
-
-   if(userInfo.hasOwnProperty('password') && userInfo.password !== null){
-      values.salt = crypto.randomBytes(16).toString('hex');
-      values.password = crypto.createHash('sha256').update(userInfo.password+values.salt).digest('hex');
-   }
-   if(userInfo.hasOwnProperty('phone') && userInfo.phone !== null){
-     values.phone = encryption(userInfo.phone,config.pPwd);
-   }
-
-   let command;
-   if(userInfo.hasOwnProperty('userId') && userInfo.userId !== null){
-     values.userId = userInfo.userId;
-     command = "UPDATE userInfo set password=:password, salt=:salt, email=:email, phone=:phone, name=:name where userId=:userId";
-   }else{
-     command = "UPDATE userInfo set password=:password, salt=:salt where email=:email";
-   }
-
-   performQueryWithParam(command,values,function(err,result){
-     if(err){
-        console.log("updateUserInfo func Unable to query. Error:", JSON.stringify(err, null, 2));
-        next(err);
-     }else{
-        console.log("Query succeeded. "+JSON.stringify(result));
-        next(null,"success");
-     }
-   });
-}
-
-
 router.insertCashId = function(userId,cashId, password, next){
 
    let salt = crypto.randomBytes(16).toString('hex');
@@ -448,7 +465,6 @@ router.insertCashId = function(userId,cashId, password, next){
 			}
       }
 	});
-
 };
 
 router.updateCashPassword=function(userId,cashId,password,next){
@@ -531,7 +547,7 @@ router.getCashId = function(userId,next){
 
 router.checkCashPwd = function(cashId, password, next){
    console.log("checkCashPwd function start");
-
+	
    let command = "SELECT password, salt FROM cash WHERE cashId=?";
    let values = [cashId];
 
@@ -546,12 +562,14 @@ router.checkCashPwd = function(cashId, password, next){
             console.log("checkCashPwd function success");
 
             let secretPwd = crypto.createHash('sha256').update(password+result[0].salt).digest('hex');
-
+				
+				console.log("secret:"+secretPwd);
+				console.log("pwd:"+result[0].password);
             if(secretPwd === result[0].password){
                console.log("correct password");
                next(null,"correct cashPwd");
             }else{
-               next("invalid cash Password");
+               next("invalid cash password");
             }
 
          }
@@ -1496,35 +1514,6 @@ router.getCashInfo=function(cashId,next){
       }
    });
 
-}
-
-router.checkCashPwd = function(cashId, password, next){
-   console.log("checkCashPwd function start");
-
-   let command = "SELECT password, salt FROM cash WHERE cashId=?";
-   let values = [cashId];
-
-   performQueryWithParam(command, values, function(err,result) {
-      if(err){
-         console.log("checkCashPwd function err:"+JSON.stringify(err));
-         next(err);
-      }else{
-         if(result.info.numRows==='0'){
-            next("invalid Id");
-         }else{
-            console.log("checkCashPwd function success");
-
-            let secretPwd = crypto.createHash('sha256').update(password+result[0].salt).digest('hex');
-
-            if(secretPwd === result[0].password){
-               console.log("correct password");
-               next(null,"correct password");
-            }else{
-               next("invalid Password");
-            }
-         }
-      }
-   });
 }
 
 

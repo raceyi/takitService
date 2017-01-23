@@ -63,8 +63,108 @@ function checkFacebookToken(appToken,token,success,fail){
 	 });
 }
 
+router.preventMultiLogin=function(req,res){
+   console.log("preventMultiLogin start!");
 
-router.facebooklogin = function(req, res){
+   let userInfo = {};
+   async.waterfall([function(callback){
+      mariaDB.getUserInfo(req.session.uid,callback);
+   },function(result,callback){
+      userInfo=result;
+      let GCM = {};
+      GCM.title = "다른 기기에서 로그인하여 로그아웃 됩니다.";
+      GCM.content = "본인이 아닐 시 고객센터에 문의 해주세요.";
+      GCM.GCMType = "multiLogin";
+      GCM.custom = null;
+
+      noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId],userInfo.platform,callback);
+   },function(result,callback){
+		console.log(userInfo.sessionId);
+		redisCli.del(userInfo.sessionId,callback);
+	},function(result,callback){
+		console.log("del result:"+result);
+      let nowTime = new Date();
+      let beforeLastTime = new Date(userInfo.lastLoginTime); // UTC time. +32400000 -> localTime
+                                                                  //usrInfo.lastLoginTime 그대로 넣으면 로컬시
+      let timeDiff = nowTime.getTime()-beforeLastTime.getTime()+32400000; //마지막 로그인 시간과 새로 로그인 하는 시간 차이
+
+      let sessionInfo = {};
+
+      if(timeDiff <= 300000){ //마지막 로그인한지 5분이내에 다른기기에서 로그인 시도 했으면 count 증가
+         sessionInfo.multiLoginCount = userInfo.multiLoginCount+1;
+      }else{
+         sessionInfo.multiLoginCount = 1;
+      }
+
+      sessionInfo.sessionId = "sess:"+req.sessionID //now sessionID
+      sessionInfo.lastLoginTime = nowTime.toISOString();
+		sessionInfo.userId = req.session.uid;
+		
+      mariaDB.updateSessionInfo(sessionInfo,callback);
+   
+   }],function(err,result){
+      if(err){
+         console.log(err);
+         res.send(JSON.stringify({"result":"failure","error":err}));
+      }else{
+         console.log(result);
+         delete userInfo.password;
+         delete userInfo.salt;
+         delete userInfo.pushId;
+         delete userInfo.userId;
+
+         res.send(JSON.stringify({"result":"success","userInfo":userInfo}));
+      }
+   });
+}
+
+function checkSession(userInfo,sessionId,next){
+   console.log("checkSession");
+   async.waterfall([function(callback){
+      if(userInfo.sessionId===null || userInfo.sessionId === sessionId){ //이전 session과 현재 session비교
+         callback(null,"correct session");
+      }else{
+         console.log("sessionId:"+userInfo.sessionId);
+         async.waterfall([function(callback){
+            redisCli.get(userInfo.sessionId,callback); //이전 session get해서 uid있으면 살아있는 세션
+         },function(result,callback){
+            if(result === null){
+               callback(null,"session store is null");
+            }else{
+               let beforeSession = JSON.parse(result);
+               if(beforeSession.hasOwnProperty('uid') && beforeSession.uid === userInfo.userId){
+                  callback("multiLogin");
+               }else{
+                  callback(null,"killed session");
+               }
+            }
+         }],callback);
+      }
+   },function(result,callback){ //새로운 session 정보 및 login 시간 업데이트
+      console.log(result);
+      let sessionInfo = {};
+      sessionInfo.userId = userInfo.userId;
+      sessionInfo.sessionId = sessionId
+      sessionInfo.multiLoginCount = 1;
+      sessionInfo.lastLoginTime = new Date().toISOString();
+
+      mariaDB.updateSessionInfo(sessionInfo,callback);
+
+
+   }],function(err,result){
+      if(err){
+         console.log(err);
+         next(err);
+      }else{
+         console.log(result);
+         next(null,result);
+      }
+   });
+}
+
+
+
+router.facebookLogin = function(req, res){
 	var data = req.body;
 	console.log("facebooklogin:"+JSON.stringify(req.body));
 
@@ -147,6 +247,34 @@ router.kakaoLogin=function(req,res){//referenceId 확인해서 로그인.
 	});
 }
 
+router.emailLogin=function(req,res){
+	mariaDB.existEmailAndPassword(req.body.email,req.body.password,function(err,userInfo){
+    	const body={};
+    	
+    	if(err){
+			console.log(err);
+      	body.result="invalidId";
+      	res.send(JSON.stringify(body));
+    	}else{
+      	body.result="success";
+        	// save user id in session
+
+      	req.session.uid=userInfo.userId;
+      	console.log("login-id:"+userInfo.userId);
+      		
+         delete userInfo.password;
+         delete userInfo.salt;
+         delete userInfo.userId;
+         delete userInfo.pushId;
+         delete userInfo.countryCode;
+
+         body.userInfo=userInfo;
+
+      	res.send(JSON.stringify(body));
+      }	  
+	});
+};
+
 
 function validityCheck(email,phone){
     console.log("come validityCheck function");
@@ -223,44 +351,24 @@ router.signup=function(req,res){
 
 };
 
-router.emailLogin=function(req,res){
-	mariaDB.existEmailAndPassword(req.body.email,req.body.password,function(err,userInfo){
-    	const body={};
-    	
-    	if(err){
-			console.log(err);
-      	body.result="invalidId";
-      	res.send(JSON.stringify(body));
-    	}else{
-      	body.result="success";
-        	// save user id in session
-
-      	req.session.uid=userInfo.userId;
-      	console.log("login-id:"+userInfo.userId);
-      		
-         delete userInfo.password;
-         delete userInfo.salt;
-         delete userInfo.userId;
-         delete userInfo.pushId;
-         delete userInfo.countryCode;
-
-         body.userInfo=userInfo;
-
-      	res.send(JSON.stringify(body));
-      }	  
-	});
-};
 
 router.logout=function(req,res){
-	req.session.destroy(function(err){
-		if(err){ 
-			console.log(err);
-			res.end(JSON.stringify({"result":"failure"}));
-		}else{
-			console.log("destroy success");
-			res.end(JSON.stringify({"result":"success"}));
-		}
-	});
+   console.log("logout start!!");
+   mariaDB.updatePushId(req.session.uid,null,null,function(err,result){
+      if(err){
+         res.send(JSON.stringify({"result":"failure","error":err}));
+      }else{
+         req.session.destroy(function(err){
+            if(err){
+               console.log(err);
+               res.send(JSON.stringify({"result":"failure","error":err}));
+            }else{
+               console.log("destroy success");
+               res.send(JSON.stringify({"result":"success"}));
+            }
+         });
+      }
+   });
 };
 
 router.getUserPaymentInfo=function(req,res){
@@ -603,6 +711,5 @@ router.getDiscountRate = function(req,res){
       }
    });
 }
-
 
 module.exports = router;

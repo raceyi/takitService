@@ -55,6 +55,56 @@ router.sendSMS=function(content,receivers){
 }
 
 
+router.sendLMS=function(data){
+   console.log("comes sendLMS : "+JSON.stringify(data));
+
+   var credential = 'Basic '+new Buffer(config.SMS.APPID+':'+config.SMS.APIKEY).toString('base64');
+
+   var data = {
+     "sender"     : config.SMS.SENDER,
+     "receivers"  : data.receivers,
+     "subject"    : data.subject,
+     "content"    : data.content
+   }
+   var body = JSON.stringify(data);
+	
+	console.log(body);
+
+   var options = {
+     host: 'api.bluehouselab.com',
+     port: 443,
+     path: '/smscenter/v1.0/sendlms',
+     headers: {
+       'Authorization': credential,
+       'Content-Type': 'application/json; charset=utf-8',
+       'Content-Length': Buffer.byteLength(body)
+     },
+     method: 'POST'
+   };
+
+	console.log(options);
+   var req = https.request(options, function(res) {
+     console.log(res.statusCode);
+     var body = "";
+     res.on('data', function(d) {
+       body += d;
+     });
+     res.on('end', function(d) {
+      if(res.statusCode==200){
+         console.log(JSON.parse(body));
+      }else{
+         console.log(body);
+      }
+     });
+   });
+   req.write(body);
+   req.end();
+   req.on('error', function(e) {
+      console.error(e);
+   });
+}
+
+
 router.setRedisSchedule = function(keyName,phone,SMS,next){
 	console.log("start setRedisSchedule:"+keyName);
 	scheduler.schedule({ key: keyName, expire: 60000, handler: function(){
@@ -70,6 +120,27 @@ router.setRedisSchedule = function(keyName,phone,SMS,next){
 			}
 		});
 }
+
+router.setRedisScheduleLMS = function(keyName,phone,SMS,next){
+   console.log("start setRedisSchedule:"+keyName);
+   scheduler.schedule({ key: keyName, expire: 60000, handler: function(){
+      console.log("start SMS event"+SMS.content);
+         let data = {};
+         data.subject = SMS.title;
+         data.content = SMS.content;
+         data.receivers = [phone];
+         router.sendLMS(data);
+      }}, function(err){
+         if (err){
+            console.error(err);
+            next(err);
+         }else{
+            console.log('scheduled successfully!');
+            next(null,"success");
+         }
+      });
+}
+
 
 router.sendGCM=function(API_KEY,MSG,pushId, platform, next){
 
@@ -115,7 +186,7 @@ router.sendGCM=function(API_KEY,MSG,pushId, platform, next){
 	sender.send(message, {"registrationTokens":pushId}, 4, function (err, result) {
         if(err){
            console.log("err sender:"+JSON.stringify(err));
-           next(err);
+           next("gcm:"+err);
         }else{
            console.log("success sender:"+JSON.stringify(result));
            next(null,result);

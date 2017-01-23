@@ -87,15 +87,21 @@ router.RetrieveAgreementAccountTransactionHistory=function(startDate, endDate,pa
    form.endDate = endDate;
 	form.pageNO = pageNO;
 	form.num = num;
-   request.post({url:'https://takit.biz:8443/NHPintech/nhpintechServlet' , form:form}, function (err, response, result){
-      let body = JSON.parse(result);
+
+	console.log(form);
+   request.post({url:'http://localhost:8080/NHPintech/nhpintechServlet' , form:form}, function (err, response, result){
+		let body = JSON.parse(result);
       if(err){
          console.log("RetrieveAgreementAccountTransactionHistory error"+JSON.stringify(err));
          next(err);
       }else if(body.status ==="failure"){
          console.log("body:"+JSON.stringify(body)); // Show the HTML for the Google homepage.
          console.log("response:"+JSON.stringify(response));
-         next(body.Header.Rsms);
+			if(body.Header.Rpcd === "AC002"){
+				next("no service time");
+			}else{
+         	next(body.Header.Rsms);
+			}
       }else if(!err && body.status ==="OK"){
          console.log("body:"+JSON.stringify(body)); // Show the HTML for the Google homepage.
          console.log("response:"+JSON.stringify(response));
@@ -121,7 +127,7 @@ router.ReceivedTransferAccountNumber=function(account,amount,next){
    form.command = "ReceivedTransferAccountNumber"; //약정계좌 거래내역 조회
    form.account = account;
    form.amount = amount;
-   request.post({url:'https://takit.biz:8443/NHPintech/nhpintechServlet' , form:form}, function (err, response, result){
+   request.post({url:'http://localhost:8080/NHPintech/nhpintechServlet' , form:form}, function (err, response, result){
       let body = JSON.parse(result);      
 		if(err){
          console.log(err);
@@ -129,7 +135,11 @@ router.ReceivedTransferAccountNumber=function(account,amount,next){
       }else if(body.status ==="failure"){
          console.log("body:"+JSON.stringify(body)); // Show the HTML for the Google homepage.
          console.log("response:"+JSON.stringify(response));
-         next(body.Header.Rsms);
+			if(body.Header.Rpcd === "AC002"){
+            next("no service time");
+         }else{
+            next(body.Header.Rsms);
+         }
       }else if(!err && body.status ==="OK"){
          console.log("body:"+JSON.stringify(body)); // Show the HTML for the Google homepage.
          console.log("response:"+JSON.stringify(response));
@@ -156,7 +166,7 @@ router.ReceivedTransferOtherBank=function(bankCode,account,amount,next){
    form.bankCode = bankCode;
    form.account = account;
 	form.amount = amount;
-   request.post({url:'https://takit.biz:8443/NHPintech/nhpintechServlet' , form:form}, function (err, response, result){
+   request.post({url:'http://localhost:8080/NHPintech/nhpintechServlet' , form:form}, function (err, response, result){
       let body = JSON.parse(result);
 		if(err){
          console.log(err);
@@ -164,7 +174,11 @@ router.ReceivedTransferOtherBank=function(bankCode,account,amount,next){
       }else if(body.status ==="failure"){
          console.log("body:"+JSON.stringify(body)); // Show the HTML for the Google homepage.
          console.log("response:"+JSON.stringify(response));
-         next(body.Header.Rsms);
+			if(body.Header.Rpcd === "AC002"){
+            next("no service time");
+         }else{
+            next(body.Header.Rsms);
+         }
       }else if(body.status ==="OK"){
          console.log("body:"+JSON.stringify(body)); // Show the HTML for the Google homepage.
          console.log("response:"+JSON.stringify(response));
@@ -192,7 +206,7 @@ router.InquireDepositorAccountNumber=function(account,next){
    const form = {};
    form.command = "InquireDepositorAccountNumber";
    form.account = account;
-   request.post({url:'https://takit.biz:8443/NHPintech/nhpintechServlet' , form:form}, function (err, response, result) {
+   request.post({url:'http://localhost:8080/NHPintech/nhpintechServlet' , form:form}, function (err, response, result) {
       let body = JSON.parse(result);
 		if(err){
          console.log(err);
@@ -200,7 +214,11 @@ router.InquireDepositorAccountNumber=function(account,next){
       }else if(body.status ==="failure"){
          console.log("body:"+JSON.stringify(body)); // Show the HTML for the Google homepage.
          console.log("response:"+JSON.stringify(response));
-         next(body.Header.Rsms);
+			if(body.Header.Rpcd === "AC002"){
+            next("no service time");
+         }else{
+            next(body.Header.Rsms);
+         }
       }else if(!err && body.status ==="OK"){
          console.log("body:"+JSON.stringify(body)); // Show the HTML for the Google homepage.
          console.log("response:"+JSON.stringify(response));
@@ -233,7 +251,7 @@ router.InquireDepositorOtherBank=function(bankCode,account,next){
    form.command = "InquireDepositorOtherBank"; //약정계좌 거래내역 조회
    form.bankCode = bankCode;
    form.account = account;
-   request.post({url:'https://takit.biz:8443/NHPintech/nhpintechServlet' , form:form}, function (err, response, result) {
+   request.post({url:'http://localhost:8080/NHPintech/nhpintechServlet' , form:form}, function (err, response, result) {
       let body = JSON.parse(result);
 		if(err){
          console.log(err);
@@ -241,7 +259,11 @@ router.InquireDepositorOtherBank=function(bankCode,account,next){
       }else if(body.status ==="failure"){
          console.log("body:"+JSON.stringify(body)); // Show the HTML for the Google homepage.
          console.log("response:"+JSON.stringify(response));
-         next(body.Header.Rsms);
+			if(body.Header.Rpcd === "AC002"){
+            next("no service time");
+         }else{
+            next(body.Header.Rsms);
+         }
       }else if(!err && body.status ==="OK"){
          console.log("body:"+JSON.stringify(body)); // Show the HTML for the Google homepage.
          console.log("response:"+JSON.stringify(response));
@@ -288,6 +310,8 @@ function checkAccountHistory(pageNO,count,startDate,next){
       pageNO++;
       count = 0;
    }
+
+	console.log(pageNO+" "+count+" "+" "+startDate);
    async.whilst(function(){return CtntFlag},
       function(callback){
          router.RetrieveAgreementAccountTransactionHistory(startDate,startDate,pageNO,"100",function(err,result){
@@ -337,7 +361,7 @@ function checkAccountHistory(pageNO,count,startDate,next){
 						
 						console.log("cashHistory iteration : "+JSON.stringify(result));
                   const GCM ={};
-                  GCM.title = "적립된 캐쉬를 확인해주세요";
+                  GCM.title = "입금된 캐쉬를 확인해주세요";
                   GCM.content = cashList.amount+"캐쉬 확인 바로가기";
                   GCM.custom = JSON.stringify(cashList);
                   GCM.GCMType = "cash";
@@ -383,15 +407,27 @@ router.checkCashInstantly = function(req,res){
    let startDate = beforeTime.substring(0,10).replace(/-/gi,'');
 
    async.waterfall([function(callback){
+		redisCli.exists('cash_'+startDate,callback);
+   },function(result,callback){
+      if(result === 0){ //key가 없으면
+         redisCli.hmset('cash_'+startDate,'pageNO','1','count',0,function(err,result){
+            if(err){
+               console.log(err);
+               callback(err);
+            }else{
+               console.log(result);
+               redisCli.expire('cash_'+startDate, 87600); //60*60*24 + 60*20
+            }
+         });
+      }else{ //있으면
+         callback(null,"key is already exists")
+      }
+   },function(result,callback){
 		console.log("startDate:"+startDate);
       redisCli.hgetall('cash_'+startDate,callback);
    },function(result,callback){
 		console.log(result);
-		if(result !== null){
-      	checkAccountHistory(result.pageNO,parseInt(result.count),startDate,callback);
-		}else{
-			callback("redis cash_"+startDate+"is null");
-		}
+      checkAccountHistory(result.pageNO,parseInt(result.count),startDate,callback);
    }],function(err,result){
       if(err){
          console.log(err);
@@ -404,38 +440,33 @@ router.checkCashInstantly = function(req,res){
 }
 
 setInterval(function(){
-   let nowTime = getTimezoneLocalTime('Asia/Seoul', new Date().getTime()); //농협이 'Asia/Seoul' 이므로 이시간으로 맞춰줌
-   let beforeTime = getTimezoneLocalTime('Asia/Seoul',new Date().getTime()-350000); //지금시간 local시간으로 -6분전 시간으로 계산
+   let beforeTime = getTimezoneLocalTime('Asia/Seoul',new Date().getTime()-350000); //지금시간 local시간으로 -6분전 시간으로 계산 //농협이 'Asia/Seoul' 이므로 이시간으로 맞춰줌
    //redis reset을 어떻게 한번만...? 시키나ㅜㅜ expire 시간 24시간+10분으로 설정하면 될 듯
    let startDate = beforeTime.substring(0,10).replace(/-/gi,'');
 
 
    async.waterfall([function(callback){
-      if(nowTime.substring(11,13) === "23" && nowTime.substring(14,16) >= 54){
-         let tomorrow = getTimezoneLocalTime('Asia/Seoul', new Date().getTime()+1000000);
-         let tomStartDate = tomorrow.substring(0,10).replace(/-/gi,'');
-         redisCli.hmset('cash_'+tomStartDate,'pageNO','1','count',0,function(err,result){
+      redisCli.exists('cash_'+startDate,callback);
+   },function(result,callback){
+      if(result === 0){ //key가 없으면
+         redisCli.hmset('cash_'+startDate,'pageNO','1','count',0,function(err,result){
             if(err){
                console.log(err);
                callback(err);
             }else{
                console.log(result);
-               redisCli.expire('cash_'+tomStartDate, 87000); //60*60*24 + 60*10
+               redisCli.expire('cash_'+startDate, 87600); //60*60*24 + 60*20
             }
          });
-      }else{
-         callback(null,"not 23:54");
+      }else{ //있으면
+         callback(null,"key is already exists")
       }
    },function(result,callback){
       console.log("startDate:"+startDate);
       redisCli.hgetall('cash_'+startDate,callback);
    },function(result,callback){
       console.log(result);
-      if(result !== null){
-         checkAccountHistory(result.pageNO,parseInt(result.count),startDate,callback);
-      }else{
-         callback("redis cash_"+startDate+"is null");
-      }
+      checkAccountHistory(result.pageNO,parseInt(result.count),startDate,callback);
    }],function(err,result){
       if(err){
          console.log("setInterval checkAccountHistory error: "+JSON.stringify(err));
@@ -445,13 +476,10 @@ setInterval(function(){
    });
 },300000);
 
-
 //cash 수동 확인 -> cashId는 있고, 통장인자내역에 cashId를 넣지 않아서, user가 정보 넣고 조회 할 때
 //depositDate, depositAmount, bankName,
 router.checkCashUserself = function(req,res){
    console.log("checkCashUserself start");
-
-
    let nowTime = getTimezoneLocalTime('Asia/Seoul', new Date().getTime()); //농협이 'Asia/Seoul' 이므로 이시간으로 맞춰줌
    let beforeTime = getTimezoneLocalTime('Asia/Seoul',new Date().getTime()-350000); //지금시간 local시간으로 -6분전 시간으로 계산
    //redis reset을 어떻게 한번만...? 시키나ㅜㅜ expire 시간 24시간+10분으로 설정하면 될 듯
@@ -469,14 +497,26 @@ router.checkCashUserself = function(req,res){
          callback("count excess");
       }
    },function(result,callback){
+      redisCli.exists('cash_'+startDate,callback);
+   },function(result,callback){
+      if(result === 0){ //key가 없으면
+         redisCli.hmset('cash_'+startDate,'pageNO','1','count',0,function(err,result){
+            if(err){
+               console.log(err);
+               callback(err);
+            }else{
+               console.log(result);
+               redisCli.expire('cash_'+startDate, 87600); //60*60*24 + 60*20
+            }
+         });
+      }else{ //있으면
+         callback(null,"key is already exists")
+      }
+   },function(result,callback){
       redisCli.hgetall("cash_"+startDate,callback);
    },function(result,callback){
       console.log(result);
-      if(result !== null){
-         checkAccountHistory(result.pageNO,parseInt(result.count),startDate,callback);
-      }else{
-         callback("redis cash_"+startDate+"is null");
-      }
+      checkAccountHistory(result.pageNO,parseInt(result.count),startDate,callback);
    },function(result,callback){
 		console.log("req.body:"+JSON.stringify(req.body));
       cashList.depositMemo = req.body.depositMemo.toUpperCase();
@@ -490,7 +530,7 @@ router.checkCashUserself = function(req,res){
       mariaDB.getPushId(req.session.uid,callback);
    },function(result,callback){
       const GCM ={};
-      GCM.title = "적립된 캐쉬를 확인해주세요";
+      GCM.title = "입금된 캐쉬를 확인해주세요";
       GCM.content = cashList.amount+"캐쉬 확인 바로가기";
       GCM.custom = JSON.stringify(cashList);
       GCM.GCMType = "cash";

@@ -56,8 +56,8 @@ function sendOrderMSGUser(order,userInfo,next){
          GCM.messageId = messageId;
          const SMS = {};
          SMS.title = GCM.title;
-         SMS.content = GCM.content+" 문자 전송을 원하지 않으시면 주문 알림 버튼을 눌러주세요.";
-         noti.setRedisSchedule(order.userId+"_gcm_user_"+messageId,order.userPhone,SMS,callback);
+         SMS.content = GCM.content+"\n상단바 알림을 클릭하시면 문자를 받지 않을 수 있습니다.";
+         noti.setRedisScheduleLMS(order.userId+"_gcm_user_"+messageId,order.userPhone,SMS,callback);
       },function(result,callback){
          noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId], userInfo.platform, callback);
       }],function(err,result){
@@ -149,8 +149,8 @@ router.saveOrder=function(req, res){
 	let shopInfo;
 
 	async.waterfall([function(callback){
-      /*mariaDB.checkCashPwd(req.body.cashId.toUpperCase(),req.body.password,callback);
-   },function(result,callback){*/
+      mariaDB.checkCashPwd(req.body.cashId.toUpperCase(),req.body.password,callback);
+   },function(result,callback){
 		mariaDB.getShopInfo(req.body.takitId,callback);
 	},function(result,callback){
 		shopInfo = result;
@@ -163,6 +163,7 @@ router.saveOrder=function(req, res){
 	}],function(err,localOrderedTime){
 		if(err){
 			console.log(err);
+			res.send(JSON.stringify({"result":"failure","error":err}));
 		}else{
 			order.localOrderedTime=localOrderedTime.time;
 			order.localOrderedHour=localOrderedTime.hour;

@@ -73,9 +73,9 @@ app.use(session({
 	  saveUninitialized: true,
 	  resave: true,
 	  cookie:{
-	    maxAge: 24*60*60*1000, // 24 hours.60 minutes(?). Why it doesn't work? Please check memory storage rather than FileStore.
+	    maxAge: 24*60*60*1000,
 	  },
-	  store: new redisStore({ host: '127.0.0.1', port: 6379, client: client, logErrors : true,disableTTL:true})
+	  store: new redisStore({ host: '127.0.0.1', port: 6379, client: client, logErrors : true})
 	}));
 
 app.use(function (req, res, next) {
@@ -124,7 +124,7 @@ app.use(createGracefulShutdownMiddleware(secureServer, {forceTimeout:30000}));
 
 app.all('*',function(req,res,next){
 	console.log("req.url:"+req.url);
-
+	
 	if(req.hasOwnProperty('session')){
    	console.log("valid session");
       console.log("req.session:"+JSON.stringify(req.session));
@@ -179,9 +179,10 @@ app.post('/shopEnter',index.shopEnter);
 app.get('/oauthSuccess',tomcatServer.oauthSuccess);
 app.get('/oauthFailure',tomcatServer.oauthFailure);
 
-app.post('/facebooklogin',users.facebooklogin);
+app.post('/facebooklogin',users.facebookLogin);
 app.post('/kakaoLogin',users.kakaoLogin);
 app.post('/emailLogin', users.emailLogin);
+app.post('/preventMultiLogin',users.preventMultiLogin);
 app.post('/signup',users.signup);
 app.post('/logout', users.logout)
 app.post('/userPaymentInfo',users.getUserPaymentInfo);

@@ -3,7 +3,6 @@ const router = express.Router();
 const request = require('request');
 const mariaDB=require('./mariaDB');
 const s3=require('./s3');
-const d3=require('d3-queue');
 const gcm = require('node-gcm');
 const config=require('../config');
 const redis = require('redis');
