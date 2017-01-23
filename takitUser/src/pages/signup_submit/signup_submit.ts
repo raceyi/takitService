@@ -12,7 +12,6 @@ import {EmailProvider} from '../../providers/LoginProvider/email-provider';
 import {Storage} from "@ionic/storage";
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
-import {ConfigProvider} from '../../providers/ConfigProvider';
 
 declare var window:any;
 declare var plugins;
@@ -47,8 +46,6 @@ export class SignupSubmitPage {
       focusName = new EventEmitter();
       smsInboxPlugin;
 
-     scrollTop;
-
       @ViewChild('signupPage') signupPageRef: Content;
 
   constructor(private navController: NavController, private navParams: NavParams, 
@@ -76,7 +73,6 @@ export class SignupSubmitPage {
  
   ionViewDidEnter() {
        let dimensions = this.signupPageRef.getContentDimensions();
-       this.scrollTop=dimensions.scrollTop;
 
       console.log("SignupPage page did enter");
         if(this.navParams.get("email")==undefined && this.platform.is("cordova") && this.platform.is('android')){
@@ -389,14 +385,6 @@ export class SignupSubmitPage {
         }
      }
 
-  scrollUpForKeypad(event){
-        console.log("scrollUpForKeypad");
-        let dimensions = this.signupPageRef.getContentDimensions();
-        console.log("dimensions:"+JSON.stringify(dimensions));
-        if(this.scrollTop>= dimensions.scrollTop)
-            this.signupPageRef.scrollTo(0, dimensions.contentHeight); //humm...
-  }
-
     smsRequest(){
         console.log("smsRequest");
         if(this.phone.length==0){
@@ -418,9 +406,9 @@ export class SignupSubmitPage {
               let body = JSON.stringify({phone:number});
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server:"+ ConfigProvider.serverAddress+ " body:"+JSON.stringify(body));
+              console.log("server:"+ this.storageProvider.serverAddress+ " body:"+JSON.stringify(body));
 
-             this.http.post(ConfigProvider.serverAddress+"/SMSCertification",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             this.http.post(this.storageProvider.serverAddress+"/SMSCertification",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                  console.log(res); 
                  var result:string=res.result;
                  if(result=="success"){
@@ -465,9 +453,9 @@ export class SignupSubmitPage {
               let body = JSON.stringify({phone:number,code:this.verfiicationCode});
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server:"+ ConfigProvider.serverAddress);
+              console.log("server:"+ this.storageProvider.serverAddress);
               console.log("body:"+JSON.stringify(body)); 
-             this.http.post(ConfigProvider.serverAddress+"/checkSMSCode",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             this.http.post(this.storageProvider.serverAddress+"/checkSMSCode",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                  console.log(JSON.stringify(res)); 
                  var result:string=res.result;
                  if(result=="success"){

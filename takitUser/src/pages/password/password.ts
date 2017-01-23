@@ -1,31 +1,9 @@
 import {Component,EventEmitter,ViewChild} from "@angular/core";
 import {Platform,AlertController,NavController} from 'ionic-angular';
 import {Http,Headers} from '@angular/http';
+import {StorageProvider} from '../../providers/storageProvider';
+
 import 'rxjs/add/operator/map';
-import {ConfigProvider} from '../../providers/ConfigProvider';
-/*
-@Component({
-  selector:'page-password',
-  templateUrl: 'password.html',
-})
-
-export class PasswordPage {
-    email:string="";
-    phone:string="";
-
-    focusEmail ;//= new EventEmitter();;
-    focusPhone ;//=new EventEmitter();
-
-    //constructor(private platform:Platform,private navController:NavController,private alertController:AlertController,private http:Http){
-    constructor(){    
-        console.log("PasswordPage construtor");
-    }
-
-    resetPassword(){        
-
-    }
-}
-*/
 
 @Component({
   selector:'page-password',
@@ -39,7 +17,9 @@ export class PasswordPage {
     focusEmail = new EventEmitter();;
     focusPhone =new EventEmitter();
 
-    constructor(private platform:Platform,private navController:NavController,private alertController:AlertController,private http:Http){
+    constructor(private platform:Platform,private navController:NavController,
+    private alertController:AlertController,private http:Http,
+    private storageProvider:StorageProvider){
         console.log("PasswordPage construtor");
     }
 
@@ -97,9 +77,9 @@ export class PasswordPage {
               let body = JSON.stringify({email:email,phone:phone});
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server:"+ ConfigProvider.serverAddress);
+              console.log("server:"+ this.storageProvider.serverAddress);
 
-             this.http.post(ConfigProvider.serverAddress+"/passwordReset",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             this.http.post(this.storageProvider.serverAddress+"/passwordReset",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                 var result:string=res.result;
                 console.log("res:"+JSON.stringify(res));
                 if(result==="success")

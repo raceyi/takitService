@@ -4,7 +4,6 @@ import {NavController,Platform,Tabs,AlertController,Content} from 'ionic-angular
 import {Transfer,Splashscreen} from 'ionic-native';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
-import {ConfigProvider} from '../../providers/ConfigProvider';
 import {ShopTabsPage} from '../shoptabs/shoptabs';
 import {App} from 'ionic-angular';
 import {Device} from 'ionic-native';
@@ -33,8 +32,6 @@ export class SearchPage {
   brands=[];
 
   takitIds=[];
-
-  minVersion:boolean=(this.platform.is('android') && parseInt(Device.device.version[0])<=4);
 
   constructor(private app:App, public storageProvider:StorageProvider, private navController: NavController,
     private platform:Platform,private http:Http ,private alertController:AlertController,private serverProvider:ServerProvider) {
@@ -141,7 +138,7 @@ export class SearchPage {
           this.loading.present();
           
           /////////////////////////////////
-          ft.upload(imageURI, ConfigProvider.serverAddress+"/ocrFileSubmit", options, false)
+          ft.upload(imageURI, this.storageProvider.serverAddress+"/ocrFileSubmit", options, false)
           .then((response: any) => {
             console.log("upload:"+JSON.stringify(response));
             var result=JSON.parse(response.response);
@@ -176,8 +173,7 @@ export class SearchPage {
             console.log("body:"+JSON.stringify(body));
             let headers = new Headers();
             headers.append('Content-Type', 'application/json');
-            //this.http.post(ConfigProvider.serverAddress+"/takitIdAutocomplete",JSON.stringify(body),{headers: headers}).map(response=>response.json()).subscribe((res)=>{
-            this.serverProvider.post(ConfigProvider.serverAddress+"/takitIdAutocomplete",JSON.stringify(body)).then((res:any)=>{
+            this.serverProvider.post(this.storageProvider.serverAddress+"/takitIdAutocomplete",JSON.stringify(body)).then((res:any)=>{
                 console.log("res:"+JSON.stringify(res));
                     this.takitIds=res;
                     this.services=[];
@@ -231,6 +227,7 @@ export class SearchPage {
                 }else{ // this.brandQuery is ""
                     this.brandsShown = this.brands;
                 }
+                /*
                 if(this.brands.length>0){
                     this.brandsShown = this.brands.filter((v) => {
                         if (v.toUpperCase().startsWith(this.brandQuery.toUpperCase())) {
@@ -241,6 +238,7 @@ export class SearchPage {
                 }else{
                     this.brandsShown = [];
                 }
+                */
       }
 
       getBrands(event) {
@@ -270,7 +268,7 @@ export class SearchPage {
                     },err=>{
                         console.log("getTakitIds error");
                     });
-            } else if(this.takitIds.length==0 && (this.brandQuery.trim().length==1)){
+            } else if(this.takitIds.length==0 && (this.brandQuery.trim().length>0)){
                 this.getTakitIds().then(
                     ()=>{
                         console.log("TakitIds:"+JSON.stringify(this.takitIds));
@@ -306,6 +304,7 @@ export class SearchPage {
                 }else{ // this.brandQuery is ""
                     this.servicesShown = this.services;
                 }
+                /*
                 if(this.services.length>0){
                     this.servicesShown = this.services.filter((v) => {
                         console.log(v+"start with "+this.serviceQuery);
@@ -317,6 +316,7 @@ export class SearchPage {
                 }else{
                     this.servicesShown=[];                    
                 }
+                */
                 console.log("serviceShown:"+JSON.stringify(this.servicesShown));
       }
 
@@ -346,7 +346,7 @@ export class SearchPage {
                     },err=>{
                         console.log("getTakitIds error");
                     });
-            }else if(this.takitIds.length==0 && (this.serviceQuery.trim().length==1 )){
+            }else if(this.takitIds.length==0 && (this.serviceQuery.trim().length>0 )){ // autocomplete has problem due to the characteristics of Korean.
                 this.getTakitIds().then(
                     ()=>{
                         console.log("TakitIds:"+JSON.stringify(this.takitIds));
@@ -424,6 +424,14 @@ export class SearchPage {
       }
       getFocusBrands(event){
           console.log("getFocusBrandss");
+      }
+
+      serviceBlur(){
+          console.log("serviceBlur");
+      }
+
+      brandBlur(){
+          console.log("brandBlur");
       }
 
       swipeSearch(event){

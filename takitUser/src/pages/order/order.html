@@ -40,47 +40,47 @@
      <div *ngFor="let option of options">    
           <ion-item class="orderToggle" >
               <ion-label class="orderOption">{{option.name}}(+{{option.price}})원</ion-label>
-              <ion-toggle class="onOff" [(ngModel)]="option.flag" (ionChange)="optionChange(option)"></ion-toggle>
+              <ion-toggle class="onOff" *ngIf="hasChoice(option)===0" [(ngModel)]="option.flag" (ionChange)="optionChange(option)"></ion-toggle>
           </ion-item>
           <ion-row *ngIf="hasChoice(option)===2">
               <ion-item class="choice" ion-col width-50 >
-                <ion-toggle class="onOff" [(ngModel)]="option.flags[0]" [disabled]="!option.flag" (ionChange)="choiceChange(option,0,option.flags[0])"></ion-toggle>
+                <ion-toggle class="onOff" [(ngModel)]="option.flags[0]" (ionChange)="choiceChange(option,0,option.flags[0])"></ion-toggle>
                 <ion-label class="choiceLabel">{{option.choice[0]}}</ion-label>
               </ion-item>  
               <ion-item class="choice" ion-col width-50 >
-                <ion-toggle class="onOff" [(ngModel)]="option.flags[1]" [disabled]="!option.flag" (ionChange)="choiceChange(option,1,option.flags[1])"></ion-toggle>
+                <ion-toggle class="onOff" [(ngModel)]="option.flags[1]" (ionChange)="choiceChange(option,1,option.flags[1])"></ion-toggle>
                 <ion-label class="choiceLabel">{{option.choice[1]}}</ion-label>
               </ion-item>  
           </ion-row>
           <ion-row *ngIf="hasChoice(option)===3">
               <ion-item class="choice" ion-col width-33 >
-                <ion-toggle class="onOff" [(ngModel)]="option.flags[0]" [disabled]="!option.flag" (ionChange)="choiceChange(option,0,option.flags[0])"></ion-toggle>
+                <ion-toggle class="onOff" [(ngModel)]="option.flags[0]"  (ionChange)="choiceChange(option,0,option.flags[0])"></ion-toggle>
                 <ion-label class="choiceLabel">{{option.choice[0]}}</ion-label>
               </ion-item>  
               <ion-item class="choice" ion-col width-33 >
-                <ion-toggle class="onOff" [(ngModel)]="option.flags[1]" [disabled]="!option.flag" (ionChange)="choiceChange(option,1,option.flags[1])"></ion-toggle>
+                <ion-toggle class="onOff" [(ngModel)]="option.flags[1]"  (ionChange)="choiceChange(option,1,option.flags[1])"></ion-toggle>
                 <ion-label class="choiceLabel">{{option.choice[1]}}</ion-label>
               </ion-item>  
               <ion-item class="choice" ion-col width-33 >
-                <ion-toggle class="onOff" [(ngModel)]="option.flags[2]" [disabled]="!option.flag" (ionChange)="choiceChange(option,2,option.flags[2])"></ion-toggle>
+                <ion-toggle class="onOff" [(ngModel)]="option.flags[2]"  (ionChange)="choiceChange(option,2,option.flags[2])"></ion-toggle>
                 <ion-label class="choiceLabel">{{option.choice[2]}}</ion-label>
               </ion-item>  
           </ion-row>
           <ion-row *ngIf="hasChoice(option)===4">
               <ion-item class="choice" ion-col width-25 >
-                <ion-toggle class="onOff" [(ngModel)]="option.flags[0]" [disabled]="!option.flag" (ionChange)="choiceChange(option,0,option.flags[0])"></ion-toggle>
+                <ion-toggle class="onOff" [(ngModel)]="option.flags[0]"   (ionChange)="choiceChange(option,0,option.flags[0])"></ion-toggle>
                 <ion-label class="choiceLabel">{{option.choice[0]}}</ion-label>
               </ion-item>  
               <ion-item class="choice" ion-col width-25 >
-                <ion-toggle class="onOff" [(ngModel)]="option.flags[1]" [disabled]="!option.flag" (ionChange)="choiceChange(option,1,option.flags[1])"></ion-toggle>
+                <ion-toggle class="onOff" [(ngModel)]="option.flags[1]"  (ionChange)="choiceChange(option,1,option.flags[1])"></ion-toggle>
                 <ion-label class="choiceLabel">{{option.choice[1]}}</ion-label>
               </ion-item>  
               <ion-item class="choice" ion-col width-25 >
-                <ion-toggle class="onOff" [(ngModel)]="option.flags[2]" [disabled]="!option.flag" (ionChange)="choiceChange(option,2,option.flags[2])"></ion-toggle>
+                <ion-toggle class="onOff" [(ngModel)]="option.flags[2]"  (ionChange)="choiceChange(option,2,option.flags[2])"></ion-toggle>
                 <ion-label class="choiceLabel">{{option.choice[2]}}</ion-label>
               </ion-item>  
               <ion-item class="choice" ion-col width-25 >
-                <ion-toggle class="onOff" [(ngModel)]="option.flags[3]" [disabled]="!option.flag" (ionChange)="choiceChange(option,3,option.flags[3])"></ion-toggle>
+                <ion-toggle class="onOff" [(ngModel)]="option.flags[3]"  (ionChange)="choiceChange(option,3,option.flags[3])"></ion-toggle>
                 <ion-label class="choiceLabel">{{option.choice[3]}}</ion-label>
               </ion-item>  
           </ion-row>       
@@ -112,18 +112,31 @@
 
     <ion-row>
       <ion-col class="cash">사용가능한 캐쉬</ion-col>
-      <ion-col class="cash">15,000원</ion-col>
+      <ion-col class="cash">{{storageProvider.cashAmount}}</ion-col>
     </ion-row>
 
-    <ion-row class="textrow">
+    <ion-row class="textrow" *ngIf="storageProvider.isAndroid">
       <ion-col class="password">캐쉬 비밀번호(6자리)</ion-col>
       <ion-col class="password0">
         <ion-item class="cashPassword">
-        <ion-input (focus)="onFocusPassword($event)" maxlength="6" type="password" class="passwordinput"></ion-input>
+        <ion-input maxlength="6" type="password" pattern="[0-9]{6}" [(ngModel)]="cashPassword" class="passwordinput"></ion-input>
+        </ion-item>
+      </ion-col>
+    </ion-row>
+
+    <ion-row class="textrow" *ngIf="!storageProvider.isAndroid">
+      <ion-col class="password">캐쉬 비밀번호(6자리)</ion-col>
+      <ion-col class="password0">
+        <ion-item class="cashPassword">
+        <ion-input maxlength="6" type="password" pattern="[0-9]{6}" [(ngModel)]="cashPassword" class="passwordinput"></ion-input>
         </ion-item>
       </ion-col>
     </ion-row>
   </div>    
+    <ion-segment [hidden]="iOSOrderButtonHide">
+    <ion-segment-button value="shopcart" (click)="shopcart()">장바구니 담기</ion-segment-button>
+    <ion-segment-button value="order" [disabled]="storageProvider.tourMode==true" (click)="order()">주문결제하기</ion-segment-button>
+    </ion-segment>
     <div class="orderInfo cancelNoti">
       주문접수전에는 MyPage에서 주문 취소가 가능합니다. <br>
     </div>
@@ -160,7 +173,7 @@
 </div>
 </ion-content>
 <ion-footer class="orderPage">
-    <ion-segment>
+    <ion-segment [hidden]="!iOSOrderButtonHide">
     <ion-segment-button value="shopcart" (click)="shopcart()">장바구니 담기</ion-segment-button>
     <ion-segment-button value="order" [disabled]="storageProvider.tourMode==true" (click)="order()">주문결제하기</ion-segment-button>
     </ion-segment>

@@ -1,4 +1,39 @@
 page-userinfo{
+ .selectButton{
+        padding-right: 0px;
+        padding-left: 0px;
+        .item-md .item-button {
+             padding: 0 !important; 
+             margin:0px !important;
+        }
+        .label-ios {
+            margin: 0px !important;
+        }
+        padding: 0px !important;
+        margin:0px !important;
+        box-shadow: none !important; 
+    }
+
+    .label-ios {
+        margin: 0px 0px 0px 0; 
+    }
+
+    .item-ios.item-block .item-inner {
+        padding-right: 0px; 
+        border-bottom: 0px; 
+    }
+
+    .item-md.item-block .item-inner {
+        padding-right: 0px;
+        border-bottom: 0px;
+    }
+
+    .explain{
+        text-align: justify;
+        white-space: normal;
+        color:#7F7F7F;
+        font-size: 1.3rem; 
+    }
 
 }
 

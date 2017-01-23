@@ -10,7 +10,7 @@
       <div padding>
       <ion-item>
           <ion-label fixed>캐쉬아이디</ion-label>
-          <ion-input  type="text" placeholder="영문,숫자 조합 5~7자리" pattern="[0-9a-zA-Z]{5,7}" [disabled]="storageProvider.cashId.length!=0" [(ngModel)]="cashId"></ion-input>
+          <ion-input  type="text" placeholder="영문,숫자조합 5~7자리" pattern="[0-9a-zA-Z]{5,7}" [disabled]="storageProvider.cashId.length!=0" [(ngModel)]="cashId"></ion-input>
       </ion-item>
       <ion-item [hidden]="cashIdComment">
           <ion-label class="explain">-영문, 숫자 조합 5~7자리

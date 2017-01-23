@@ -2,13 +2,13 @@ import {Injectable} from '@angular/core';
 
 import {Http,Headers} from '@angular/http';
 import {Platform} from 'ionic-angular';
+import {StorageProvider} from '../storageProvider';
 
-import {ConfigProvider} from '../ConfigProvider';
 import 'rxjs/add/operator/map';
 
 @Injectable()
 export class EmailProvider{
-    constructor(private platform:Platform,private http:Http){
+    constructor(private platform:Platform,private http:Http,private storageProvider:StorageProvider){
         this.platform=platform; 
         this.http=http;
     }
@@ -21,11 +21,11 @@ export class EmailProvider{
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
 
-            this.http.post(ConfigProvider.serverAddress+"/emailLogin",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-                console.log("res:"+JSON.stringify(res));
-                let result={result:res.result,userInfo:res.userInfo};
-                console.log("result:"+JSON.stringify(result));
-                resolve(result); // 'success'(move into home page) or 'invalidId'(move into signup page)
+            this.http.post(this.storageProvider.serverAddress+"/emailLogin",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                //console.log("res:"+JSON.stringify(res));
+                //let result={result:res.result,userInfo:res.userInfo};
+                console.log("result:"+JSON.stringify(res));
+                resolve(res); // 'success'(move into home page) or 'invalidId'(move into signup page)
             },(err)=>{
                  console.log("emailLogin no response");
                  reject("emailLogin no response");
@@ -39,9 +39,9 @@ export class EmailProvider{
               let body = JSON.stringify({referenceId:"email_"+email,password:password,name:name,email:email,country:country,phone:phone});
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server:"+ ConfigProvider.serverAddress+" body:"+JSON.stringify(body));
+              console.log("server:"+ this.storageProvider.serverAddress+" body:"+JSON.stringify(body));
 
-             this.http.post(ConfigProvider.serverAddress+"/signup",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             this.http.post(this.storageProvider.serverAddress+"/signup",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                  var result:string=res.result;
                     resolve(res); // 'success'(move into home page) or 'invalidId'(move into signup page)
              },(err)=>{
@@ -51,14 +51,15 @@ export class EmailProvider{
          });
   }
 
+/*
   logout(){
           return new Promise((resolve, reject)=>{
               console.log("logout");
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server: "+ ConfigProvider.serverAddress);
+              console.log("server: "+ this.storageProvider.serverAddress);
 
-             this.http.post(ConfigProvider.serverAddress+"/logout",{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             this.http.post(this.storageProvider.serverAddress+"/logout",{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                  var result:string=res.result;
                  if(result==="success"){
                     resolve(res); // 'success'(move into home page) or 'invalidId'(move into signup page)
@@ -71,15 +72,36 @@ export class EmailProvider{
              });
          });
   }
+  */
 
+  logout(){
+          return new Promise((resolve, reject)=>{
+              console.log("logout");
+              let headers = new Headers();
+              headers.append('Content-Type', 'application/json');
+              console.log("server: "+ this.storageProvider.serverAddress);
+
+             this.http.post(this.storageProvider.serverAddress+"/logout",{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                 var result:string=res.result;
+                 if(result==="success"){
+                    resolve(res); // 'success'(move into home page) or 'invalidId'(move into signup page)
+                 }else{
+                     reject(res.error);
+                 }
+             },(err)=>{
+                 reject(err);
+             });
+         });
+  }
+  
   unregister(){
           return new Promise((resolve, reject)=>{
               console.log("unregister");
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server: "+ ConfigProvider.serverAddress);
+              console.log("server: "+ this.storageProvider.serverAddress);
 
-             this.http.post(ConfigProvider.serverAddress+"/unregister",{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             this.http.post(this.storageProvider.serverAddress+"/unregister",{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                  console.log("res:"+JSON.stringify(res));
                  var result:string=res.result;
                  if(result==="success"){

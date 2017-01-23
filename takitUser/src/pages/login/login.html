@@ -17,17 +17,25 @@
     <button ion-button full color="email"(click)="emailLoginSelect($event)"> 이메일 </button>    
         <ion-list  [hidden]="emailHide">
           <ion-item>
-            <ion-input type="email" [focuser]="focusEmail" (focus)="scrollUpForKeypad()" placeholder="이메일" [(ngModel)]="email" ></ion-input>
+            <ion-input type="email" [focuser]="focusEmail"  placeholder="이메일" [(ngModel)]="email" ></ion-input>
           </ion-item>
           <ion-item>
-            <ion-input type="password" [focuser]="focusPassword" (focus)="scrollUpForKeypad()" full placeholder="비밀번호" [(ngModel)]= "password" ></ion-input>
+            <ion-input type="password" [focuser]="focusPassword" full placeholder="비밀번호" [(ngModel)]= "password" ></ion-input>
           </ion-item>
-            <ion-row>
-              <ion-col class="loginReset">
-            <button ion-button color="email" (click)="emailReset($event)">임시비밀번호발급</button>
+            <ion-row *ngIf="!iphone5">
+            <ion-col class="loginReset">
+            <button ion-button full color="email" (click)="emailReset($event)">임시비밀번호발급</button>
             </ion-col>
             <ion-col class="loginSearchEmail">
-            <button ion-button color="email" full (click)="emailLogin($event)">로그인</button>
+            <button ion-button full color="email" full (click)="emailLogin($event)">로그인</button>
+            </ion-col>
+            </ion-row>
+            <ion-row *ngIf="iphone5">
+            <ion-col class="loginReset" >
+            <button ion-button full color="email" (click)="emailReset($event)">임시비밀번호</button>
+            </ion-col>
+            <ion-col class="loginSearchEmail">
+            <button ion-button full color="email" full (click)="emailLogin($event)">로그인</button>
             </ion-col>
             </ion-row>
         </ion-list>

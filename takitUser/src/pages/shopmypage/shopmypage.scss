@@ -3,16 +3,8 @@ page-shopmypage{
          position: relative !important; 
      }
 
-    ion-content.segmentButton{
-        position:relative !important;
-        height:min-content !important;
-        > .scroll-content{
-            position:relative !important;
-        }
-    }
-
     ion-content.infiniteScroll{
-        position: relative !important; 
+       // position: relative !important; 
         ion-label {
             margin: 0px 0px 0px 0px !important;
         }
@@ -36,14 +28,6 @@ page-shopmypage{
         }
     }
 
-    ion-content.couponHistory{
-        position:relative !important;
-        >.scroll-content {
-            margin-top: 0px !important; 
-            margin-bottom: 0px !important; 
-        }
-    }
-
     .updateButton{
         height:1.7rem !important;
     }
@@ -60,43 +44,11 @@ page-shopmypage{
         font-size: 1.2rem;
     }
 
-    .segment-md>.segment-button {
-        border-width: 2px !important;
-        border-style: solid !important;
-        border-color: #3474e1 !important;
-        padding:0px !important;
-    }
-
-    .segment-md>.segment-activated {
-        background-color: #387ef5 !important;
-        color: white !important;
-    }
-
     div.dummy{
-        height:50vh;
-    }
-    ////////////////////////////////////////////
-    ion-col.dropdown{
-        padding: 0px;
+        height:5.0rem;
     }
 
-    .cardHeader{
-        font-size: 1.7rem;
-        width: 100%;
-        font-weight: bold;
-    }
-
-    ion-card {
-        position: relative;
-        text-align: center;
-    }
-
-    .cardContent {
-        font-size: 1.3rem;
-        width: 100%;
-    }
-
-    .explain{
-        font-size:1.2rem;
+    div.dummyEnd{
+        height:20vh;
     }
 }

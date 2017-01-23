@@ -1,10 +1,10 @@
-import {Component,ViewChild,ElementRef} from "@angular/core";
+import {Component,NgZone,ViewChild,ElementRef} from "@angular/core";
 import {NavController,NavParams,Content,AlertController,Tabs} from 'ionic-angular';
 import {StorageProvider} from '../../providers/storageProvider';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
-import {ConfigProvider} from '../../providers/ConfigProvider';
 import {ServerProvider} from '../../providers/serverProvider';
+import {Keyboard} from 'ionic-native';
 
 declare var cordova:any;
 
@@ -18,24 +18,44 @@ export class ShopCartPage{
     @ViewChild('takeoutDiv') takeoutDivElementRef:ElementRef;
 
     shopname:string;
-    userNotiHidden:boolean =true;
+    userNotiHidden:boolean =false;
     price:number=0;    //total price
     discount:number=0; //total discount
     amount:number=0;   //total amount. acutual price with discount
     cart:any={};
     takeoutAvailable:boolean=false;
     takeout:boolean=false;
+    cashPassword="";
+
+    iOSOrderButtonHide=true;
 
      constructor(private navController: NavController,private http:Http,
             private navParams: NavParams,public storageProvider:StorageProvider,
-            private alertController:AlertController,private serverProvider:ServerProvider){
+            private alertController:AlertController,private serverProvider:ServerProvider,
+            private ngZone:NgZone,){
 	      console.log("ShopCartPage constructor");
         this.shopname=this.storageProvider.currentShopname();
         this.cart=this.storageProvider.cart;
         if(this.cart!=undefined){
             this.price=this.cart.total;
             this.discount=Math.round(this.cart.total*this.storageProvider.shopInfo.discountRate);
-            this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
+            this.amount=this.price-this.amount;
+        }
+        if(!this.storageProvider.isAndroid){ //ios
+            Keyboard.onKeyboardShow().subscribe((e)=>{
+                console.log("keyboard show");
+                this.ngZone.run(()=>{
+                    this.iOSOrderButtonHide=false;
+                });
+            });
+            Keyboard.onKeyboardHide().subscribe((e)=>{
+                console.log("keyboard hide");
+                 setTimeout(() => {
+                    this.ngZone.run(()=>{
+                        this.iOSOrderButtonHide=true;
+                    });
+                  }, 1000); 
+            });
         }
      }
 
@@ -63,7 +83,7 @@ export class ShopCartPage{
         this.cart=this.storageProvider.cart;        
         this.price=this.cart.total;
         this.discount=Math.round(this.cart.total*this.storageProvider.shopInfo.discountRate);
-        this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
+        this.amount=this.price-this.discount;
         this.checkTakeoutAvailable();
         //console.log("takeoutAvailable:"+this.takeoutAvailable);
         if(this.takeoutAvailable==false){
@@ -86,6 +106,41 @@ export class ShopCartPage{
      }
 
      order(){
+         if(this.storageProvider.tourMode){
+            let alert = this.alertController.create({
+                title: '둘러보기 모드에서는 주문이 불가능합니다.',
+                subTitle: '로그인후 사용해주시기 바랍니다.',
+                buttons: ['OK']
+            });
+            alert.present();
+             return;
+         }
+
+        if(this.storageProvider.cashId==undefined ||
+                    this.storageProvider.cashId.length<5){
+            let alert = this.alertController.create({
+                subTitle: '캐쉬아이디를 설정해 주시기 바랍니다.',
+                buttons: ['OK']
+            });
+            alert.present();
+            return;               
+        }
+        if(this.cashPassword.length<6){
+            let alert = this.alertController.create({
+                subTitle: '캐쉬비밀번호(6자리)를 입력해 주시기 바랍니다.',
+                buttons: ['OK']
+            });
+            alert.present();
+            return;               
+        }         
+         if(this.storageProvider.cashAmount<this.amount){
+             let alert = this.alertController.create({
+                subTitle: '캐쉬잔액이 부족합니다.',
+                buttons: ['OK']
+            });
+            alert.present();
+            return;
+         }
        if(this.storageProvider.tourMode==false){  
             console.log("order ");
              ////////////////////////////////////////////////////
@@ -98,21 +153,23 @@ export class ShopCartPage{
                                         takitId:this.storageProvider.takitId,
                                         orderList:JSON.stringify(this.cart), 
                                         orderName:this.cart.menus[0].menuName+"이외"+ this.cart.menus.length+"종",
-                                        amount:Math.round(this.amount),
+                                        amount:this.amount,
                                         takeout: takeout,
-                                        orderedTime:new Date().toISOString()});
+                                        orderedTime:new Date().toISOString(),
+                                        cashId:this.storageProvider.cashId,
+                                        password:this.cashPassword});
               console.log("order:"+JSON.stringify(body));
 
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server:"+ ConfigProvider.serverAddress);
-
-             //this.http.post(ConfigProvider.serverAddress+"/saveOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+              console.log("server:"+ this.storageProvider.serverAddress);
                  this.serverProvider.saveOrder(body).then((res:any)=>{
                  console.log(res); 
+                 this.cashPassword="";  
                  var result:string=res.result;
                   if(result=="success"){
                     this.storageProvider.messageEmitter.emit(res.order);
+                    this.storageProvider.cashInfoUpdateEmitter.emit("all");
                     var cart={menus:[],total:0};
                     this.storageProvider.saveCartInfo(this.storageProvider.takitId,JSON.stringify(cart)).then(()=>{
                         
@@ -172,16 +229,35 @@ export class ShopCartPage{
                     });
                     alert.present();
                  }
-             },(err)=>{
-                 console.log("saveOrder err "+err);
-                 if(err=="NetworkFailure"){
+             },(error)=>{
+                  console.log("saveOrder err "+error);
+                  this.cashPassword="";                  
+                 if(error=="NetworkFailure"){
                     let alert = this.alertController.create({
                             title: '서버와 통신에 문제가 있습니다',
                             subTitle: '네트웍상태를 확인해 주시기바랍니다',
                             buttons: ['OK']
                         });
                         alert.present();
-                    }
+                 }else if(error=="shop's off"){
+                    let alert = this.alertController.create({
+                            title: '상점이 문을 열지 않았습니다.',
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                 }else if(error=="invalid cash password"){
+                    let alert = this.alertController.create({
+                            title: '비밀번호가 일치하지 않습니다.',
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                 }else{
+                    let alert = this.alertController.create({
+                            title: '주문에 실패했습니다.',
+                            buttons: ['OK']
+                        });
+                        alert.present();                     
+                 }
              });
        }
      }
@@ -196,13 +272,6 @@ export class ShopCartPage{
       this.userNotiHidden=false;
     }
 
-    onFocusPassword(event){
-        console.log("onFocusPassword");
-        let dimensions = this.orderPageRef.getContentDimensions();
-        console.log("dimensions:"+JSON.stringify(dimensions));
-        this.orderPageRef.scrollTo(0, dimensions.contentHeight);
-    }
-
     deleteMenu(menu){
       console.log("delete Menu "+JSON.stringify(menu));
       var cart=this.cart;
@@ -215,7 +284,7 @@ export class ShopCartPage{
           this.cart=this.storageProvider.cart;
           this.price=this.cart.total;
           this.discount=Math.round(this.cart.total*this.storageProvider.shopInfo.discountRate);
-          this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
+          this.amount=this.price-this.discount;
       });
     }
 
@@ -225,8 +294,17 @@ export class ShopCartPage{
           this.cart=this.storageProvider.cart;
           this.price=this.cart.total;
           this.discount=Math.round(this.cart.total*this.storageProvider.shopInfo.discountRate);
-          this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
+          this.amount=this.price-this.discount;
       });
+    }
+
+     onFocusPassword(event){
+         if(!this.storageProvider.isAndroid){
+            console.log("onFocusPassword");
+            let dimensions = this.orderPageRef.getContentDimensions();
+            console.log("dimensions:"+JSON.stringify(dimensions));
+            this.orderPageRef.scrollTo(0, dimensions.contentHeight);
+         }
     }
 
 }

@@ -26,8 +26,16 @@
 -->
        </ion-card-title>
     </ion-card>
-
+    
+   <div class="frontDummy" *ngIf="storageProvider.shoplist.length==0" >
+   </div>    
+   <div padding *ngIf="storageProvider.shoplist.length==0" style="text-align:center;">
+      하단 "상점인식"버튼을 통해<br> 
+      상점 검색 페이지로 이동하여<br> 
+      상점을 방문하시면 홈에 등록됩니다.   
+   </div>
 <div class="dummy">
+  <br><br><br>
 </div>    
 </ion-content>
 

@@ -1,0 +1,19 @@
+<ion-header>
+  <ion-navbar>
+    <ion-title>{{bank}}</ion-title>
+  </ion-navbar>
+</ion-header>
+
+<ion-content> 
+    <ion-searchbar class="searchBarItems" [(ngModel)]="depositBranch"  autocomplete="on" placeholder="은행지점" (ionClear)="branchClear($event)" (ionInput)="getBranch($event)"></ion-searchbar>
+    <ion-list>
+        <ion-item (click)="selectInput()">
+            코드직접입력
+        </ion-item>    
+        <ion-item *ngFor="let item of branchShown">
+            <ion-row (click)="selectBranch(item)">
+                {{ item.branchName }}
+            </ion-row>
+        </ion-item>
+    </ion-list>
+</ion-content>

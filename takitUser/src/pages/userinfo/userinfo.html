@@ -5,35 +5,86 @@
 </ion-header>
 
 <ion-content padding >
-<ion-row>
-<p>{{loginMethod}} 로그인 </p>  
-</ion-row>
-<ion-row>
+
+ <ion-row>
+    <ion-col width-30>
+      <ion-item>
+      로그인
+      </ion-item>
+    </ion-col>
+    <ion-col width-50>
+      <ion-item>
+    {{loginMethod}} 
+    </ion-item> 
+    </ion-col>
+    <ion-col width-20>
+      &nbsp;&nbsp;
+    </ion-col>
+  </ion-row>
+
+  <ion-row>
+    <ion-col width-30>
+      <ion-item>
+      휴대폰
+      </ion-item>
+    </ion-col>
+    <ion-col width-50>
+      <ion-item>
+    <ion-input  [(ngModel)]="userPhone"  type="tel" disabled></ion-input> 
+    </ion-item> 
+    </ion-col>
+    <ion-col width-20>
+      <ion-item>
+      <button ion-button full class="selectButton"  [hidden]="phoneChange"  (click)="changePhone()">수정</button>
+      <button ion-button full class="selectButton"  [hidden]="!phoneChange"  (click)="cancelChangePhone()">취소</button>
+      </ion-item>
+    </ion-col>
+  </ion-row>
+
+
+<ion-row [hidden]="!phoneChange">
   <ion-col width-70>
-    <ion-input type="tel" [disabled]="!phoneChange" [(ngModel)]="phone"></ion-input> 
+    <ion-input type="tel" [(ngModel)]="phone" (blur)="checkPhoneNumberChange()" placeholder="휴대폰번호"></ion-input> 
   </ion-col>
   <ion-col width-30>
-    <button ion-button full [hidden]="!phoneChange" (click)="changePhone()">수정</button>
-    <button ion-button full [hidden]="phoneChange" (click)="smsRequest()" >인증문자 요청 보내기</button>
+    <button ion-button full (click)="smsRequest()" >인증문자 요청 보내기</button>
   </ion-col>
 </ion-row>
-<ion-row [hidden]="phoneChange">
+
+<ion-row [hidden]="!phoneChange">
   <ion-col width-70>
-  <ion-input type="tel" [(ngModel)]="verfiicationCode" placeholder="인증번호"></ion-input> 
+  <ion-input type="tel" [(ngModel)]="verficationCode" placeholder="인증번호"></ion-input> 
   </ion-col>
   <ion-col full width-30>
-  <button ion-button full (click)="smsVerification()"> 인증하기 </button>
+  <button ion-button full (click)="smsVerification()">인증</button>
   </ion-col>
 </ion-row>
-<ion-item>
-    <ion-label fixed>이메일 </ion-label>
-    <ion-input  [(ngModel)]="email" type="email"></ion-input> 
+
+   <ion-item>
+     <ion-label> 이메일 </ion-label>
+     <ion-input [(ngModel)]="email" type="email"></ion-input> 
+   </ion-item>
+
+ <ion-row>
+    <ion-col width-30>
+      <ion-item>
+      이름
+      </ion-item>
+    </ion-col>
+    <ion-col width-50>
+      <ion-item>
+    <ion-input   [(ngModel)]="name"  type="text" [disabled]="storageProvider.cashId.length!=0"></ion-input> 
+    </ion-item> 
+    </ion-col>
+     <ion-col width-20>
+      &nbsp;&nbsp;
+    </ion-col>
+  </ion-row>
+
+<ion-item [hidden]="storageProvider.cashId.length==0">
+  <p class="explain"> 본인 인증으로 확인된 이름의 수정이 필요하신 분은 고객센터(help@takit.biz,0505-170-3636)에 문의해주시기 바랍니다.</p>
 </ion-item>
 
-<ion-item>
-    <ion-label fixed>이름</ion-label>
-    <ion-input  [(ngModel)]="name"  type="text" [disabled]="storageProvider.cashId.length!=0"></ion-input>  
-</ion-item>
 <div [hidden]="loginMethod!='이메일'">
   <ion-item>
     <ion-input [focuser]="focusOldPassword" type="password" placeholder="기존비밀번호" [(ngModel)]="oldPassword" ></ion-input>
@@ -43,7 +94,7 @@
 </ion-item>
 <p [hidden]="paswordGuideHide">{{paswordGuide}}</p>
 <ion-item>
-    <ion-input [focuser]="focusPasswordCheck" type="password"  placeholder="비밀번호확인" [(ngModel)]="passwordCheck"></ion-input>
+    <ion-input [focuser]="focusPasswordCheck" type="password"  (focus)="restPasswordMatch()" placeholder="비밀번호확인" [(ngModel)]="passwordCheck"></ion-input>
 </ion-item>
 <p [hidden]="passwordMatch">비밀번호가 일치하지 않습니다.</p> 
 </div>

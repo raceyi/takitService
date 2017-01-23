@@ -3,7 +3,6 @@ import {Component,ViewChild} from '@angular/core';
 import {Platform,NavController,NavParams,Content,Segment,AlertController} from 'ionic-angular';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
-import {ConfigProvider} from '../../providers/ConfigProvider';
 import {StorageProvider} from '../../providers/storageProvider';
 import {OrderPage} from '../order/order';
 import {App} from 'ionic-angular';
@@ -43,7 +42,6 @@ export class ShopHomePage {
   constructor(private app:App, private platform: Platform, private navController: NavController
       ,private navParams: NavParams,private http:Http,private storageProvider:StorageProvider
       ,private alertController:AlertController,private serverProvider:ServerProvider) {
-        // this.minVersion=(this.platform.is('android') && parseInt(Device.device.version[0])<=4);
   }
 
   ionViewDidEnter(){
@@ -51,6 +49,8 @@ export class ShopHomePage {
         if(this.takitId==undefined){
           this.takitId=this.storageProvider.takitId;
           this.loadShopInfo();
+          this.segmentBarRef.resize();
+          this.menusContentRef.resize();
         }
   }
   
@@ -62,7 +62,7 @@ export class ShopHomePage {
                 var no:string=menu.menuNO.substr(menu.menuNO.indexOf(';')+1);
                 //console.log("category.category_no:"+category.categoryNO+" no:"+no);
                 if(no==category.categoryNO){
-                menu.filename=encodeURI(ConfigProvider.awsS3+menu.imagePath);
+                menu.filename=encodeURI(this.storageProvider.awsS3+menu.imagePath);
                 menu.category_no=no;
                 //console.log("menu.filename:"+menu.filename);
                 let menu_name=menu.menuName.toString();
@@ -89,7 +89,7 @@ export class ShopHomePage {
         var menuRows=[];
         for(var i=0;i<category.menus.length;){
             var menus=[];
-            for(var j=0;j<ConfigProvider.menusInRow && i<category.menus.length;j++,i++){
+            for(var j=0;j<this.storageProvider.menusInRow && i<category.menus.length;j++,i++){
                 menus.push(category.menus[i]);
             }
             menuRows.push({menus:menus});
@@ -150,7 +150,12 @@ export class ShopHomePage {
         this.recommendMenu=[];
 
         var shop=this.storageProvider.shopResponse;
+        /*
+        console.log("shop.menus:"+JSON.stringify(shop.menus));
+        console.log("shop.categories:"+JSON.stringify(shop.categories));
+        console.log("shop.shopInfo:"+JSON.stringify(shop.shopInfo));
         //console.log("shop.menus.length:"+shop.menus.length);
+        */
         //console.log("shop.categories.length:"+shop.categories.length);
         //console.log("shop.shopInfo:"+JSON.stringify(shop.shopInfo));
         this.shop=shop;
@@ -159,11 +164,11 @@ export class ShopHomePage {
         this.configureShopInfo();
 
         // update shoplist at Serve (takitId,s3key)
-        var thisShop:any={takitId:this.takitId ,s3key: this.shop.shopInfo.imagePath};
+        var thisShop:any={takitId:this.takitId ,s3key: this.shop.shopInfo.imagePath, discountRate:(this.shop.shopInfo.discountRate*100).toString()+"%"};
         if(this.shop.shopInfo.imagePath.startsWith("takitId/")){
 
         }else{
-            thisShop.filename=ConfigProvider.awsS3+this.shop.shopInfo.imagePath;
+            thisShop.filename=this.storageProvider.awsS3+this.shop.shopInfo.imagePath;
         }
         //read shop cart 
         this.storageProvider.loadCart(this.takitId);
@@ -173,9 +178,8 @@ export class ShopHomePage {
         console.log("body:",body);
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        //this.http.post(ConfigProvider.serverAddress+"/shopEnter",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
         if(this.storageProvider.tourMode==false){    
-            this.serverProvider.post(ConfigProvider.serverAddress+"/shopEnter",body).then((res:any)=>{
+            this.serverProvider.post(this.storageProvider.serverAddress+"/shopEnter",body).then((res:any)=>{
                 console.log("res.result:"+res.result);
                 var result:string=res.result;
                 if(result=="success"){
@@ -207,15 +211,17 @@ export class ShopHomePage {
         this.menuRows=this.categoryMenuRows[category_no-1];
         this.categorySelected=category_no; //Please check if this code is correct.
     }
+    this.menusContentRef.resize();
+
     console.log("this.menuRows:"+JSON.stringify(this.menuRows));
     console.log("row num :"+this.menuRows.length+" menus:"+JSON.stringify(this.menuRows));
     ///////////////////////////////////////////////////////////////////////////////////////////
     //console.log("segmentBar:"+JSON.stringify(this.segmentBarRef.getDimensions()));
     //console.log("recommendation:"+JSON.stringify(this.recommendationRef.getDimensions()));
     let menusDimensions=this.menusContentRef.getContentDimensions();
-    let menusHeight=this.menusContentRef.getNativeElement().parentElement.offsetHeight-menusDimensions.contentTop;
+    let menusHeight=this.menusContentRef.getNativeElement().parentElement.offsetHeight-menusDimensions.contentTop+100;
     console.log("pageHeight:"+this.menusContentRef.getNativeElement().parentElement.offsetHeight+"top:"+menusDimensions.contentTop+"menusHeight:"+menusHeight);
-    this.menusContentRef.getScrollElement().setAttribute("style","height:"+menusHeight+"px;margin-top:0px;");
+    this.menusContentRef.getScrollElement().setAttribute("style","height:"+menusHeight+"px;margin-top:0px;margin-bottom:0px");
     //////////////////////////////////////////////////////////*/
   }
 
@@ -234,13 +240,15 @@ export class ShopHomePage {
   }
 
   swipeCategory(event){
-        console.log("event.direction:"+event.direction);
+        console.log("event.direction:"+event.direction+ "categories.length:"+this.categories.length);
         if(this.categories.length>3){
             let dimensions=this.segmentBarRef.getContentDimensions();
             if(this.categorySelected>=3 && event.direction==2){ // increase this.categorySelected
-                this.segmentBarRef.scrollTo((dimensions.contentWidth/3)*(this.categorySelected-1),0);
+                console.log("call scrollTo with "+(dimensions.contentWidth/3)*(this.categorySelected-1));
+                this.segmentBarRef.scrollTo((dimensions.contentWidth/3)*(this.categorySelected-1),0,500);
             }else if(this.categorySelected>=3 && event.direction==4){ //decrease this.categorySelected
-                 this.segmentBarRef.scrollTo((dimensions.contentWidth/3)*(this.categorySelected-3),0);
+                 console.log("call scrollTo with "+(dimensions.contentWidth/3)*(this.categorySelected-3));
+                 this.segmentBarRef.scrollTo((dimensions.contentWidth/3)*(this.categorySelected-3),0,500);
             }    
         }
         if(event.direction==4){ //DIRECTION_LEFT = 2
