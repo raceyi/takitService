@@ -3,7 +3,6 @@ import {Platform,AlertController,NavController,App} from 'ionic-angular';
 import {StorageProvider} from '../../providers/storageProvider';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
-import {ConfigProvider} from '../../providers/ConfigProvider';
 import {ServerProvider} from '../../providers/serverProvider';
 
 declare var window:any;
@@ -67,10 +66,26 @@ export class CashIdPage {
         if(this.storageProvider.cashId.length==0){ // create cashId
             if(this.checkValidity()){
              let body = JSON.stringify({cashId:this.cashId.trim().toUpperCase(),password:this.password});
-                this.serverProvider.post(ConfigProvider.serverAddress+"/createCashId",body).then((res:any)=>{
+                console.log("[configureCashId]body:"+body);
+                this.serverProvider.post(this.storageProvider.serverAddress+"/createCashId",body).then((res:any)=>{
+                    console.log("configureCashId:"+JSON.stringify(res));
                     if(res.result=="success"){
-                        this.storageProvider.cashId=this.cashId.trim();
+                        this.storageProvider.cashId=this.cashId.trim().toUpperCase();
                         this.app.getRootNav().pop();
+                    }else{ 
+                        if(res.hasOwnProperty("error") && res.error=="duplicationCashId"){
+                            let alert = this.alertController.create({
+                                title: this.cashId.trim().toUpperCase()+"(이)가 이미 존재합니다. 캐쉬아이디를 변경해주시기바랍니다.",
+                                buttons: ['OK']
+                            });
+                            alert.present();
+                        }else{
+                            let alert = this.alertController.create({
+                                title: "캐쉬아이디 설정에 실패했습니다. 잠시후 다시 시도해 주시기 바랍니다.",
+                                buttons: ['OK']
+                            });
+                            alert.present();
+                        }
                     }
                 },(err)=>{
                     if(err=="NetworkFailure"){
@@ -80,7 +95,11 @@ export class CashIdPage {
                         });
                         alert.present();
                     }else{
-                        console.log("createCashId error "+err);
+                            let alert = this.alertController.create({
+                                title: "캐쉬아이디 설정에 실패했습니다. 잠시후 다시 시도해 주시기 바랍니다.",
+                                buttons: ['OK']
+                            });
+                            alert.present();
                     }
                 });
             }            
@@ -94,7 +113,7 @@ export class CashIdPage {
                     if(this.checkValidity()){
                     let body = JSON.stringify({cashId:this.storageProvider.cashId,password:this.password});
                         console.log("modifyCashPwd");
-                        this.serverProvider.post(ConfigProvider.serverAddress+"/modifyCashPwd",body).then((res:any)=>{
+                        this.serverProvider.post(this.storageProvider.serverAddress+"/modifyCashPwd",body).then((res:any)=>{
                             if(res.result=="success"){
                                 //this.storage
                                 this.app.getRootNav().pop();
@@ -130,7 +149,7 @@ export class CashIdPage {
     checkExistingCashPassword(){
          return new Promise((resolve, reject) => {
                 let body = JSON.stringify({cashId:this.storageProvider.cashId,password:this.password});
-                this.serverProvider.post(ConfigProvider.serverAddress+"/checkCashInfo",body).then((res:any)=>{
+                this.serverProvider.post(this.storageProvider.serverAddress+"/checkCashInfo",body).then((res:any)=>{
                     if(res.result=="success"){
                         resolve(res);
                     }else{

@@ -3,7 +3,6 @@ import {NavController,NavParams,AlertController} from 'ionic-angular';
 import {StorageProvider} from '../../providers/storageProvider';
 import {Http,Headers} from '@angular/http';
 import 'rxjs/add/operator/map';
-import {ConfigProvider} from '../../providers/ConfigProvider';
 import {ServerProvider} from '../../providers/serverProvider';
 
 declare var cordova:any;
@@ -30,14 +29,14 @@ export class ShopMyPage{
 	      console.log("ShopMyPage constructor");
         this.myPageMenu="orderHistory";
         this.shopname=this.storageProvider.currentShopname();
-        this.getOrders(-1);
+        
         
         this.messageEmitterSubscription= this.storageProvider.messageEmitter.subscribe((order)=> {
                 console.log("[ShopMyPage]message comes "+JSON.stringify(order)); 
                 console.log("order.orderId:"+order.orderId);
                 this.ngZone.run(()=>{
                     var i;
-                    for(i=0;i<ConfigProvider.OrdersInPage && i<this.orders.length;i++){  // if new order comes, add it at the front. otherwise, cange status.
+                    for(i=0;i<this.storageProvider.OrdersInPage && i<this.orders.length;i++){  // if new order comes, add it at the front. otherwise, cange status.
                       //console.log(" "+ this.orders[i].orderId+" "+order.orderId);
                         if(parseInt(this.orders[i].orderId)==parseInt(order.orderId) && this.orders[i].orderStatus!=order.orderStatus){
                               //update order statusString
@@ -47,7 +46,7 @@ export class ShopMyPage{
                               break;
                         }
                     }
-                    if(i==ConfigProvider.OrdersInPage || i==this.orders.length){// new one
+                    if(i==this.storageProvider.OrdersInPage || i==this.orders.length){// new one
                         console.log("add new one at the front");
                         this.orders.unshift(this.convertOrderInfo(order)); 
                     }
@@ -55,6 +54,31 @@ export class ShopMyPage{
         });
         
      }
+
+    ionViewDidEnter(){
+        console.log("ionViewDidEnter");
+        if(this.orders.length==0){
+            this.getOrders(-1,false);
+        }else{
+            //check the orders and reset it if necessary.
+            this.getOrders(-1,true).then((res:any)=>{
+                if( typeof res ==='object'){
+                    this.orders=[];
+                        res.orders.forEach(order=>{
+                        console.log("order.ordrId:"+order.orderId);
+                        this.orders.push(this.convertOrderInfo(order));
+                        //console.log("orders:"+JSON.stringify(this.orders));
+                    });
+                    if(this.infiniteScroll!=undefined){
+                        this.infiniteScroll.enable(true);
+                        this.infiniteScroll.complete();      
+                    }
+                }
+            },err=>{
+
+            });
+        }
+    }
 
       getStatusString(orderStatus){
         console.log("orderStatus:"+orderStatus);
@@ -98,24 +122,35 @@ export class ShopMyPage{
             return order;
       }
 
-     getOrders(lastOrderId){
+     getOrders(lastOrderId,compare){
       return new Promise((resolve,reject)=>{
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        console.log("server:"+ ConfigProvider.serverAddress);
+        console.log("server:"+ this.storageProvider.serverAddress);
         let body  = JSON.stringify({    takitId:this.storageProvider.takitId,
                                         lastOrderId:lastOrderId, 
-                                        limit:ConfigProvider.OrdersInPage});
+                                        limit:this.storageProvider.OrdersInPage});
         console.log("getOrders:"+body);
-        // this.http.post(ConfigProvider.serverAddress+"/getOrders",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-        this.serverProvider.post(ConfigProvider.serverAddress+"/getOrders",body).then((res:any)=>{
-            console.log("getOrders-res:"+JSON.stringify(res));
+        this.serverProvider.post(this.storageProvider.serverAddress+"/getOrders",body).then((res:any)=>{
+            //console.log("getOrders-res:"+JSON.stringify(res));
             var result:string=res.result;
             if(result=="success" && Array.isArray(res.orders)){
+                if(compare==true){
+                    for(var i=0;i<this.orders.length && i< this.storageProvider.OrdersInPage;i++){
+                        if(this.orders[i].orderId!=res.orders[i].orderId){
+                            //reset order list and return;
+                            resolve(res); // please reset order list 
+                        }else{ //update order 
+                            this.orders[i]=this.convertOrderInfo(res.orders[i]);
+                            resolve(false); // just update order list
+                        }
+                    }
+                    return;
+                }
                 res.orders.forEach(order=>{
                     console.log("order.ordrId:"+order.orderId);
                     this.orders.push(this.convertOrderInfo(order));
-                    console.log("orders:"+JSON.stringify(this.orders));
+                    //console.log("orders:"+JSON.stringify(this.orders));
                 });
                 resolve(true);
             }else if(res.orders=="0"){ //Please check if it works or not
@@ -139,10 +174,12 @@ export class ShopMyPage{
      doInfinite(infiniteScroll) {
         console.log('Begin async operation');
         var lastOrderId=this.orders[this.orders.length-1].orderId;
-        this.getOrders(lastOrderId).then((more)=>{
-          if(more)
+        this.getOrders(lastOrderId,false).then((more)=>{
+          if(more){
+              console.log("more is true");
               infiniteScroll.complete();
-          else{
+          }else{
+              console.log("more is false");
               infiniteScroll.enable(false); //stop infinite scroll
               this.infiniteScroll=infiniteScroll;
           }
@@ -161,15 +198,17 @@ export class ShopMyPage{
         console.log("cancel order:"+JSON.stringify(order));
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        console.log("server:"+ ConfigProvider.serverAddress);
-        let body  = JSON.stringify({ orderId:order.orderId,cancelReason:""});
+        console.log("server:"+ this.storageProvider.serverAddress);
+        let body  = JSON.stringify({ orderId:order.orderId,
+                                     cancelReason:"",
+                                     cashId:this.storageProvider.cashId});
          
-         //this.http.post(ConfigProvider.serverAddress+"/cancelOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-         this.serverProvider.post(ConfigProvider.serverAddress+"/cancelOrder",body).then((res:any)=>{
+         this.serverProvider.post(this.storageProvider.serverAddress+"/cancelOrder",body).then((res:any)=>{
             console.log("cancelOrder-res:"+JSON.stringify(res));
             var result:string=res.result;
             if(result==="success"){
-              let alert = this.alertController.create({
+                this.storageProvider.cashInfoUpdateEmitter.emit("all");
+                let alert = this.alertController.create({
                     title: '주문 취소가 정상 처리 되었습니다.',
                     buttons: ['OK']
                 });
@@ -238,7 +277,7 @@ export class ShopMyPage{
             // refresh status of orders at front 
             console.log("refresh orders");
      }
-
+/*
     update(){
         console.log("update");
         this.orders=[];
@@ -246,4 +285,5 @@ export class ShopMyPage{
             this.infiniteScroll.enable(true);
         this.getOrders(-1);
     }
+*/    
 }

@@ -63,5 +63,50 @@ page-cashconfirm{
     padding-right: 8px;
     border-bottom: 0px !important;
     }
+
+    .explain{
+        text-align: justify;
+        white-space: normal;
+    }
+
+    .choice{
+        padding-left: 0px !important; 
+        >.item-inner{
+            padding-right: 0px !important;
+        };
+
+        ion-toggle {
+            margin: 0 !important;
+            padding: 0px !important;
+            cursor: pointer !important;
+        };
+
+        .item-inner{
+                height: 2.0rem !important;
+        }
+        .input-wrapper{
+            text-align: right !important; 
+        }
+    }
+    
+    .onOff>div.toggle-icon{
+        height:20px;
+    }
+
+    .onOff>div.toggle-icon.toggle-checked{
+        height:20px;
+    }
+
+    .onOff>div.toggle-icon.toggle-checked>div.toggle-inner{
+        width:19px;
+        height:19px;
+        top:0px;
+    }
+
+    .onOff>div.toggle-icon>div.toggle-inner{
+        width:19px;
+        height:19px;
+        top:0px;
+    }
 }
 

@@ -6,11 +6,11 @@
 <ion-content #cashContent class="cash">
     <ion-item #firstItem>
         <ion-label class="textSet"><strong>사용가능 금액</strong></ion-label>
-        <ion-label class="available-amount"><span>{{available}}</span> 원</ion-label>
+        <ion-label class="available-amount"><span>{{storageProvider.cashAmount}}</span> 원</ion-label>
     </ion-item>
 
     <div>
-    <ion-segment [(ngModel)]="cashMenu">
+    <ion-segment [(ngModel)]="storageProvider.cashMenu">
       <ion-segment-button  value="cashIn" (click)="disableInfiniteScroll()">
       입금하기
       </ion-segment-button>
@@ -23,7 +23,7 @@
     </ion-segment>
     </div>
 
-    <div [ngSwitch]="cashMenu">
+    <div [ngSwitch]="storageProvider.cashMenu">
         <ion-list *ngSwitchCase="'cashIn'">
             <ion-item>
                 <ion-label class="textSet"><strong>캐쉬아이디(받는통장 표시내용)</strong></ion-label>
@@ -32,31 +32,67 @@
             <ion-item ion-col class="cashId">
                 <ion-input class="cashIdValue" type="text" [(ngModel)]="storageProvider.cashId" disabled placeholder="설정버튼을 눌러주세요"></ion-input>
             </ion-item>
-                <button ion-button class="config" (click)="configureCashId()">
+                <button ion-button class="config" [disabled]="storageProvider.tourMode" (click)="configureCashId()">
                     <span>설정</span>
                 </button>
             </ion-row>
-            <ion-item>
-                <ion-label class="textSet">입금계좌 : 농협 301-2424-3636-21 (타킷주식회사)</ion-label>
+
+            <ion-row *ngIf="!storageProvider.iphone5">
+                <ion-col width-90>
+            <ion-item >
+                <ion-label class="textSet" style="text-align:right;padding:0px;">입금계좌: 농협 301-2424-3636-21 (타킷주식회사)</ion-label>
             </ion-item>
+            </ion-col>
+            <ion-col width-10 style="padding-right: 5px;">
+            <ion-item class="selectButton">
+                <button ion-button full class="selectButton copyClipboardButton" color="darkgray" (click)="copyAccountInfo()">
+                복사 
+                </button>
+            </ion-item>
+            </ion-col>
+            </ion-row>
+
+            <ion-row *ngIf="storageProvider.iphone5">
+                <ion-col width-80>
             <ion-item>
-                <p class="explain">
+                <ion-row class="textSet">&nbsp;&nbsp;&nbsp;&nbsp;입금계좌: 농협 301-2424-3636-21</ion-row>
+                <ion-row class="textSet">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 타킷주식회사</ion-row>
+            </ion-item>
+            </ion-col>
+            <ion-col width-10>
+            <ion-item class="selectButton">
+                <button full ion-button class="selectButton copyClipboardButton" color="darkgray">
+                복사 
+                </button>
+            </ion-item>
+            </ion-col>
+            </ion-row>
+
+            <ion-item>
+                <p class="explain" >
                 - 계좌이체시 <span style="color:red"> 받는통장 표시내용</span>에 반드시 <span style="color:red">캐쉬아이디를 입력</span>해주시기 바랍니다. 
                 </p>
+             </ion-item> 
+             <ion-item>  
                 <p class="explain">
                 - 한번에 <span style="color:red">5만원 이하</span>의 금액만 <span style="color:red">충전 가능</span>합니다. 
-                </p> 
+                </p>
+             </ion-item>
+             <ion-item>    
                 <p class="explain">
                 - 입금확인에 최대 5분이 소요될 수 있습니다. 바로 확인하실려면 아래 <span style="color:blue">입금 바로 확인하기</span> 버튼을 클릭해주세요. 
                 </p>
+             </ion-item>
+             <ion-item>   
                 <p class="explain">
                 - 받는통장 표시내용에 캐쉬아이디를 입력하지 않았을 시에는 아래 <span style="color:blue">입금 수동 확인하기</span>를 수행해주시기 바랍니다. 
                 </p>
-            </ion-item>
-                <button ion-button full (click)="cashInCheck(input)"> 입금 바로 확인하기 </button>
+             </ion-item>
+                <button ion-button full (click)="cashInCheck(input)" [disabled]="storageProvider.cashId.length==0 || storageProvider.tourMode"> 입금 바로 확인하기 </button>
 
             <div class="cashIn-check">   
                 <ion-grid class="cashIn-check-table">
+
                 <ion-row center>
                     <ion-col>
                     <ion-item>
@@ -73,81 +109,98 @@
                     </ion-col>
                     <ion-col>
                     <ion-item>
-                    <ion-input #depositCashAmount class="cashIn-check-inputBox" (click)="focusInput('depositCashAmount')" type="number" ></ion-input>
+                    <ion-input #depositCashAmount class="cashIn-check-inputBox" [(ngModel)]="depositAmount" type="number" ></ion-input>
                     </ion-item>
                     </ion-col>
-                </ion-row>                
+                </ion-row>
             <ion-row>
               <ion-col width-50>
                 <ion-item >
                     <ion-label>입금은행</ion-label>
                 </ion-item>
               </ion-col>
-              <ion-col width-50 [hidden]="depositBank=='0'">
+              <ion-col width-50>
                 <ion-item class="bankSelect" >
                     <ion-label></ion-label>
-                    <ion-select class="depositBankSelect" [(ngModel)]="depositBank"  (ionChange)="depositBankType(depositBank)">
+                    <ion-select class="depositBankSelect" [(ngModel)]="storageProvider.depositBank"  (ionChange)="depositBankType(storageProvider.depositBank)">
                       <ion-option *ngFor="let bank of storageProvider.banklist" value="{{bank.value}}">{{bank.name}}</ion-option>
-                      <ion-option value="0">직접입력</ion-option>
+                      <ion-option value="0">지점코드입력</ion-option>
                     </ion-select>
                 </ion-item>
               </ion-col>
-              <ion-col width-40 [hidden]="depositBank!='0'">  
+             <!-- 
+              <ion-col width-40 [hidden]="storageProvider.depositBank!='0'">  
                 <ion-item>
-                    <ion-input class="cashIn-check-inputBox" (click)="focusInput('depositBank')" [(ngModel)]="depositBankInput" type="number" ></ion-input>
+                    <ion-input class="cashIn-check-inputBox" [(ngModel)]="depositBankInput" type="number" ></ion-input>
                 </ion-item>
               </ion-col>
-              <ion-col width-10 [hidden]="depositBank!='0'">
+              <ion-col width-10 [hidden]="storageProvider.depositBank!='0'">
                 <ion-item class="selectButton">
                     <button ion-button full class="selectButton" (click)="toggleSelectInput('depositBankTypeSelect')">선택</button>
                 </ion-item>    
               </ion-col>
+              -->
             </ion-row>
-            
+            <!--
+            <ion-row [hidden]="storageProvider.depositBank!='0'">
+                <p class="explain">
+                    은행코드(3자리)를 숫자로 입력해주시기 바랍니다.
+                </p>
+            </ion-row>
+              -->
             <ion-row>
               <ion-col width-50>
                 <ion-item >
                     <ion-label>거래지점</ion-label>
                 </ion-item>
               </ion-col>
-              <ion-col width-50 [hidden]="depositBranch=='직접입력' || depositBank=='0'">
+              <ion-col width-40 [hidden]="storageProvider.depositBranch=='codeInput'">
                 <ion-item>
-                <ion-searchbar class="searchBarItems" [(ngModel)]="depositBranch"  autocomplete="on" placeholder="" (ionClear)="branchClear($event)"  (ionFocus)="getFocusBranch($event)" (ionInput)="getBranch($event)"></ion-searchbar>
-                <ion-list>
-                    <ion-item *ngFor="let item of branchShown">
-                    <button ion-button full class="branchButton" (click)="selectBranch(item)">
-                    {{ item }}
-                    </button>
-                    </ion-item>
-                </ion-list>
-                  </ion-item>
-              </ion-col>
-              <ion-col width-40 [hidden]="depositBranch!='직접입력' && depositBank!='0'">  
-                <ion-item>
-                    <ion-input class="cashIn-check-inputBox" (click)="focusInput('depositBranch')" [(ngModel)]="depositBranchInput" type="number" ></ion-input>
+                    <ion-input class="cashIn-check-inputBox" disabled [placeholder]="" [(ngModel)]="storageProvider.depositBranchInput"  ></ion-input>
                 </ion-item>
-              </ion-col>
-              <ion-col width-10 [hidden]="depositBranch!='직접입력' || depositBank.length==0 || depositBank=='0'">
+              </ion-col>    
+              <ion-col width-40 [hidden]="storageProvider.depositBranch!='codeInput'">
+                <ion-item>
+                    <ion-input class="cashIn-check-inputBox" [placeholder]="" [(ngModel)]="storageProvider.depositBranchInput" type="number" ></ion-input>
+                </ion-item>
+              </ion-col>    
+
+              <ion-col width-10 [hidden]="storageProvider.depositBank=='0'">
                 <ion-item class="selectButton">
-                    <button full ion-button (click)="toggleSelectInput('depositBranchTypeSelect')">선택</button>
-                </ion-item>    
-              </ion-col>
+                    <button ion-button full class="selectButton" [disabled]="storageProvider.cashId.length==0" (click)="toggleSelectInput('depositBranchTypeSelect')">선택</button>
+                </ion-item>
+              </ion-col>    
+            </ion-row>
+            <ion-row>
+                <p class="explain" [hidden]="storageProvider.depositBranch=='codeInput'">
+                    입금 계좌의 관리(지)점입니다. 
+                </p>
+            </ion-row>
+            <ion-row [hidden]="storageProvider.depositBranch!='codeInput'">
+                <p class="explain">
+                    입금 계좌의 관리(지)점입니다. 지점코드(7자리)를 숫자로 입력해주시기 바랍니다. 
+                </p>
+            </ion-row>
+            <ion-row center>
+            <ion-col>
+                <ion-item>
+                통장표시내용
+                </ion-item>
+            </ion-col>
+            <ion-col>
+            <ion-item>
+            <ion-input class="cashIn-check-inputBox" [placeholder]="storageProvider.name" [(ngModel)]="depositMemo" type="text" > </ion-input>
+            </ion-item>
+            </ion-col>
             </ion-row>
             <ion-item>
-                    <ion-row center>
-                    <ion-col>받는통장 표시내용</ion-col>
-                    <ion-col>
-                    <ion-item>
-                    <ion-input class="cashIn-check-inputBox" (click)="focusInput('depositCashId')" type="text" [placeholder]="storageProvider.name" ></ion-input>
-                    </ion-item>
-                    </ion-col>
-                </ion-row>
-            </ion-item>
-            <ion-item>
-            <button ion-button block (click)="cashInComplete(event)">입금 수동 확인하기</button>
+            <button ion-button block (click)="cashInComplete(event)" [disabled]="storageProvider.cashId.length==0 || storageProvider.tourMode">입금 수동 확인하기</button>
             </ion-item>
             </ion-grid>   
             </div>
+            <div class="dummy">
+                <br><br><br><br>
+            </div>    
         </ion-list>
 
         <ion-list *ngSwitchCase="'cashHistory'">
@@ -159,20 +212,33 @@
                     <ion-col>잔액</ion-col>
                 </ion-row>
               </ion-item>
-              <ion-item class="transaction" *ngFor="let tr of transactions">
-                <ion-row class="transaction">
+              <ion-item  *ngFor="let tr of transactions">
+                <ion-row class="transaction" (click)="toggleTransaction(tr)">
                     <ion-col>{{tr.date}}</ion-col>
                     <ion-col>{{tr.amount}}</ion-col>
-                    <ion-col *ngIf="tr.type!='확인'">{{tr.type}}</ion-col>
-                    <ion-col *ngIf="tr.type=='확인'"> <button ion-button >{{tr.type}}</button></ion-col>
-                    <ion-col>{{tr.balance}}</ion-col>
+                    <ion-col *ngIf="tr.transactionType!='deposit' || tr.confirm==1">{{tr.type}}</ion-col>
+                    <ion-col *ngIf="tr.transactionType=='deposit' && tr.confirm==0"> <button ion-button [disabled]="storageProvider.tourMode" (click)="addCash(tr)">확인</button></ion-col>
+                    <ion-col *ngIf="tr.nowBalance!=undefined && tr.nowBalance!=null">{{tr.nowBalance}}</ion-col>
+                    <ion-col *ngIf="tr.nowBalance==undefined || tr.nowBalance==null"> &nbsp; &nbsp;</ion-col>
+                </ion-row>
+                <ion-row class="transaction" [hidden]="tr.transactionType!='deposit' || tr.hide">
+                    <ion-col *ngIf="tr.bankName!=undefined">{{tr.bankName}}</ion-col>
+                    <ion-col *ngIf="tr.bankName==undefined">{{tr.bankCode}}</ion-col>
+                    <ion-col *ngIf="tr.branchName!=undefined">{{tr.branchName}}</ion-col>
+                    <ion-col *ngIf="tr.branchName==undefined">{{tr.branchCode}}</ion-col>
+                </ion-row>
+                <ion-row class="transaction" [hidden]="tr.transactionType!='refund' || tr.hide">
+                    <ion-col *ngIf="tr.bankName!=undefined">{{tr.bankName}}</ion-col>
+                    <ion-col *ngIf="tr.account!=undefined">{{tr.accountMask}}</ion-col>
+                    <ion-col *ngIf="tr.fee!=undefined">수수료:{{tr.fee}}</ion-col>
                 </ion-row>
               </ion-item>
       </ion-list>        
-          <ion-infinite-scroll (ionInfinite)="doInfinite($event)" [enabled]="infiniteScroll" [hidden]="transactions.length==0 && cashMenu!='cashHistory'">
+          <ion-infinite-scroll #infiniteScroll (ionInfinite)="doInfinite($event)" [enabled]="infiniteScroll" [hidden]="transactions.length==0 || storageProvider.cashMenu!='cashHistory'">
             <ion-infinite-scroll-content></ion-infinite-scroll-content>
           </ion-infinite-scroll>
-
+        <div class="cashHistoryDummy" *ngIf="storageProvider.cashMenu=='cashHistory'">
+        </div>
         <ion-list *ngSwitchCase="'cashOut'">
             <ion-item>
               <ion-label class="textSet"><strong>등록 환불 계좌 </strong></ion-label>
@@ -201,9 +267,14 @@
             <ion-item ion-col class="cashOut-text">
                 <ion-label>계좌번호</ion-label>
             </ion-item>
-            <ion-item ion-col class="input" >
-                <ion-input class="inputBox"  (click)="focusInput('inputRefundAccount')" [disabled]="!refundEditable" [(ngModel)]="refundAccount" type="number"></ion-input>
+
+            <ion-item ion-col class="input" *ngIf="!refundEditable" >
+                <ion-input class="inputBox"  (click)="focusInput('inputRefundAccount')" disabled [(ngModel)]="refundAccountMask" ></ion-input>
             </ion-item>
+            <ion-item ion-col class="input"  *ngIf="refundEditable">
+                <ion-input class="inputBox"  (click)="focusInput('inputRefundAccount')"  [(ngModel)]="refundAccount" type="number"></ion-input>
+            </ion-item>
+
             </ion-row>
             <p class="explain">
             &nbsp;&nbsp;"-"를 제외한 숫자만 입력해주시기 바랍니다. 
@@ -216,27 +287,27 @@
                         </button>
                     </ion-col>
                     <ion-col class="refundAccountRegButton">
-                        <button ion-button [disabled]="storageProvider.cashId.length==0" (click)="checkWithrawAccount()" full>
+                        <button ion-button [disabled]="storageProvider.cashId.length==0 ||storageProvider.tourMode" (click)="checkWithrawAccount()" full>
                             <span>환불계좌 등록</span>
                         </button>
                     </ion-col>
                 </ion-row>
             </ion-item>
             <ion-item *ngIf="!refundEditable">
-                <button ion-button (click)="enableRefundEditable()" full>
+                <button ion-button [disabled]="storageProvider.tourMode" (click)="enableRefundEditable()" full>
                     <span>환불계좌 수정</span>
                 </button>
             </ion-item>
             <ion-item>
-                <ion-label class="explain">
+                <p class="explain">
                     - 캐쉬를 고객님의 계좌로 이체합니다. 이체 수수료는 월 4회 이하 무료이나 4회를 초과하는 경우 농협계좌 150원, 타행 400원의 수수료가 차감되어 이체됩니다.
-                </ion-label>
+                </p>
             </ion-item>
             <ion-row>
             <ion-item ion-col class="cashId">
-                <ion-input class="cashIdValue" [(ngModel)]="refundAmount" (click)="focusInput('inputRefundAmount')" [disabled]="verifiedAccount.length==0 || refundEditable" type="number" placeholder="환불금액"></ion-input>
+                <ion-input class="cashIdValue" [(ngModel)]="refundAmount" [disabled]="verifiedAccount.length==0 || refundEditable" type="number" placeholder="환불금액"></ion-input>
             </ion-item>
-                <button ion-button (click)="refundCash()" [disabled]="verifiedAccount.length==0 || refundEditable" class="cashOut">
+                <button ion-button (click)="refundCash()" [disabled]="verifiedAccount.length==0 || refundEditable || storageProvider.tourMode" class="cashOut">
                     <span>환불신청</span>
                 </button>
             </ion-row>

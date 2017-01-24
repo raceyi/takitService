@@ -1,5 +1,5 @@
-import { NgModule ,ChangeDetectorRef} from '@angular/core';
-import { IonicApp, IonicModule} from 'ionic-angular';
+import { NgModule, ErrorHandler } from '@angular/core';
+import { IonicApp, IonicModule, IonicErrorHandler } from 'ionic-angular';
 import { MyApp } from './app.component';
 import { HomePage } from '../pages/home/home';
 import { TabsPage } from '../pages/tabs/tabs';
@@ -13,6 +13,7 @@ import {StorageProvider} from '../providers/storageProvider';
 import {Storage} from '@ionic/storage';
 import {ServerProvider} from '../providers/serverProvider';
 
+import {ConfigProvider} from '../providers/configProvider';
 import {SignupPage} from '../pages/signup/signup';
 import {SignupSubmitPage} from '../pages/signup_submit/signup_submit';
 import {ServiceInfoPage} from '../pages/serviceinfo/serviceinfo';
@@ -28,8 +29,12 @@ import { ShopTabsPage } from '../pages/shoptabs/shoptabs';
 import { PasswordPage } from '../pages/password/password';
 import {CashConfirmPage} from '../pages/cashconfirm/cashconfirm';
 import {CashIdPage} from '../pages/cashid/cashid';
+import {BankBranchPage} from '../pages/bankbranch/bankbranch';
+import {IOSAlertPage} from '../pages/ios-alert/ios-alert';
+import {CashDepositDeletePage} from '../pages/cash-deposit-delete/cash-deposit-delete';
+import {MultiloginPage} from '../pages/multilogin/multilogin';
 
-import{Focuser} from '../components/focuser/focuser';
+import {Focuser} from '../components/focuser/focuser';
 
 @NgModule({
   declarations: [
@@ -53,7 +58,11 @@ import{Focuser} from '../components/focuser/focuser';
     PasswordPage,
     Focuser,
     CashConfirmPage,
-    CashIdPage
+    CashIdPage,
+    BankBranchPage,
+    IOSAlertPage,
+    CashDepositDeletePage,
+    MultiloginPage,
   ],
   imports: [
     IonicModule.forRoot(MyApp)
@@ -79,15 +88,20 @@ import{Focuser} from '../components/focuser/focuser';
     ShopTabsPage,
     PasswordPage,
     CashConfirmPage,
-    CashIdPage
+    CashIdPage,
+    BankBranchPage,
+    IOSAlertPage,
+    CashDepositDeletePage,
+    MultiloginPage  
   ],
-  providers: [
-    Storage, 
-    FbProvider,
-    EmailProvider,
-    KakaoProvider,
-    StorageProvider,
-    ServerProvider
-  ]
+  
+  providers: [{provide: ErrorHandler, useClass: IonicErrorHandler},
+              Storage,
+              ConfigProvider,
+              StorageProvider,
+              FbProvider,
+              EmailProvider,
+              KakaoProvider,
+              ServerProvider]
 })
 export class AppModule {}

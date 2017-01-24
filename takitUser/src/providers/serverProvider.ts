@@ -3,7 +3,6 @@ import {Platform} from 'ionic-angular';
 import {Http,Headers} from '@angular/http';
 import {Storage} from '@ionic/storage';
 
-import {ConfigProvider} from './ConfigProvider';
 import {FbProvider} from './LoginProvider/fb-provider';
 import {KakaoProvider} from './LoginProvider/kakao-provider';
 import {EmailProvider} from './LoginProvider/email-provider';
@@ -19,7 +18,6 @@ export class ServerProvider{
             ,private fbProvider:FbProvider,private kakaoProvider:KakaoProvider
             ,private emailProvider:EmailProvider
             ,private storageProvider:StorageProvider) {
-
       console.log("ServerProvider constructor");
   }
 
@@ -28,14 +26,14 @@ export class ServerProvider{
             let headers = new Headers();
             headers.append('Content-Type', 'application/json');
 
-            this.http.post(request,body,{headers: headers}).timeout(ConfigProvider.timeout).map(res=>res.json()).subscribe((res)=>{
+            this.http.post(request,body,{headers: headers}).timeout(this.storageProvider.timeout).map(res=>res.json()).subscribe((res)=>{
                 resolve(res);                    
             },(err)=>{
                 if(err.hasOwnProperty("status") && err.status==401){
                     //login again with id
                     this.loginAgain().then(()=>{
                         //call http post again
-                         this.http.post(request,body,{headers: headers}).timeout(ConfigProvider.timeout).map(res=>res.json()).subscribe((res)=>{
+                         this.http.post(request,body,{headers: headers}).timeout(this.storageProvider.timeout).map(res=>res.json()).subscribe((res)=>{
                             resolve(res);  
                          },(err)=>{
                              reject("NetworkFailure");
@@ -96,7 +94,7 @@ export class ServerProvider{
             let headers = new Headers();
             headers.append('Content-Type', 'application/json');
             let body = JSON.stringify({});
-            this.post(encodeURI(ConfigProvider.serverAddress+"/orderNotiMode"),body).then((res:any)=>{
+            this.post(encodeURI(this.storageProvider.serverAddress+"/orderNotiMode"),body).then((res:any)=>{
                   console.log("res:"+JSON.stringify(res));
                   console.log("orderNotiMode-res.result:"+res.result);
                   if(res.result=="success"){
@@ -114,14 +112,15 @@ export class ServerProvider{
       return new Promise((resolve,reject)=>{
             let headers = new Headers();
             headers.append('Content-Type', 'application/json');
-            this.post(encodeURI(ConfigProvider.serverAddress+"/saveOrder"),body).then((res:any)=>{
+            console.log("saveOrder:"+body);
+            this.post(encodeURI(this.storageProvider.serverAddress+"/saveOrder"),body).then((res:any)=>{
                   console.log("res:"+JSON.stringify(res));
                   console.log("saveOrder-res.result:"+res.result);
                   if(res.result=="success"){
                     //resolve(res.orders);
                     resolve(res);
                   }else{
-                    reject("HttpFailure");
+                    reject(res.error);
                   }
             },(err)=>{
                 reject(err);  
@@ -133,14 +132,14 @@ export class ServerProvider{
        return new Promise((resolve,reject)=>{
         let headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        this.http.get(request,{headers: headers}).timeout(ConfigProvider.timeout).subscribe((res)=>{
+        this.http.get(request,{headers: headers}).timeout(this.storageProvider.timeout).subscribe((res)=>{
             resolve(res.json());
         },(err)=>{
                 if(err.hasOwnProperty("status") && err.status==401){
                     //login again with id
                     this.loginAgain().then(()=>{
                         //call http post again
-                         this.http.get(request,{headers: headers}).timeout(ConfigProvider.timeout).subscribe((res)=>{
+                         this.http.get(request,{headers: headers}).timeout(this.storageProvider.timeout).subscribe((res)=>{
                             resolve(res.json());  
                          },(err)=>{
                              reject("NetworkFailure");
@@ -160,9 +159,8 @@ export class ServerProvider{
             let headers = new Headers();
             headers.append('Content-Type', 'application/json');
             console.log("takitId:"+takitId);
-            console.log("!!!server:"+ ConfigProvider.serverAddress+"/cafe/shopHome?takitId="+takitId);
-            // this.http.get(encodeURI(ConfigProvider.serverAddress+"/cafe/shopHome?takitId="+takitId),{headers: headers}).subscribe((res)=>{
-            this.get(encodeURI(ConfigProvider.serverAddress+"/cafe/shopHome?takitId="+takitId)).then((res)=>{
+            console.log("!!!server:"+ this.storageProvider.serverAddress+"/cafe/shopHome?takitId="+takitId);
+            this.get(encodeURI(this.storageProvider.serverAddress+"/cafe/shopHome?takitId="+takitId)).then((res)=>{
                     console.log("res:"+JSON.stringify(res));
                     //this.shopResponse=res.json();
                     resolve(res);
@@ -172,6 +170,23 @@ export class ServerProvider{
         });   
     }
 
+    updateCashAvailable(){
+        return new Promise((resolve,reject)=>{
+                        let body = JSON.stringify({cashId:this.storageProvider.cashId});
+                        console.log("getBalanceCash "+body);
+                        this.post(this.storageProvider.serverAddress+"/getBalanceCash",body).then((res:any)=>{
+                            console.log("getBalanceCash res:"+JSON.stringify(res));
+                            if(res.result=="success"){
+                                this.storageProvider.cashAmount=res.balance;
+                                resolve();
+                            }else{
+                                reject(res.error);
+                            }
+                        },(err)=>{
+                                 reject(err);                                  
+                        });
+        });
+    }
 }
 
 

@@ -9,7 +9,6 @@ import {StorageProvider} from '../../providers/storageProvider';
 import {Device } from 'ionic-native';
 
 @Component({
-  //selector:'page-shoptabs', 
   templateUrl: 'shoptabs.html'
 })
 
@@ -25,7 +24,6 @@ export class ShopTabsPage {
 
   constructor(private platform:Platform, private navController: NavController
   ,private navParams: NavParams,private storageProvider:StorageProvider, private app: App) {
-   console.log('Device version is: ' + Device.device.version);
 
     this.tabShopCart = ShopCartPage;
     this.tabMyPage = ShopMyPage;

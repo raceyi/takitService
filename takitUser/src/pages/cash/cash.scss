@@ -22,6 +22,15 @@ page-cash{
 
     .textSet{
         font-size: 1.4rem;
+        margin-right:0px;
+    }
+
+    .clipBoard.item-md {
+        padding-left: 0px;
+    }
+
+    .clipBoard.item-ios {
+        padding-left: 0px;
     }
 
     .item {
@@ -75,7 +84,7 @@ page-cash{
 
     .explain{
     text-align: justify;
-    white-space: pre-line;
+    white-space: normal;
     color:#7F7F7F;
     font-size: 1.3rem; 
     }
@@ -234,6 +243,7 @@ page-cash{
         .label-md {
             margin:  0px; 
         }
+        border-bottom:0px;
     }
 
     .transactionLabel{
@@ -279,9 +289,9 @@ page-cash{
         margin: inherit;
     }
     //////////////////////////////////////////////////////////////////////////////
-    .input-cover { // !!! ios only for showing input element with keypad.  !!!
-        position: static;
-    }
+    //.input-cover { // !!! ios only for showing input element with keypad.  !!!
+    //    position: static;
+    //}
     /////////////////////////////////////////////
     // 캐쉬 정보 수동입력 
     .transferDate{
@@ -307,16 +317,35 @@ page-cash{
         }
     }
 
+    .copyClipboardButton{
+        vertical-align: inherit !important;
+        border-radius: 0px !important;
+    }
+
     .selectButton{
         padding-right: 0px;
         padding-left: 0px;
+        
+        div.item-inner{  // Is it necessary for iphone5?
+            padding: 0px !important;
+        }
+        
         .item-md .item-button {
              padding: 0 !important; 
              margin:0px !important;
         }
+        .label-ios {
+            margin: 0px !important;
+        }
         padding: 0px !important;
         margin:0px !important;
         box-shadow: none !important; 
+    }
+
+    .selectButton.item-ios .item-button {
+        padding-right: 0px;
+        padding-left: 0px;        
+        font-size: 1.0rem !important;
     }
 
     ion-datetime{
@@ -378,5 +407,9 @@ page-cash{
 
      ion-select.depositBankSelect{
           max-width: 100%
+    }
+
+    .cashHistoryDummy{
+        height:60vh;
     }
 }

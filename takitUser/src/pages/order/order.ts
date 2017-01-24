@@ -3,9 +3,9 @@ import {NavController,NavParams,TextInput,Content,ActionSheetCmp} from 'ionic-an
 import {Http,Headers} from '@angular/http';
 import {Platform,App,AlertController} from 'ionic-angular';
 import 'rxjs/add/operator/map';
-import {ConfigProvider} from '../../providers/ConfigProvider';
 import {StorageProvider} from '../../providers/storageProvider';
 import {ServerProvider} from '../../providers/serverProvider';
+import {Keyboard} from 'ionic-native';
 
 declare var cordova:any;
 
@@ -18,7 +18,7 @@ export class OrderPage {
   @ViewChild('optionDiv')  optionDivElementRef:ElementRef;
   @ViewChild('takeoutDiv') takeoutDivElementRef:ElementRef;
 
-  userNotiHidden:boolean =true;
+  userNotiHidden:boolean=false;
   shopname:string;
   menu:any;
   takitId;
@@ -34,8 +34,12 @@ export class OrderPage {
   discount:number;
   amount:number;
   price:number;
+  
+  cashPassword:string="";
 
   focusQunatityNum= new EventEmitter();
+
+  iOSOrderButtonHide=true;
 
   @ViewChild('quantityNum') inputNumRef: TextInput;
 
@@ -54,7 +58,7 @@ export class OrderPage {
 
       this.price=this.menu.price*1;
       this.discount=Math.round(this.price*this.storageProvider.shopInfo.discountRate);
-      this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
+      this.amount=this.price-this.discount;
       console.log(" ["+this.menu.hasOwnProperty("takeout")+"][ "+(this.menu.takeout!=null) +"] ["+ (this.menu.takeout!=false)+"]");
       if(this.menu.hasOwnProperty("takeout") && (this.menu.takeout!=null) && (this.menu.takeout!=false)){ // humm... please add takeout field into all menus...
          this.takeoutAvailable=true;
@@ -67,24 +71,47 @@ export class OrderPage {
           this.options=JSON.parse(this.menu.options);
           this.options.forEach((option)=>{
               if(option.hasOwnProperty("choice") && Array.isArray(option.choice)){
+                  option.flag=false;
                   option.flags=[];
+                  option.disabled=[];
                   var i;
                   for(i=0;i<option.choice.length;i++){
                       option.flags.push(false);
+                      option.disabled.push(false);
                   }
               }
           });
       }
       
-      this.quantityInputType="select";  
+      this.quantityInputType="select";
+
+      /* It doesn't work in ios 
+      if(!this.storageProvider.isAndroid){
+          Keyboard.disableScroll(true);
+      }
+      */
+       if(!this.storageProvider.isAndroid){ //ios
+            Keyboard.onKeyboardShow().subscribe((e)=>{
+                console.log("keyboard show");
+                this.ngZone.run(()=>{
+                    this.iOSOrderButtonHide=false;
+                });
+            });
+            Keyboard.onKeyboardHide().subscribe((e)=>{
+                console.log("keyboard hide");
+                setTimeout(() => {
+                    this.ngZone.run(()=>{
+                        this.iOSOrderButtonHide=true;
+                    });
+                  }, 1000); 
+            });
+       }
  }
 
   sendSaveOrder(cart,menuName){
       if(this.storageProvider.tourMode==false){
        return new Promise((resolve, reject)=>{
-             //check if cash and cashpassword exist
-             //....
-
+             //check if cash and cashpassword exist             
              var takeout;
              if(this.takeout==true){
                  takeout=1;
@@ -95,18 +122,17 @@ export class OrderPage {
                                         takitId:this.takitId,
                                         orderList:JSON.stringify(cart), 
                                         orderName:menuName+"("+this.quantity+")",
-                                        amount:Math.round(this.amount),
+                                        amount:this.amount,
                                         takeout: takeout,
-                                        orderedTime:new Date().toISOString()});
-                                       // cashId: this.storageProvider. ,
-                                       // cashPassword:);
-
+                                        orderedTime:new Date().toISOString(),
+                                        cashId: this.storageProvider.cashId,
+                                        password:this.cashPassword
+                                        });
               console.log("sendOrder:"+JSON.stringify(body));                          
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server:"+ ConfigProvider.serverAddress);
+              console.log("server:"+ this.storageProvider.serverAddress);
 
-             //this.http.post(ConfigProvider.serverAddress+"/saveOrder",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
              this.serverProvider.saveOrder(body).then((res)=>{    
                  resolve(res);
              },(err)=>{
@@ -138,16 +164,19 @@ export class OrderPage {
                             menuName:menuName,
                             quantity:this.quantity,
                             options: options,
-                            price: Math.round(this.amount)});
-           cart.total=Math.round(this.amount);
+                            price: this.amount});
+           cart.total=this.amount;
            this.sendSaveOrder(cart,menuName).then((res:any)=>{
+                 this.cashPassword="";
                  console.log(JSON.stringify(res)); 
                  var result:string=res.result;
                  if(result=="success"){
                     this.storageProvider.order_in_progress_24hours=true;
                     this.storageProvider.messageEmitter.emit(res.order);
                     console.log("storageProvider.run_in_background: "+this.storageProvider.run_in_background);
+                    this.storageProvider.cashInfoUpdateEmitter.emit("all");
                     if(this.storageProvider.run_in_background==false){
+                        //refresh cashAmount
                         let confirm = this.alertController.create({
                             title: '주문완료['+res.order.orderNO+']'+' 앱을 계속 실행하여 주문알림을 받으시겠습니까?',
                             message: '앱이 중지되면 주문알림을 못받을수 있습니다.',
@@ -174,6 +203,7 @@ export class OrderPage {
                         });
                         confirm.present();
                     }else{
+                        console.log("give alert on order success");
                         let alert = this.alertController.create({
                                 title: '주문에 성공하였습니다.'+'주문번호['+res.order.orderNO+']',
                                 subTitle: '[주의]앱을 종료하시면 주문알림을 못받을수 있습니다.' ,
@@ -192,6 +222,7 @@ export class OrderPage {
                     alert.present();
                  }
            },(error)=>{
+                 this.cashPassword="";
                  console.log("saveOrder err "+error);
                  if(error=="NetworkFailure"){
                     let alert = this.alertController.create({
@@ -200,6 +231,24 @@ export class OrderPage {
                             buttons: ['OK']
                         });
                         alert.present();
+                 }else if(error=="shop's off"){
+                    let alert = this.alertController.create({
+                            title: '상점이 문을 열지 않았습니다.',
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                 }else if(error=="invalid cash password"){
+                    let alert = this.alertController.create({
+                            title: '비밀번호가 일치하지 않습니다.',
+                            buttons: ['OK']
+                        });
+                        alert.present();
+                 }else{
+                    let alert = this.alertController.create({
+                            title: '주문에 실패했습니다.',
+                            buttons: ['OK']
+                        });
+                        alert.present();                     
                  }
            })        
   }  
@@ -224,7 +273,35 @@ export class OrderPage {
  }
 
   order(){
+    if(this.storageProvider.tourMode){
+        let alert = this.alertController.create({
+            title: '둘러보기 모드에서는 주문이 불가능합니다.',
+            subTitle: '로그인후 사용해주시기 바랍니다.',
+            buttons: ['OK']
+        });
+        alert.present();
+            return;
+        }
+
     console.log("order comes... "); 
+    if(this.storageProvider.cashId==undefined ||
+                this.storageProvider.cashId.length<5){
+        let alert = this.alertController.create({
+            subTitle: '캐쉬아이디를 설정해 주시기 바랍니다.',
+            buttons: ['OK']
+        });
+        alert.present();
+        return;               
+    }
+    if(this.cashPassword.length<6){
+        let alert = this.alertController.create({
+            subTitle: '캐쉬비밀번호(6자리)를 입력해 주시기 바랍니다.',
+            buttons: ['OK']
+        });
+        alert.present();
+        return;               
+    }
+
     if(this.quantity==undefined){
         let alert = this.alertController.create({
             subTitle: '수량을 입력해주시기 바랍니다',
@@ -238,18 +315,24 @@ export class OrderPage {
     }
     // check options
     this.checkOptionValidity().then(()=>{
-        this.sendOrder();
+        if(this.storageProvider.cashAmount >= this.amount){
+            this.sendOrder();
+        }else{
+            let alert = this.alertController.create({
+                subTitle: '캐쉬잔액이 부족합니다.',
+                buttons: ['OK']
+            });
+            alert.present();
+            return;
+        }
     },(name)=>{
         console.log("option.select is undefined");
         let alert = this.alertController.create({
             subTitle: name+'을 선택해주십시오',
             buttons: ['OK']
         });
-        console.log("hum...");
-        alert.present().then(()=>{
-            console.log("alert done");
-            return;
-        });
+        alert.present();
+        return;
     });
   }
 
@@ -281,6 +364,7 @@ export class OrderPage {
   }
 
   saveShopcart(){    
+    this.cashPassword="";  
     this.storageProvider.getCartInfo(this.takitId).then((result:any)=>{
         var cart;
         if(Array.isArray(result) && result.length==1){
@@ -310,6 +394,7 @@ export class OrderPage {
                     options: options,
                     price: this.menu.price,
                     amount: this.price,
+                    discountAmount:this.price-Math.round(this.price*this.storageProvider.shopInfo.discountRate),
                     takeout:this.takeoutAvailable});
         cart.total=cart.total+this.price;
         console.log("cart:"+JSON.stringify(cart));
@@ -341,74 +426,89 @@ export class OrderPage {
 
       if(quantity==6){ // show text input box 
           this.quantityInputType="input";
-          this.quantity=undefined; 
+          //this.quantity=undefined;
+          this.quantity=1; //keypad doesn't work for password if quantity is undefined.
           if(this.platform.is('android') || this.platform.is('ios'))
             this.focusQunatityNum.emit(true);           
       }else{
           this.quantityInputType="select";
           this.price=this.menu.price*quantity;
           this.discount=Math.round(this.price*this.storageProvider.shopInfo.discountRate);
-          this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
+          this.amount=this.price-this.discount;
       }
   }
 
-  optionChange(option){
-      console.log("flag:"+option.flag);
+  computeAmount(option){
+      console.log("[computeAmount]flag:"+option.flag);
       if(option.flag==true){
           this.price=this.price+option.price*this.quantity;    
-          // workaround solution as option.flags[i] is not updated when it is disabled.
-          // Please move below codes into option.flag==false... 
-            if(Array.isArray(option.flags)){     
-                var i;
-                for(i=0;i<option.flags.length;i++){
-                        console.log("choice:"+option.choice[i]+"flags:"+option.flags[i]);
-                        option.flags[i]=false;
-                        console.log("choice:"+option.choice[i]+"flags:"+option.flags[i]);
-                }
-            }
       }else{
           this.price=this.price-option.price*this.quantity;
           console.log("option.select:"+option.select);
           if(option.hasOwnProperty("choice")){
               option.select=undefined;
-              console.log("set false to choice flags");
-              /*
+              console.log("set false to choice flags");              
                 var i;
                 for(i=0;i<option.flags.length;i++){
-                        console.log("choice:"+option.choice[i]+"flags:"+option.flags[i]);
+                        //console.log("choice:"+option.choice[i]+"flags:"+option.flags[i]);
                         option.flags[i]=false;
-                        console.log("choice:"+option.choice[i]+"flags:"+option.flags[i]);
                 }
-                */
           }
       }
-      this.discount=this.price*this.storageProvider.shopInfo.discountRate;
-      this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
+      this.discount=Math.round(this.price*this.storageProvider.shopInfo.discountRate);
+      this.amount=this.price-this.discount;
   }
 
     choiceChange(option,idx,flag){
-        /*
-        ////////debug-begin
-        console.log("[choiceChange]flag:"+flag);
-        for(i=0;i<option.flags.length;i++){
-            console.log("choice:"+option.choice[i]+"flags:"+option.flags[i]);
-        }
-        ////////debug-end
-        */
-        if(flag==true && Array.isArray(option.flags)){
-            option.select=option.choice[idx];
-            option.flag=true;
-            // other flags become false
-            var i;
-            for(i=0;i<option.flags.length;i++){
-                if(i!=idx){
-                    option.flags[i]=false;
+        var prevOptionFlag=option.flag;
+        console.log("prevOptionFlag:"+prevOptionFlag);
+        this.ngZone.run(()=>{
+            if(flag==true && Array.isArray(option.flags)){
+                option.select=option.choice[idx];
+                option.flag=true;
+                if(prevOptionFlag==false){
+                    console.log("compute amount again(add)");
+                    this.computeAmount(option);
                 }
+                // other flags become false
+                var i;
+                for(i=0;i<option.flags.length;i++){
+                    if(i!=idx){
+                        option.flags[i]=false;
+                    }else{
+                        option.flags[i]=true;
+                    }
+                }
+            }else{
+                option.select=undefined;
+                var i;
+                for(i=0;i<option.flags.length;i++){
+                    if(option.flags[i]==true)
+                        break;
+                }
+                if(i==option.flags.length){
+                    option.flag=false;
+                    if(prevOptionFlag==true){
+                        this.computeAmount(option);            
+                        console.log("compute amount again(remove)");
+                    }
+                }
+
             }
-        }else{
-            option.select=undefined;            
-        }
+        });
     }
+
+  optionChange(option){
+      console.log("flag:"+option.flag);
+      if(option.flag==true){
+          this.price=this.price+option.price*this.quantity;    
+      }else{
+          this.price=this.price-option.price*this.quantity;
+          console.log("option.select:"+option.select);
+      }
+      this.discount=Math.round(this.price*this.storageProvider.shopInfo.discountRate);
+      this.amount=this.price-this.discount;
+  }
 
   quantityInput(flag){
     // console.log("flag:"+flag+" quantityInputType:"+this.quantityInputType);
@@ -450,7 +550,7 @@ export class OrderPage {
         console.log("unitPrice:"+unitPrice);
           this.price=unitPrice*this.quantity;
           this.discount=Math.round(this.price*this.storageProvider.shopInfo.discountRate);
-          this.amount=Math.round(this.price*(1-this.storageProvider.shopInfo.discountRate));
+          this.amount=this.price-this.discount;
     }      
   }
 
@@ -471,13 +571,6 @@ collapse($event){
      this.userNotiHidden=false;
   }
 
-    onFocusPassword(event){
-        console.log("onFocusPassword");
-        let dimensions = this.orderPageRef.getContentDimensions();
-        console.log("dimensions:"+JSON.stringify(dimensions));
-        this.orderPageRef.scrollTo(0, dimensions.contentHeight);
-    }
-
     hasChoice(option){
         //console.log("option:"+option.hasOwnProperty("choice"));
         if(option.hasOwnProperty("choice")==true && Array.isArray(option.choice)){
@@ -490,5 +583,15 @@ collapse($event){
         if(option.select!=undefined)
             option.flag=true;    
     }
+/*
+     onFocusPassword(event){
+         if(!this.storageProvider.isAndroid){
+            console.log("onFocusPassword");
+            let dimensions = this.orderPageRef.getContentDimensions();
+            console.log("dimensions:"+JSON.stringify(dimensions));
+            this.orderPageRef.scrollTo(0, dimensions.contentHeight);
+         }
+    }
+*/
 }
 

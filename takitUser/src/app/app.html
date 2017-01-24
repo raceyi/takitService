@@ -5,16 +5,16 @@
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X  
       </button>
-      <button class="menu" color="white" ion-button icon-left full  menuClose [hidden]="storageProvider.id==undefined || storageProvider.tourMode==true" (click)="openUserInfo()">
+      <button class="menu" color="white" ion-button icon-left full  menuClose  (click)="openUserInfo()">
         <ion-icon name="person"></ion-icon>&nbsp;&nbsp;회원정보
       </button>
       <button class="menu" color="white" ion-button icon-left full menuClose (click)="openServiceInfo()">
         <ion-icon name="information-circle"></ion-icon>&nbsp;&nbsp;서비스정보 
       </button>
-      <button class="menu" color="white" ion-button icon-left full menuClose [hidden]="storageProvider.id==undefined || storageProvider.tourMode==true" (click)="openLogout()">
+      <button class="menu" color="white" ion-button icon-left full menuClose  (click)="openLogout()">
         <ion-icon name="log-out"></ion-icon>&nbsp;&nbsp;로그아웃 
       </button>
-      <button class="menu" color="white" ion-button icon-left full menuClose [hidden]="storageProvider.id==undefined || storageProvider.tourMode==true" (click)="openUnregister()">
+      <button class="menu" color="white" ion-button icon-left full menuClose  (click)="openUnregister()">
         <ion-icon name="exit"></ion-icon>&nbsp;&nbsp;회원탈퇴 
       </button>
   </ion-content>
@@ -23,4 +23,3 @@
 
 <!-- Disable swipe-to-go-back because it's poor UX to combine STGB with side menus -->
 <ion-nav [root]="rootPage" #content swipeBackEnabled="false"></ion-nav>
-

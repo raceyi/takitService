@@ -2,7 +2,7 @@ import {Injectable} from '@angular/core';
 import {Http,Headers} from '@angular/http';
 import {Facebook} from 'ionic-native';
 import {Platform} from 'ionic-angular';
-import {ConfigProvider} from '../ConfigProvider';
+import {StorageProvider} from '../storageProvider';
 import 'rxjs/add/operator/map';
 
 @Injectable()
@@ -12,7 +12,7 @@ export class FbProvider {
   country:string;
   name:string;
 
-  constructor(private platform:Platform,private http:Http) {
+  constructor(private platform:Platform,private http:Http,private storageProvider:StorageProvider) {
       console.log("FbProvider");
   }
 
@@ -25,22 +25,7 @@ export class FbProvider {
           });
       });
   }
-/*
- signup(country,phone,email,name){
-      this.email=email;
-      this.phone=phone;
-      this.name=name;
-      this.country=country;
 
-      return new Promise((resolve,reject)=>{
-          this.fblogin(this.facebookServerSignup).then((res:any)=>{
-              resolve(res);
-          }, (err)=>{
-              reject(err);
-          });
-      });
-  }
-*/
   fblogin(handler,fbProvider){    
       return new Promise((resolve,reject)=>{
                if(this.platform.is('cordova')) {
@@ -142,9 +127,9 @@ export class FbProvider {
 
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server:"+ ConfigProvider.serverAddress);
+              console.log("server:"+ fbProvider.storageProvider.serverAddress);
 
-             fbProvider.http.post(ConfigProvider.serverAddress+"/facebooklogin",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{                 
+             fbProvider.http.post(fbProvider.storageProvider.serverAddress+"/facebooklogin",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{                 
                  console.log("facebook login res:"+JSON.stringify(res));
                     resolve(res); // 'success'(move into home page) or 'invalidId'(move into signup page)
              },(err)=>{
@@ -160,9 +145,9 @@ export class FbProvider {
               let body = JSON.stringify({referenceId:facebookid,name:name,email:email,country:country,phone:phone});
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server: "+ ConfigProvider.serverAddress+ " body:"+body);
+              console.log("server: "+ this.storageProvider.serverAddress+ " body:"+body);
 
-             this.http.post(ConfigProvider.serverAddress+"/signup",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             this.http.post(this.storageProvider.serverAddress+"/signup",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                  resolve(res); // 'success'(move into home page) or 'invalidId'(move into signup page)
              },(err)=>{
                  console.log("signup no response "+JSON.stringify(err));
@@ -171,6 +156,7 @@ export class FbProvider {
          });
   }
 
+/*
   logout(){
       return new Promise((resolve,reject)=>{
             Facebook.logout().then((result)=>{
@@ -178,9 +164,9 @@ export class FbProvider {
                     console.log("logout");
                     let headers = new Headers();
                     headers.append('Content-Type', 'application/json');
-                    console.log("server: "+ ConfigProvider.serverAddress);
+                    console.log("server: "+ this.storageProvider.serverAddress);
 
-                    this.http.post(ConfigProvider.serverAddress+"/logout",{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                    this.http.post(this.storageProvider.serverAddress+"/logout",{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                         resolve(res); 
                     },(err)=>{
                         //console.log("logout no response "+JSON.stringify(err));
@@ -192,14 +178,34 @@ export class FbProvider {
             });
       });
   }
+*/
+
+  logout(){
+      return new Promise((resolve,reject)=>{
+                    let headers = new Headers();
+                    headers.append('Content-Type', 'application/json');
+                    console.log("server: "+ this.storageProvider.serverAddress);
+
+                    this.http.post(this.storageProvider.serverAddress+"/logout",{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+                        Facebook.logout().then((result)=>{
+                             resolve(res); 
+                        },(err)=>{
+                              resolve(res);
+                        });
+                    },(err)=>{
+                        //console.log("logout no response "+JSON.stringify(err));
+                        reject(err);
+                    });
+      });
+  }
 
   unregister(){
       return new Promise((resolve,reject)=>{
               let headers = new Headers();
               headers.append('Content-Type', 'application/json');
-              console.log("server: "+ ConfigProvider.serverAddress);
+              console.log("server: "+ this.storageProvider.serverAddress);
 
-             this.http.post(ConfigProvider.serverAddress+"/unregister",{headers: headers}).map(res=>res.json()).subscribe((res)=>{
+             this.http.post(this.storageProvider.serverAddress+"/unregister",{headers: headers}).map(res=>res.json()).subscribe((res)=>{
                  console.log("unregister "+JSON.stringify(res));
                  Facebook.logout();
                  resolve(res); // 'success'(move into home page) or 'invalidId'(move into signup page)

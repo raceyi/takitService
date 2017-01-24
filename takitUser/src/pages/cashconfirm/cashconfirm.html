@@ -8,18 +8,23 @@
         <span color="primary">취소</span>
       </button>
     </ion-buttons>
+    <ion-buttons end>
+      <button ion-button (click)="deleteDeposit()">
+        <span color="primary">삭제</span>
+      </button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content>
-                          
+          <ion-list>                
             <ion-item>
                 <ion-grid class="cashIn-check-table">
                 <ion-row center>
                     <ion-col>거래일</ion-col>
                     <ion-col>
                     <ion-item>
-                    <ion-input #input class="cashIn-check-inputBox" type="text" placeholder="2016.11.04" ></ion-input>
+                    <ion-input #input class="cashIn-check-inputBox" [(ngModel)]="depositDate" type="text" disabled ></ion-input>
                     </ion-item>
                     </ion-col>
                 </ion-row>
@@ -27,7 +32,7 @@
                     <ion-col>입금액</ion-col>
                     <ion-col>
                     <ion-item>
-                    <ion-input #input class="cashIn-check-inputBox" type="text" placeholder="5000" ></ion-input>
+                    <ion-input #input class="cashIn-check-inputBox" [(ngModel)]="depositAmount" type="text" disabled ></ion-input>
                     </ion-item>
                     </ion-col>
                 </ion-row>
@@ -35,37 +40,61 @@
                     <ion-col>입금은행</ion-col>
                     <ion-col>
                     <ion-item>
-                    <ion-input class="cashIn-check-inputBox" type="text" placeholder="우리"></ion-input>
+                    <ion-input class="cashIn-check-inputBox" [(ngModel)]="depositBank" type="text" disabled></ion-input>
                     </ion-item>
                     </ion-col>
                 </ion-row>
                 <ion-row center>
-                    <ion-col>거래지점</ion-col> <!-- server로 부터 가져오자 -->
+                    <ion-col>거래지점</ion-col> 
                     <ion-col>
                     <ion-item>
-                    <ion-input class="cashIn-check-inputBox" type="text" placeholder="과천" ></ion-input>
+                    <ion-input class="cashIn-check-inputBox" type="text" [(ngModel)]="depositBranch" disabled ></ion-input>
                     </ion-item>
                     </ion-col>
                 </ion-row>
-                    <ion-row center>
+                <ion-row center>
                     <ion-col>캐쉬아이디</ion-col>
                     <ion-col>
                     <ion-item>
-                    <ion-input class="cashIn-check-inputBox" type="text" placeholder="kalen" ></ion-input>
+                    <ion-input class="cashIn-check-inputBox" type="text" disabled [(ngModel)]="depositMemo" ></ion-input>
                     </ion-item>
                     </ion-col>
                 </ion-row>
-
                 </ion-grid>
             </ion-item>
+            </ion-list>
+            <ion-list>
+                <!--
             <ion-item>
-            <ion-label class="checkInfo">본인의 캐쉬입금이 아닐경우 <span style="color:red">민형사상</span>의 책임을 지겠습니다.</ion-label>
-            <ion-checkbox> </ion-checkbox>
+                <ion-toggle [(ngModel)]="userAgree"  (ionChange)="agreeChange(userAgree)"></ion-toggle>
+                <ion-label>본인의 캐쉬입금이 아닐경우 민형사상의 책임을 지겠습니다.(사기죄로 형사고발이 가능합니다)</ion-label>
             </ion-item>
-            <ion-label>사기죄로 형사고발이 가능합니다.</ion-label>
+            -->
+                <ion-row>
+                <ion-col width-20 style="padding:0px;">
+            <ion-item  class="choice">
+                <ion-toggle class="onOff" [(ngModel)]="userAgree"  (ionChange)="agreeChange(userAgree)" ></ion-toggle>
+            </ion-item>
+                </ion-col>
+                <ion-col width-80 style="padding:0px;">
+            <ion-item>
+                <p class="explain">본인의 캐쉬입금이 아닐경우  <span style="color:red">민형사상</span>의 책임을 지겠습니다.</p>
+            </ion-item>
+                </ion-col>
+                </ion-row>
+            <ion-row>
+                <ion-item>
+                  <p class="explain">타인 입금에 대해 입금 확인을 수행할 경우 <span style="color:red"> 사기죄</span>로 형사고발이 가능합니다</p>
+                </ion-item>
+            </ion-row>    
+            <ion-row>
+                <ion-item>
+                  <p class="explain">본인 입금이 아닐 경우 상단의 삭제 버튼을 눌러 주시기바랍니다.</p>
+                </ion-item>
+            </ion-row>    
             <ion-item>
             <button ion-button block (click)="cashInComplete()">캐쉬 입금 확인하기 </button>
             </ion-item>
-
+            </ion-list>
 </ion-content>
 

@@ -3,7 +3,6 @@ import {App, MenuController,Platform,NavController,NavParams,Tabs,Content} from 
 import {Splashscreen,Transfer,File} from 'ionic-native';
 
 import {StorageProvider} from '../../providers/storageProvider';
-import {ConfigProvider} from '../../providers/ConfigProvider';
 import {ServerProvider} from '../../providers/serverProvider';
 
 import {Http} from '@angular/http';
@@ -27,7 +26,6 @@ export class HomePage{
    // @ViewChild("homeContent") contentRef: Content;
 
      filename: string = '';
-     minVersion:boolean=(this.platform.is('android') && parseInt(Device.device.version[0])<=4);
 
      constructor(private platform:Platform,private navController: NavController, private navParams: NavParams,
         private app: App, menu:MenuController,public storageProvider:StorageProvider,
@@ -50,12 +48,14 @@ export class HomePage{
      ionViewWillEnter(){
          console.log("homePage-ionViewWillEnter");
          console.log("home-shoplist:"+JSON.stringify(this.storageProvider.shoplist));
+         /*
          if(this.storageProvider.shoplist==null || this.storageProvider.shoplist.length==0){
              //move into search page
              console.log("move into search page");
              var t: Tabs = this.navController.parent;
              t.select(1);
          }
+         */
      }
 
      loadShopInfo(takitId){
@@ -121,7 +121,7 @@ export class HomePage{
                    var options ={
                     uri: foldername+filename,
                     folderName:foldername+dirname,
-                    quality: ConfigProvider.homeJpegQuality,
+                    quality: this.storageProvider.homeJpegQuality,
                     width:480,
                     height:160};
                     //width:window.innerWidth,// 200,

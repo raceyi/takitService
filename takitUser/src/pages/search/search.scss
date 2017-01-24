@@ -54,7 +54,22 @@ page-search{
     }
 
     .dummy{
-        height:60vh;
+        height:80vh;
+        .label-ios {
+            margin-bottom: 0px !important;
+        }        
+    }
+
+    .dummy.button-ios-white.activated{
+            background-color:white !important;
+    }
+
+    .dummy.button-ios.activated{
+            opacity:0 !important
+    }
+
+    .list-ios {
+        margin-bottom: 0px !important;
     }
 
     .searchBarItems{

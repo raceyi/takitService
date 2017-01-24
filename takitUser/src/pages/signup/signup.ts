@@ -33,8 +33,6 @@ export class SignupPage {
     focusPassword= new EventEmitter();
     focusPasswordCheck= new EventEmitter();
 
-    scrollTop;
-
     @ViewChild('signupPage') signupPageRef: Content;
 
   constructor(private navController: NavController, private navParams: NavParams,
@@ -51,7 +49,6 @@ export class SignupPage {
         console.log("Login page did enter");
         Splashscreen.hide();
         let dimensions = this.signupPageRef.getContentDimensions();
-        this.scrollTop=dimensions.scrollTop;
   }
 
   emailSignupSelect(event){
@@ -151,6 +148,13 @@ export class SignupPage {
           this.paswordGuideHide=false;
           if(this.platform.is('android'))
                 this.focusPassword.emit(true);
+          else if(this.platform.is('ios')){
+              let alert = this.alertController.create({
+                        title: '비밀번호가 규칙에 맞지 않습니다.',
+                        buttons: ['OK']
+                    });
+                    alert.present();
+          }      
           return;
       }else{
           this.paswordGuideHide =true; 
@@ -170,14 +174,4 @@ export class SignupPage {
          password:this.password
       });
   }
-
-  scrollUpForKeypad(){ // necessary for android?
-        console.log("scrollUpForKeypad");
-        let dimensions = this.signupPageRef.getContentDimensions();
-        console.log("dimensions:"+JSON.stringify(dimensions));
-        if(this.scrollTop>= dimensions.scrollTop){
-            this.signupPageRef.scrollTo(0, dimensions.contentHeight);
-        }
-  }
-
 }

@@ -1,7 +1,7 @@
 import {Component} from "@angular/core";
 import {NavController,NavParams} from 'ionic-angular';
 import {App} from 'ionic-angular';
-import {ConfigProvider} from '../../providers/ConfigProvider';
+import {StorageProvider} from '../../providers/storageProvider';
 
 @Component({
   selector:'page-serviceinfo',
@@ -13,9 +13,10 @@ export class ServiceInfoPage{
       personalInfoHidden:boolean=true;
       pictureInfoHidden:boolean=true;
       version:string;
-     constructor(private app: App,private navController: NavController, private navParams: NavParams){
+     constructor(private app: App,private navController: NavController, 
+     private navParams: NavParams,private storageProvider:StorageProvider){
 	      console.log("ServiceInfoPage constructor");
-        this.version=ConfigProvider.version;
+        this.version=this.storageProvider.version;
      }
 
      ionViewWillUnload(){

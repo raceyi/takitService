@@ -1,28 +1,29 @@
-import {Component,EventEmitter,NgZone} from '@angular/core'
+import {Component,EventEmitter,NgZone,ViewChild} from '@angular/core'
 
 import {HomePage} from '../home/home';
 import {CashPage} from '../cash/cash';
 import {SearchPage} from '../search/search';
 import {CashConfirmPage} from '../cashconfirm/cashconfirm';
 import {ErrorPage} from '../error/error';
-import {Platform,IonicApp,MenuController} from 'ionic-angular';
+import {Platform,IonicApp,MenuController,Tabs} from 'ionic-angular';
 import {ViewController,App,NavController,AlertController,ModalController} from 'ionic-angular';
-import {Push,PushNotification} from 'ionic-native';
+import {Push,PushNotification,Device} from 'ionic-native';
 import {Http,Headers} from '@angular/http';
 import {StorageProvider} from '../../providers/storageProvider';
-import {ConfigProvider} from '../../providers/ConfigProvider';
 import {ServerProvider} from '../../providers/serverProvider';
 
 import 'rxjs/add/operator/timeout';
 import 'rxjs/add/operator/map';
 
 declare var cordova:any;
+declare var window:any;
 
 @Component({
   templateUrl: 'tabs.html',
   selector:'page-tabs'  
 })
 export class TabsPage {
+  @ViewChild('myTabs') tabRef: Tabs;
 
   public tabCash: any;
   public tabHome: any;
@@ -39,10 +40,93 @@ export class TabsPage {
     this.tabHome = HomePage;
     this.tabSearch = SearchPage;
     this.tabCash = CashPage;
+
+    if(!this.storageProvider.isAndroid){
+        console.log("device.model:"+Device.model);
+        if(Device.model.includes('6') || Device.model.includes('5')){ //iphone 5,4
+            console.log("reduce font size"); // how to apply this?
+            this.storageProvider.iphone5=true;
+        }else{
+            console.log("iphone 6 or more than 6");
+        }
+    }
+
     //Please login and then do registration for gcm msg
     // and then move into home page
     if(this.storageProvider.tourMode==false){
+        console.log("call registerPushService");
         this.registerPushService(); 
+    }
+    if(this.storageProvider.cashId!=undefined && this.storageProvider.cashId.length>=5){
+        let body = JSON.stringify({cashId:this.storageProvider.cashId});
+        console.log("getBalanceCash "+body);
+        this.serverProvider.post(this.storageProvider.serverAddress+"/getBalanceCash",body).then((res:any)=>{
+            console.log("getBalanceCash res:"+JSON.stringify(res));
+            if(res.result=="success"){
+                this.storageProvider.cashAmount=res.balance;
+            }else{
+                let alert = this.alertController.create({
+                    title: "캐쉬정보를 가져오지 못했습니다.",
+                    buttons: ['OK']
+                });
+                alert.present();
+            }
+        },(err)=>{
+                    if(err=="NetworkFailure"){
+                                let alert = this.alertController.create({
+                                    title: "서버와 통신에 문제가 있습니다.",
+                                    buttons: ['OK']
+                                });
+                                alert.present();
+                    }else{
+                        console.log("Hum...getBalanceCash-HttpError");
+                    } 
+        });
+        //check if the lastest deposit without confirmation exists or not.
+
+         body = JSON.stringify({cashId:this.storageProvider.cashId,
+                                lastTuno: -1,
+                                limit: this.storageProvider.TransactionsInPage});
+            console.log("getCashList:"+body);                    
+            this.serverProvider.post( this.storageProvider.serverAddress+"/getCashList",body).then((res:any)=>{
+                if(res.result=="success"){
+                    if(res.cashList!="0"){
+                        for(var i=0;i<res.cashList.length;i++){
+                            //console.log("cash item:"+JSON.stringify(cashList[i]));
+                            if(res.cashList[i].transactionType=="deposit" && res.cashList[i].confirm==0){
+                                break;
+                            }
+                        }
+                        //console.log("checkDepositInLatestCashlist i:"+i +"length:"+cashList.length);
+                        if(i==res.cashList.length){
+                            this.storageProvider.deposit_in_latest_cashlist=false;
+                        }else{    
+                            this.storageProvider.deposit_in_latest_cashlist=true;
+                        }
+                    }
+                }else{
+                    let alert = this.alertController.create({
+                        title: '캐쉬 내역을 가져오지 못했습니다.',
+                        buttons: ['OK']
+                    });
+                    alert.present();
+                }
+            },(err)=>{
+                if(err=="NetworkFailure"){
+                    let alert = this.alertController.create({
+                        title: '서버와 통신에 문제가 있습니다',
+                        subTitle: '네트웍상태를 확인해 주시기바랍니다',
+                        buttons: ['OK']
+                    });
+                    alert.present();
+                }else{
+                    let alert = this.alertController.create({
+                        title: '캐쉬 내역을 가져오지 못했습니다.',
+                        buttons: ['OK']
+                    });
+                    alert.present();
+                }
+            });
     }
   }
 
@@ -51,7 +135,7 @@ export class TabsPage {
   this.storageProvider.shoplist.forEach(shop=>{
       let body = JSON.stringify({takitId:shop.takitId});
       console.log("request discount rate of "+shop.takitId);
-        this.serverProvider.post(ConfigProvider.serverAddress+"/getDiscountRate",body).then((res:any)=>{
+        this.serverProvider.post(this.storageProvider.serverAddress+"/getDiscountRate",body).then((res:any)=>{
             console.log("getDiscountRate-res:"+JSON.stringify(res));
             if(res.result=="success"){
                 shop.discountRate=res.discountRate;
@@ -155,64 +239,66 @@ export class TabsPage {
                 let page = view ? this.navController.getActive().instance : null;
 
                 if (this.app.getRootNav().getActive()==this.viewCtrl){
-                console.log("Handling back button on  tabs page");
-                if(this.storageProvider.order_in_progress_24hours){
-                        this.alertController.create({
-                            title: '앱을 종료하시겠습니까?',
-                            message: '진행중인 주문에 대해 주문알림을 받지 못할수 있습니다.',
-                            buttons: [
-                                {
-                                    text: '아니오',
-                                    handler: () => {
+                    console.log("Handling back button on  tabs page");
+                    if(this.storageProvider.order_in_progress_24hours){
+                            this.alertController.create({
+                                title: '앱을 종료하시겠습니까?',
+                                message: '진행중인 주문에 대해 주문알림을 받지 못할수 있습니다.',
+                                buttons: [
+                                    {
+                                        text: '아니오',
+                                        handler: () => {
+                                        }
+                                    },
+                                    {
+                                        text: '네',
+                                        handler: () => {
+                                        console.log("call stopEnsureNoti");
+                                        console.log("cordova.plugins.backgroundMode.disable");
+                                        cordova.plugins.backgroundMode.disable();
+                                        this.ngZone.run(()=>{
+                                            this.storageProvider.run_in_background=false;
+                                            //change color of notification button
+                                        });
+                                        this.stopEnsureNoti().then(()=>{
+                                                console.log("success stopEnsureNoti()");
+                                                this.storageProvider.db.close(()=>{
+                                                    this.platform.exitApp();
+                                                },(err)=>{
+                                                    console.log("!!!fail to close db!!!");
+                                                    this.platform.exitApp();
+                                                });
+                                                //this.platform.exitApp();
+                                        },(err)=>{
+                                                console.log("fail in stopEnsureNoti() - Whan can I do here? nothing");
+                                                this.storageProvider.db.close(()=>{
+                                                    this.platform.exitApp();
+                                                },(err)=>{
+                                                    console.log("!!!fail to close db!!!");
+                                                    this.platform.exitApp();
+                                                });
+                                                //this.platform.exitApp();
+                                        });
+                                        }
                                     }
-                                },
-                                {
-                                    text: '네',
-                                    handler: () => {
-                                    console.log("call stopEnsureNoti");
-                                    console.log("cordova.plugins.backgroundMode.disable");
-                                    cordova.plugins.backgroundMode.disable();
-                                    this.ngZone.run(()=>{
-                                        this.storageProvider.run_in_background=false;
-                                        //change color of notification button
-                                    });
-                                    this.stopEnsureNoti().then(()=>{
-                                            console.log("success stopEnsureNoti()");
-                                            this.storageProvider.db.close(()=>{
-                                                this.platform.exitApp();
-                                            },(err)=>{
-                                                console.log("!!!fail to close db!!!");
-                                                this.platform.exitApp();
-                                            });
-                                            //this.platform.exitApp();
-                                    },(err)=>{
-                                            console.log("fail in stopEnsureNoti() - Whan can I do here? nothing");
-                                            this.storageProvider.db.close(()=>{
-                                                this.platform.exitApp();
-                                            },(err)=>{
-                                                console.log("!!!fail to close db!!!");
-                                                this.platform.exitApp();
-                                            });
-                                            //this.platform.exitApp();
-                                    });
-                                    }
-                                }
-                            ]
-                        }).present();
-                }else{
-                        cordova.plugins.backgroundMode.disable();
-                        this.storageProvider.db.close(()=>{
-                            this.platform.exitApp();
-                        },(err)=>{
-                            console.log("!!!fail to close db!!!");
-                            this.platform.exitApp();
-                        });
-                        //this.platform.exitApp();
-                }
-                }
-                else if (this.navController.canGoBack() || view && view.isOverlay) {
-                console.log("popping back");
-                this.navController.pop();
+                                ]
+                            }).present();
+                    }else{
+                            cordova.plugins.backgroundMode.disable();
+                            this.storageProvider.db.close(()=>{
+                                this.platform.exitApp();
+                            },(err)=>{
+                                console.log("!!!fail to close db!!!");
+                                this.platform.exitApp();
+                            });
+                            //this.platform.exitApp();
+                    }
+                }else if(this.app.getRootNav().getActive()==this.storageProvider.loginViewCtrl){
+                    console.log("exit App at loginPage in Android");
+                    this.platform.exitApp();
+                }else if (this.navController.canGoBack() || view && view.isOverlay) {
+                    console.log("popping back");
+                    this.navController.pop();
                 }else{
                     console.log("What can I do here? which page is shown now? Error or LoginPage");
                     this.storageProvider.db.close(()=>{
@@ -347,11 +433,11 @@ export class TabsPage {
     registerPushService(){ // Please move this code into tabs.ts
             this.pushNotification=Push.init({
                 android: {
-                    senderID: ConfigProvider.userSenderID,
+                    senderID: this.storageProvider.userSenderID,
                     sound: "true"
                 },
                 ios: {
-                    senderID: ConfigProvider.userSenderID,
+                    senderID: this.storageProvider.userSenderID,
                     "gcmSandbox": "true",
                     "alert": "true",
                     "sound": "true"
@@ -360,6 +446,8 @@ export class TabsPage {
             });
                         
             this.pushNotification.on('registration',(response)=>{
+
+                
               console.log("registration:"+JSON.stringify(response));
               console.log("registration..."+response.registrationId);
               var platform;
@@ -374,9 +462,8 @@ export class TabsPage {
               let body = JSON.stringify({registrationId:response.registrationId, platform: platform});
               //let headers = new Headers();
               //headers.append('Content-Type', 'application/json');
-              console.log("server:"+ ConfigProvider.serverAddress +" body:"+JSON.stringify(body));
-              //this.http.post(ConfigProvider.serverAddress+"/registrationId",body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-              this.serverProvider.post(ConfigProvider.serverAddress+"/registrationId",body).then((res:any)=>{
+              console.log("server:"+ this.storageProvider.serverAddress +" body:"+JSON.stringify(body));
+              this.serverProvider.post(this.storageProvider.serverAddress+"/registrationId",body).then((res:any)=>{
                   console.log("registrationId sent successfully");
                   var result:string=res.result;
                   if(result=="success"){
@@ -387,7 +474,7 @@ export class TabsPage {
              },(err)=>{
                  if(err=="NetworkFailure"){
                         console.log("registrationId sent failure");
-                        this.storageProvider.errorReasonSet('네트웍 연결이 원할하지 않습니다'); 
+                        //this.storageProvider.errorReasonSet('네트웍 연결이 원할하지 않습니다'); 
                         //Please move into ErrorPage!
                         this.app.getRootNav().setRoot(ErrorPage);
                  }else{
@@ -397,10 +484,18 @@ export class TabsPage {
             });
 
             this.pushNotification.on('notification',(data)=>{
+/*                
+//                  let custom = {"cashTuno":"20170103075617278","cashId":"TAKIT02","transactionType":"deposit","amount":1,"transactionTime":"20170103","confirm":0,"bankName":"농협은행"}
+                  let custom ={"depositMemo":"이경주","amount":"2","depositDate":"2017-01-06","branchCode":"0110013","cashTuno":"20170106093158510","bankName":"농협"}
+                  let cashConfirmModal = this.modalCtrl.create(CashConfirmPage, { custom: custom });
+                  cashConfirmModal.present();
+ */                 
+                 
                 console.log("[home.ts]pushNotification.on-data:"+JSON.stringify(data));
                 console.log("[home.ts]pushNotification.on-data.title:"+JSON.stringify(data.title));
                 
                 var additionalData:any=data.additionalData;
+                //Please check if type of custom is object or string. I have no idea why this happens.
                 if(additionalData.GCMType==="order"){
                     this.storageProvider.messageEmitter.emit(additionalData.custom);//  만약 shoptab에 있다면 주문목록을 업데이트 한다. 만약 tab이라면 메시지를 보여준다. 
                     console.log("show alert");
@@ -432,25 +527,33 @@ export class TabsPage {
                         alert.present();
                     });
                 }else if(additionalData.GCMType==="cash"){
-                /*
-                  let cashConfirmModal = this.modalCtrl.create(CashConfirmPage, { userId: 8675309 });
-                  cashConfirmModal.present();
-                */
-                }
-                this.confirmMsgDelivery(additionalData.notId).then(()=>{
-                      console.log("confirmMsgDelivery success");
-                },(err)=>{
-                    if(err=="NetworkFailure"){
-                        let alert = this.alertController.create({
-                            title: "서버와 통신에 문제가 있습니다.",
-                            buttons: ['OK']
-                        });
-                        alert.present();
-                    }else{
-                        console.log("hum...successGCM-HttpFailure");
-                    }
-                });
+                  console.log("additionalData.custom:"+additionalData.custom);
 
+                  let cashConfirmModal;
+                  if(typeof additionalData.custom === 'string'){ 
+                      cashConfirmModal= this.modalCtrl.create(CashConfirmPage, { custom: JSON.parse(additionalData.custom) });
+                  }else{ // object 
+                      cashConfirmModal= this.modalCtrl.create(CashConfirmPage, { custom: additionalData.custom });
+                  }
+                  console.log("GCMCashUpdateEmitter");
+                  this.storageProvider.GCMCashUpdateEmitter.emit();
+                  cashConfirmModal.present();
+                }
+                if(additionalData.GCMType!=="cash"){
+                        this.confirmMsgDelivery(additionalData.notId).then(()=>{
+                            console.log("confirmMsgDelivery success");
+                        },(err)=>{
+                            if(err=="NetworkFailure"){
+                                let alert = this.alertController.create({
+                                    title: "서버와 통신에 문제가 있습니다.",
+                                    buttons: ['OK']
+                                });
+                                alert.present();
+                            }else{
+                                console.log("hum...successGCM-HttpFailure");
+                            }
+                        });
+                }
                 /*
                 console.log(data.message);
                 console.log(data.title);
@@ -459,6 +562,7 @@ export class TabsPage {
                 console.log(data.image);
                 console.log(data.additionalData);
                 */
+
             });
 
             this.pushNotification.on('error', (e)=>{
@@ -471,11 +575,10 @@ export class TabsPage {
             let headers = new Headers();
             headers.append('Content-Type', 'application/json');
             console.log("messageId:"+messageId);
-            console.log("!!!server:"+ ConfigProvider.serverAddress);
+            console.log("!!!server:"+ this.storageProvider.serverAddress);
             let body = JSON.stringify({messageId:messageId});
 
-            //this.http.post(encodeURI(ConfigProvider.serverAddress+"/successGCM"),body,{headers: headers}).map(res=>res.json()).subscribe((res)=>{
-            this.serverProvider.post(ConfigProvider.serverAddress+"/successGCM",body).then((res:any)=>{    
+            this.serverProvider.post(this.storageProvider.serverAddress+"/successGCM",body).then((res:any)=>{    
                   console.log("res:"+JSON.stringify(res));
                   resolve();
             },(err)=>{
@@ -564,12 +667,11 @@ export class TabsPage {
 
   stopEnsureNoti(){
         return new Promise((resolve,reject)=>{
-            console.log("!!!server:"+ ConfigProvider.serverAddress+"/sleepMode");
+            console.log("!!!server:"+ this.storageProvider.serverAddress+"/sleepMode");
             let body = JSON.stringify({});
 
             //Why default timeout doesn't work?
-            //this.http.post(encodeURI(ConfigProvider.serverAddress+"/sleepMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res:any)=>{
-            this.serverProvider.post(ConfigProvider.serverAddress+"/sleepMode",body).then((res:any)=>{    
+            this.serverProvider.post(this.storageProvider.serverAddress+"/sleepMode",body).then((res:any)=>{    
                   console.log("sleepMode-res:"+JSON.stringify(res));
                   if(res.result=="success"){
                     resolve();
@@ -584,11 +686,10 @@ export class TabsPage {
 
   wakeupNoti(){
         return new Promise((resolve,reject)=>{
-            console.log("!!!server:"+ ConfigProvider.serverAddress+"/wakeMode");
+            console.log("!!!server:"+ this.storageProvider.serverAddress+"/wakeMode");
             let body = JSON.stringify({});
 
-            //this.http.post(encodeURI(ConfigProvider.serverAddress+"/wakeMode"),body,{headers: headers}).timeout(3000/* 3 seconds */).map(res=>res.json()).subscribe((res:any)=>{
-            this.serverProvider.post(ConfigProvider.serverAddress+"/wakeMode",body).then((res:any)=>{
+            this.serverProvider.post(this.storageProvider.serverAddress+"/wakeMode",body).then((res:any)=>{
                   console.log("wakeMode-res:"+JSON.stringify(res));
                   console.log("res is ..."+res.result);
                   if(res.result=="success"){
@@ -600,6 +701,13 @@ export class TabsPage {
                 reject(err);  
             });
       });    
+  }
+
+  moveToCashListPage(){
+      console.log("moveToCashListPage");
+      this.storageProvider.cashMenu='cashHistory';
+      this.storageProvider.cashInfoUpdateEmitter.emit("listOnly");
+      this.tabRef.select(2);
   }
 
 }

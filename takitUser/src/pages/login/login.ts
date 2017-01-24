@@ -1,6 +1,6 @@
 import {Component,EventEmitter,ViewChild} from "@angular/core";
 import {Content,Platform,AlertController,IonicApp,MenuController} from 'ionic-angular';
-import {NavController,NavParams} from 'ionic-angular';
+import {NavController,NavParams,ViewController} from 'ionic-angular';
 import {FbProvider} from '../../providers/LoginProvider/fb-provider';
 import {KakaoProvider} from '../../providers/LoginProvider/kakao-provider';
 
@@ -11,11 +11,12 @@ import {Splashscreen} from 'ionic-native';
 import {SignupPage} from '../signup/signup';
 import {SignupSubmitPage} from '../signup_submit/signup_submit';
 import {PasswordPage} from '../password/password';
+import {MultiloginPage} from '../multilogin/multilogin';
 
 import {StorageProvider} from '../../providers/storageProvider';
 import {Storage} from "@ionic/storage";
+import {Device} from 'ionic-native';
 
-import {ConfigProvider} from '../../providers/ConfigProvider';
 import {Http,Headers} from '@angular/http';
 
 @Component({
@@ -30,15 +31,25 @@ export class LoginPage {
     @ViewChild('loginPage') loginPageRef: Content;
     focusEmail = new EventEmitter();;
     focusPassword =new EventEmitter();
-    scrollTop;
+    iphone5=false;
 
   constructor(private navController: NavController, private navParams: NavParams,
                 private fbProvider:FbProvider,private emailProvider:EmailProvider,
                 private kakaoProvider:KakaoProvider, public storage:Storage,
                 private storageProvider:StorageProvider,private platform:Platform,
                 private alertController:AlertController,private ionicApp: IonicApp,
-                private menuCtrl: MenuController,private http:Http){
+                private menuCtrl: MenuController,private http:Http,public viewCtrl: ViewController){
       console.log("LoginPage construtor");
+        if(!this.storageProvider.isAndroid){
+            console.log("device.model:"+Device.model);
+            if(Device.model.includes('6') || Device.model.includes('5')){ //iphone 5,4
+                console.log("reduce font size"); // how to apply this?
+                this.iphone5=true;
+            }else{
+                console.log("iphone 6 or more than 6");
+            }
+        }
+
   }
  
   //ionViewDidEnter() {
@@ -46,11 +57,11 @@ export class LoginPage {
         console.log("Login page did enter");
         Splashscreen.hide();
         let dimensions = this.loginPageRef.getContentDimensions();
-        this.scrollTop=dimensions.scrollTop;
         this.storageProvider.login=true;
         this.storageProvider.navController=this.navController;
        
         let ready = true;
+        this.storageProvider.loginViewCtrl=this.viewCtrl;
 
     this.platform.registerBackButtonAction(()=>{
                console.log("[loginPage]Back button action called");
@@ -107,7 +118,7 @@ export class LoginPage {
                                     this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     console.log("move into TabsPage");
                                     this.navController.setRoot(TabsPage);
-                                }else if(res.result=='invalidId'){
+                                }else if(res.result=='failure' && res.result=='invalidId'){
                                     console.log("move into SignupPage....");
                                     var param:any={id:res.id};
                                     if(res.hasOwnProperty("email")){
@@ -118,6 +129,10 @@ export class LoginPage {
                                     }
                                     console.log("param:"+JSON.stringify(param));
                                     this.navController.push(SignupSubmitPage,param);
+                                }else if(res.result=='failure'&& res.error=='multiLogin'){
+                                        // How to show user a message here? move into error page?
+                                        // Is it possible to show alert here?
+                                    this.navController.setRoot(MultiloginPage);
                                 }else{
                                     console.log("invalid result comes from server-"+JSON.stringify(res));
                                     let alert = this.alertController.create({
@@ -157,9 +172,13 @@ export class LoginPage {
                                     this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     console.log("move into TabsPage");
                                     this.navController.setRoot(TabsPage);
-                                }else if(res.result=='invalidId'){
-                                    console.log("move into SignupPage!! SignupPage is not implmented yet");
+                                }else if(res.result=='failure' && res.result=='invalidId'){
+                                    //console.log("move into SignupPage!! SignupPage is not implmented yet");
                                     this.navController.push(SignupSubmitPage ,{id:res.id/* kakaoid*/});
+                                }else if(res.result=='failure'&& res.error=='multiLogin'){
+                                        // How to show user a message here? move into error page?
+                                        // Is it possible to show alert here?
+                                    this.navController.setRoot(MultiloginPage);
                                 }else{
                                     console.log("invalid result comes from server-"+JSON.stringify(res));
                                     let alert = this.alertController.create({
@@ -226,6 +245,10 @@ export class LoginPage {
                                     this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     console.log("move into TabsPage");
                                     this.navController.setRoot(TabsPage);
+                                }else if(res.result=='failure'&& res.error=='multiLogin'){
+                                        // How to show user a message here? move into error page?
+                                        // Is it possible to show alert here?
+                                    this.navController.setRoot(MultiloginPage);
                                 }else{
                                     let alert = this.alertController.create({
                                                 title: '회원 정보가 일치하지 않습니다.',
@@ -257,18 +280,10 @@ export class LoginPage {
       this.navController.push(PasswordPage);
   }
 
-  scrollUpForKeypad(){ // necessary for android?
-        console.log("onFocusPassword");
-        let dimensions = this.loginPageRef.getContentDimensions();
-        console.log("dimensions:"+JSON.stringify(dimensions));
-        if(this.scrollTop>= dimensions.scrollTop)
-            this.loginPageRef.scrollTo(0, dimensions.contentHeight);
-  }
-
   tour(){
       console.log("tour");
       
-      this.emailProvider.EmailServerLogin(ConfigProvider.tourEmail,ConfigProvider.tourPassword).then((res:any)=>{
+      this.emailProvider.EmailServerLogin(this.storageProvider.tourEmail,this.storageProvider.tourPassword).then((res:any)=>{
                 console.log("emailLogin-login page:"+JSON.stringify(res));
                 if(res.result=="success"){
                     this.storageProvider.tourMode=true;
@@ -276,7 +291,8 @@ export class LoginPage {
                         console.log("shoplist:"+res.userInfo.shopList);
                         this.storageProvider.shoplistSet(JSON.parse(res.userInfo.shopList));
                     }
-                    this.storageProvider.tourMode=true;
+                    // show user cashId
+                    this.storageProvider.cashId=res.userInfo.cashId;
                     this.navController.push(TabsPage);//hum... !!! Please check how backbutton works !!!                    
                 }else{
                     console.log("hum... tour id doesn't work.");

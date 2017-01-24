@@ -1,5 +1,7 @@
 // Ionic Variables and Theming. For more info, please see:
 // http://ionicframework.com/docs/v2/theming/
+$font-path: "../assets/fonts";
+
 @import "ionic.globals";
 
 
@@ -9,9 +11,9 @@
 // the Sass variables found in Ionic's source scss files.
 // To view all the possible Ionic variables, see:
 // http://ionicframework.com/docs/v2/theming/overriding-ionic-variables/
-
 $text-color:        #000;
 $background-color:  #fff;
+
 
 
 // Named Color Variables
@@ -33,7 +35,9 @@ $colors: (
   kakao:      #ffff00,
   email:      #afafaf,
   facebook:   #3b5998,
-  gray:       #afafaf
+  gray:       #afafaf,
+  red:        #ff0000,
+  darkgray:   #A9A9A9	
 );
 
 
@@ -43,12 +47,12 @@ $colors: (
 $alert-ios-title-font-size:	14px;
 $alert-ios-sub-title-font-size:	14px;
 
-
 // App Material Design Variables
 // --------------------------------------------------
 // Material Design only Sass variables can go here
 $alert-md-title-font-size: 14px;
 $alert-md-sub-title-font-size: 14px;
+
 
 // App Windows Variables
 // --------------------------------------------------
@@ -72,5 +76,11 @@ $alert-md-sub-title-font-size: 14px;
 // The premium icon font for Ionic. For more info, please see:
 // http://ionicframework.com/docs/v2/ionicons/
 
-$ionicons-font-path: "../assets/fonts";
 @import "ionicons";
+
+
+// Fonts
+// --------------------------------------------------
+
+@import "roboto";
+@import "noto-sans";

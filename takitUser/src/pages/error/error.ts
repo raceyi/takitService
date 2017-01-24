@@ -10,6 +10,7 @@ import {Storage} from '@ionic/storage';
 
 import {TabsPage} from '../tabs/tabs';
 import {LoginPage} from '../login/login';
+import {MultiloginPage} from '../multilogin/multilogin';
 
 @Component({
   selector: 'page-error',
@@ -17,7 +18,7 @@ import {LoginPage} from '../login/login';
 })
 
 export class ErrorPage{
-     public reason:string="";
+     //public reason:string="";
      //android_platform:boolean;
 
      constructor(private navController: NavController, private _navParams: NavParams,
@@ -27,7 +28,7 @@ export class ErrorPage{
 
          console.log("ErrorPage constructor");
          //this.android_platform=this.platform.is('android');
-         this.reason=this.storageProvider.errorReason;
+         //this.reason=this.storageProvider.errorReason;
      }
 
      ionViewDidEnter(){
@@ -54,12 +55,16 @@ export class ErrorPage{
                                     this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     console.log("shoplist...:"+JSON.stringify(this.storageProvider.shoplist));
                                     this.app.getRootNav().setRoot(TabsPage);
-                                }else if(res.result=='invalidId'){
+                                }else if(res.result=='failure' && res.result=='invalidId'){
                                     console.log("사용자 정보에 문제가 발생했습니다. 로그인 페이지로 이동합니다.");
                                     this.app.getRootNav().setRoot(LoginPage);   
+                                }else if(res.result=='failure'&& res.error=='multiLogin'){
+                                        // How to show user a message here? move into error page?
+                                        // Is it possible to show alert here?
+                                    this.app.getRootNav().setRoot(MultiloginPage);
                                 }else{
                                     console.log("invalid result comes from server-"+JSON.stringify(res));
-                                    this.storageProvider.errorReasonSet('로그인 에러가 발생했습니다');
+                                    //this.storageProvider.errorReasonSet('로그인 에러가 발생했습니다');
                                     this.app.getRootNav().setRoot(ErrorPage);   
                                 }
                             },login_err =>{
@@ -79,9 +84,13 @@ export class ErrorPage{
                                     }
                                     this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     this.app.getRootNav().setRoot(TabsPage);
-                                }else if(res.result=='invalidId'){
+                                }else if(res.result=='failure' && res.result=='invalidId'){
                                     console.log("사용자 정보에 문제가 발생했습니다. 로그인 페이지로 이동합니다.");
                                     this.app.getRootNav().setRoot(LoginPage);
+                                }else if(res.result=='failure'&& res.error=='multiLogin'){
+                                        // How to show user a message here? move into error page?
+                                        // Is it possible to show alert here?
+                                    this.app.getRootNav().setRoot(MultiloginPage);
                                 }else{
                                     console.log("invalid result comes from server-"+JSON.stringify(res));
                                     //this.storageProvider.errorReasonSet('로그인 에러가 발생했습니다');
@@ -104,6 +113,10 @@ export class ErrorPage{
                                     }
                                     this.storageProvider.userInfoSetFromServer(res.userInfo);
                                     this.app.getRootNav().setRoot(TabsPage);
+                                }else if(res.result=='failure'&& res.error=='multiLogin'){
+                                        // How to show user a message here? move into error page?
+                                        // Is it possible to show alert here?
+                                    this.app.getRootNav().setRoot(MultiloginPage);
                                 }else{ 
                                     console.log("사용자 정보에 문제가 발생했습니다. 로그인 페이지로 이동합니다.");
                                     this.app.getRootNav().setRoot(LoginPage);
