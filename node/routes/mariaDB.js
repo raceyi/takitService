@@ -803,7 +803,7 @@ router.getPushId=function(userId,next){
 
 
 router.updateShopPushId=function(userId,takitId,shopToken,platform,next){
-	var command="UPDAT shopUserInfo SET shopPushId=?,platform=? WHERE userId=? AND takitId=?";
+	var command="UPDATE shopUserInfo SET shopPushId=?,platform=? WHERE userId=? AND takitId=?";
    var values = [shopToken,platform,userId,takitId];
 	performQueryWithParam(command,values,function(err,result){
    	if (err){
