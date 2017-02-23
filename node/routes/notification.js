@@ -107,7 +107,7 @@ router.sendLMS=function(data){
 
 router.setRedisSchedule = function(keyName,phone,SMS,next){
 	console.log("start setRedisSchedule:"+keyName);
-	scheduler.schedule({ key: keyName, expire: 60000, handler: function(){
+	scheduler.schedule({ key: keyName, expire: 30000, handler: function(){
 		console.log("start SMS event"+SMS.content);
 			router.sendSMS(SMS.title+" "+SMS.content,[phone]);
 		}}, function(err){
@@ -121,9 +121,9 @@ router.setRedisSchedule = function(keyName,phone,SMS,next){
 		});
 }
 
-router.setRedisScheduleLMS = function(keyName,phone,SMS,next){
+router.setRedisScheduleLMS = function(keyName,phone,SMS,expireTime,next){
    console.log("start setRedisSchedule:"+keyName);
-   scheduler.schedule({ key: keyName, expire: 60000, handler: function(){
+   scheduler.schedule({ key: keyName, expire: expireTime, handler: function(){
       console.log("start SMS event"+SMS.content);
          let data = {};
          data.subject = SMS.title;
@@ -151,22 +151,62 @@ router.sendGCM=function(API_KEY,MSG,pushId, platform, next){
    let message;
 
    if(platform === "ios"){
-      message = new gcm.Message({
-         priority: 'high',
+      message = {
+			"to" : pushId[0],
+			priority: 'high',
          collapseKey: 'takit',
          timeToLive: 3,
-         contentAvailable: true,
+         "content_available": true,
          data: {
-            sound:'default',
             custom: MSG.custom,
             GCMType: MSG.GCMType,
-            notId:MSG.messageId,
+            notId:MSG.messageId
          },
          notification: {
            title: MSG.content,
-           body: MSG.title
+           body: MSG.title,
+			  sound:"appbeep.wav",
+			  badge : "0"
          }
-      });
+      };
+		var body = JSON.stringify(message);
+		console.log(body);
+   	var options = {
+    	 	host: 'android.googleapis.com',
+   		port: 443,
+     		path: '/gcm/send',
+     		headers: {
+       		'Authorization': 'key='+API_KEY,
+       		'Content-Type': 'application/json; charset=utf-8',
+       		'Content-Length': Buffer.byteLength(body)
+     		},
+     		method: 'POST'
+   	};
+		
+		console.log(options);
+   	var req = https.request(options, function(res){
+     		console.log(res.statusCode);
+     		var body = "";
+     		res.on('data', function(d) {
+       		body += d;
+     		});
+     		res.on('end', function(d) {
+      		if(res.statusCode==200){
+         		console.log(JSON.parse(body));
+         		next(null,"success"); 
+      		}else{
+         		console.log(body);
+         		console.log(null,"gcm:400");
+      		}
+     		});
+   	});
+
+		req.write(body);
+   	req.end();
+   	req.on('error', function(e){
+      	console.error(e);
+      	next(null,"gcm:400");
+   	});
    }else{
       message = new gcm.Message({
          priority: 'high',
@@ -179,19 +219,20 @@ router.sendGCM=function(API_KEY,MSG,pushId, platform, next){
             custom  : MSG.custom,
             "content-available": 1,
             notId: MSG.messageId,
-            sound:'default',
+            sound:"takit",
          }
       });
-   }
-	sender.send(message, {"registrationTokens":pushId}, 4, function (err, result) {
+
+		sender.send(message, {"registrationTokens":pushId}, 4, function (err, result) {
         if(err){
            console.log("err sender:"+JSON.stringify(err));
-           next("gcm:"+err);
+           next(null,"gcm:"+err);
         }else{
            console.log("success sender:"+JSON.stringify(result));
            next(null,result);
         }
      });
+	}
 }
 
 router.sendEmail=function(email,subject,content, next){

@@ -3,6 +3,7 @@ const router = express.Router();
 const CryptoJS = require('crypto-js');
 const config = require("../config");
 const mariaDB = require("./mariaDB");
+const index = require('./index');
 
 // auth
 router.oauthSuccess=function(req,res){
@@ -19,12 +20,13 @@ router.oauthSuccess=function(req,res){
    let userName = CryptoJS.AES.decrypt(url2[1],config.tomcat.uNamePwd);
    console.log(userName.toString(CryptoJS.enc.Utf8));
 	*/
-
-	res.send(JSON.stringify({"result":"oauth success"}));
+	let response = new index.Response("oauth success");
+	res.send(JSON.stringify(response));
 };
 
 router.oauthFailure=function(req,res){
-	res.send(JSON.stringify({"result":"oauth failure"}));
+	let response = new index.Response("oauth failure");
+   res.send(JSON.stringify(response));
 };
 
 router.validUserInfo=function(req,res){
@@ -36,10 +38,12 @@ router.validUserInfo=function(req,res){
    mariaDB.validUserwithPhone(req.session.uid,userName.toString(CryptoJS.enc.Utf8),userPhone.toString(CryptoJS.enc.Utf8),function(err,result){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log(result);
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    });
 }

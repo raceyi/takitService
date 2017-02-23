@@ -5,10 +5,12 @@ const mariaDB=require('./mariaDB');
 const s3=require('./s3');
 const gcm = require('node-gcm');
 const config=require('../config');
+const index=require('./index');
 const redis = require('redis');
 const redisCli = redis.createClient();
 const async = require('async');
 const noti = require('./notification');
+let crypto = require('crypto');
 
 var FACEBOOK_SHOP_APP_SECRET
 var FACEBOOK_SHOP_APP_ID;
@@ -70,11 +72,11 @@ router.facebookLogin= function(req,res){
             console.log(shopUserInfo);
 
             if(err){
-            	res.send(JSON.stringify({"result":"invalidId"}));
+					let response = new index.Response("invalidId");
+         		res.send(JSON.stringify(response));
             }else{
                console.log("[facebookLogin]shopUserInfo:"+JSON.stringify(shopUserInfo));
-               const response={};
-               response.result="success";
+               let response = new index.SuccResponse();
                // save user id in session
                req.session.uid=shopUserInfo[0].userId;
                console.log("facebooklogin-id:"+shopUserInfo[0].userId);
@@ -91,7 +93,6 @@ router.facebookLogin= function(req,res){
                for(let i=0;i<shopUserInfo.length;i++){
                 	let shopList=JSON.parse(shopUserInfo[i].myShopList);
                   myShopList.push(shopList[0]);
-                  console.log("hum...3..." +JSON.stringify(myShopList));
 					}
                response.shopUserInfo.myShopList=JSON.stringify(myShopList);
                console.log("facebook login response:"+JSON.stringify(response));
@@ -109,12 +110,12 @@ router.kakaoLogin=function(req,res){
    mariaDB.existShopUser(req.body.referenceId,function(err,shopUserInfo){
    	if(err){
       	console.log(err);
-         res.send(JSON.stringify({"result":"InvalidId"}));
+			let response = new index.Response("InvalidId");
+			res.send(JSON.stringify(response));
       }else{
 			req.session.uid = shopUserInfo[0].userId;
 			//body.shopUserInfo={};
-			const response={};
-			response.result="success";
+			let response = new index.SuccResponse();
 
 			//delete secret info
 			for(let i=0; i<shopUserInfo.length; i++){
@@ -129,7 +130,7 @@ router.kakaoLogin=function(req,res){
 			//여러개 shopList 하나로 합치기
 			let myShopList=[];
 			for(let i=0; i<shopUserInfo.length; i++){
-				let shopList = JSON.parse(shopUserInfo.myShopList[i]);
+				let shopList = JSON.parse(shopUserInfo[i].myShopList);
 				myShopList[i]=shopList[0];
 				
 			}
@@ -146,18 +147,20 @@ router.emailLogin=function(req,res){
 	mariaDB.existEmailAndPassword(req.body.email, req.body.password, function(err,result){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"invalidId"}));
+			let response = new index.Response("invalidId");
+			res.send(JSON.stringify(response));
 		}else{
-			mariaDB.existShopUser(req.body.referenceId,function(err,shopUserInfo){
+			console.log("mariaDB.existEmailAndPassword success");
+			mariaDB.getShopUserInfo(result.userId,function(err,shopUserInfo){
 				if(err){
+					console.log(err);
 					res.send(JSON.stringify({"result":"invalidId"}));
 				}else{
-					console.log("existShopUser function result:");
+					console.log("getShopUserInfo function result:");
 					console.log(shopUserInfo);
 					req.session.uid = shopUserInfo[0].userId;
 			         //body.shopUserInfo={};
-		         const response={};
-		         response.result="success";
+					let response = new index.SuccResponse();
 
 		         //delete secret info
 		         for(let i=0; i<shopUserInfo.length; i++){
@@ -167,12 +170,13 @@ router.emailLogin=function(req,res){
 		            delete shopUserInfo[i].shopPushId;
 		         }
 
+					console.log(shopUserInfo);
 		         response.shopUserInfo=shopUserInfo[0];
 
 		         //여러개 shopList 하나로 합치기
 		         let myShopList=[];
 		         for(let i=0; i<shopUserInfo.length; i++){
-		            let shopList = JSON.parse(shopUserInfo.myShopList[i]);
+		            let shopList = JSON.parse(shopUserInfo[i].myShopList);
 		            myShopList[i]=shopList[0];
 
 		         }
@@ -186,6 +190,7 @@ router.emailLogin=function(req,res){
 }
 
 
+//처음 로그인일 때 facebook, kakao가 진짜 자기인지 모르기 때문에 한번 더 패스워드 확인
 router.secretLogin=function(req,res){	
 	console.log("enter secretLogin");	
 
@@ -200,13 +205,15 @@ router.secretLogin=function(req,res){
 		mariaDB.existEmailAndPassword(req.body.email, req.body.password, function(err,result){
 			if(err){
 				console.log(err);
-				res.send(JSON.stringify({"result":"failure"}));
+				let response = new index.FailResponse(err);
+         	res.send(JSON.stringify(response));
 			}else{
 				console.log(result);
 				mariaDB.updateShopRefId(result.userId,req.body.referenceId, function(err,result){
 					if(err){
 						console.log(err);
-						res.send(JSON.stringify({"result":"failure"}));
+						let response = new index.FailResponse(err);
+         			res.send(JSON.stringify(response));
 					}else{
 						console.log(result);
 					}
@@ -215,13 +222,12 @@ router.secretLogin=function(req,res){
 				mariaDB.getShopUserInfo(result.userId,function(err,shopUserInfos){
 					if(err){
 						console.log(err);
-						res.send(JSON.stringify({"result":"failure"}));
+						let response = new index.FailResponse(err);
+        				res.send(JSON.stringify(response));
 					}else{
 						console.log(result);		
          			req.session.uid = shopUserInfos[0].userId;
-         			const response={};
-         			response.result="success";
-
+						let response = new index.SuccResponse();
          			//delete secret info
          			for(let i=0; i<shopUserInfos.length; i++){
             			delete shopUserInfos[i].userId;
@@ -249,34 +255,35 @@ router.secretLogin=function(req,res){
 		});
 	}else{
 		console.log('secretLogin facebook or kakaotalk');
-		mairaDB.existUserEmail(req.body.email,function(err,userInfo){
+		mariaDB.existUserEmail(req.body.email,function(err,userInfo){
 	      if(err){
    	      console.log(err);
-				res.send(JSON.stringify({"result":"failure"}));
+				let response = new index.FailResponse(err);
+         	res.send(JSON.stringify(response));
 			}else{
 				mariaDB.getShopUserInfo(userInfo.userId,function(err,shopUserInfos){
             	if(err){
 						console.log(err);
-               	res.send(JSON.stringify({"result":"failure"}));
+						let response = new index.FailResponse(err);
+         			res.send(JSON.stringify(response));
             	}else{
-						let secretPassword = crypto.createHash('sha256').update(password+shopUserInfos[0].salt).digest('hex');
+						let secretPassword = crypto.createHash('sha256').update(req.body.password+shopUserInfos[0].salt).digest('hex');
 
                	if(secretPassword === shopUserInfos[0].password){
                   	console.log("password success!!");
 						
 							mariaDB.updateShopRefId(userInfo.userId,req.body.referenceId,function(err,result){
 								if(err){
-									console.log(err);
-									res.send(JSON.stringify({"result":"failure"}));
+									let response = new index.FailResponse(err);
+         						res.send(JSON.stringify(response));
 								}else{
 									console.log(result);
-								}
-							});
+								
+							
 							
 							req.session.uid = shopUserInfos[0].userId;
-            			const response={};
-            			response.result="success";
-
+							
+							let response = new index.SuccResponse();
             			//delete secret info
             			for(let i=0; i<shopUserInfos.length; i++){
                			delete shopUserInfos[i].userId;
@@ -297,7 +304,8 @@ router.secretLogin=function(req,res){
             			response.shopUserInfo.myShopList=JSON.stringify(myShopList);
             			console.log(JSON.stringify(response));
             			res.send(JSON.stringify(response));
-	
+							}
+							});
 						}
 					}
 				});
@@ -314,10 +322,12 @@ router.openShop=function(req,res){
 	mariaDB.updateShopBusiness(req.body.takitId,"on",function(err,result){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
 		}else{
 			console.log("openShop function success");
-			res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
 		}
 	});
 
@@ -328,10 +338,12 @@ router.closeShop=function(req,res){
 	mariaDB.updateShopBusiness(req.body.takitId,"off",function(err,result){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
 		}else{
 			console.log("closeShop function success");
-			res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
 		}
 	});
 }
@@ -363,7 +375,7 @@ router.changeNotiMember=function(req,res){
 		noti.setRedisSchedule(shopUserInfo.userId+"_gcm_shop_"+messageId,shopUserInfo.phone,GCM,callback); ///(keyName,phone,SMS,next){
 
 	},function(result,callback){
-		getUserInfo(shopUserInfo.userId,callback)
+		mariaDB.getUserInfo(shopUserInfo.userId,callback)
 	},function(userInfo,callback){
 		GCM.custom.email=userInfo.email;
 
@@ -382,10 +394,12 @@ router.changeNotiMember=function(req,res){
 	}],function(err,result){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
 		}else{
 			console.log("change Noti Member success result:"+JSON.stringify(result));
-			res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
 		}
 	});
 };
@@ -394,10 +408,12 @@ router.successGCM=function(req,res){
    console.log("messageId : "+req.body.messageId);
    redisCli.del(req.session.uid+"_gcm_shop_"+req.body.messageId,function(err,result){
       if(err){
-         res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log("!!!!!!!!!!!success gcm 성공!!!!!!" +result);
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    })
 }
@@ -416,19 +432,22 @@ router.sleepMode=function(req,res){
             redisCli.del(result[i],function(err,reply){
                if(err){
                   console.log(err);
-                  res.send(JSON.stringify({"result":"failure"}));
+						let response = new index.FailResponse(err);
+         			res.send(JSON.stringify(response));
                }else{
                   console.log(reply);
                }
             });
 
             if(i === result.length-1){
-               res.send(JSON.stringify({"result":"success"}));
+					let response = new index.SuccResponse();
+         		res.send(JSON.stringify(response));
             }
          }
 
          if(result[0] === null || result[0] === undefined){
-            res.send(JSON.stringify({"result":"success"}));
+				let response = new index.SuccResponse();
+         	res.send(JSON.stringify(responsde));
          }
       }
    });
@@ -440,15 +459,15 @@ router.getShopInfo=function(req,res){
 	mariaDB.getShopInfo(req.body.takitId,function(err,shopInfo){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
 		}else{
 			delete shopInfo.orderNumberCounter;
 			delete shopInfo.orderNumberCounterTime;
 
 			console.log("success");
-			let response={};
+			let response = new index.SuccResponse();
 			response.shopInfo=shopInfo;
-			response.result = "success";
 			res.send(JSON.stringify(response));
 		}
 	});
@@ -464,30 +483,31 @@ router.refreshInfo=function(req,res){
 	}],function(err,result){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
 		}else{
 			console.log(result);
 
-			let response = {};
+			let response = new index.SuccResponse();
 			response.shopUserInfo={};
 			response.shopInfo = result[1];
-			for(let i=0; i<result.length; i++){ //getShopUserInfo가 여러개 shop 가지고 있는 user들을 여러명 검색하므로 이 작업 필요
+			for(let i=0; i<result[0].length; i++){ //getShopUserInfo가 여러개 shop 가지고 있는 user들을 여러명 검색하므로 이 작업 필요
+				console.log("for :"+JSON.stringify(result[0][i].takitId));
 				if(result[0][i].takitId === req.body.takitId){
-					console.log("find correct takitId");
+					console.log("find correct takitId" + JSON.stringify(result[0]));
 					delete result[0][i].password;
 					delete result[0][i].salt;
 					delete result[0][i].shopPushId;
 					response.shopUserInfo = result[0][i];
-					response.result = "success";
 
 					break;
 				}/*else{
 					response.result="failure";
 					delete response.shopUserInfo;
 				}*/
-				//TODO : getShopUserInfo with takitId 를 새로 만드는게 낫나 흠흠,,
-				//잘 모르겠,,
 			}
+
+			console.log("response:"+JSON.stringify(response));
 			res.send(JSON.stringify(response));
 		}
 	});
@@ -501,13 +521,18 @@ router.getSalesAndSatas = function(req,res){
 		function finalCallback(err,result){
 			if(err){
 				console.log(err);
-				res.send(JSON.stringify({"result":"failure","error":err}));
+				let response = new index.FailResponse(err);
+         	res.send(JSON.stringify(response));
 			}else{
 				console.log("getSalesAndSatas success");
-				res.send(JSON.stringify({"result":"success","sales":result[0],"stats":result[1]}))
+				let response = new index.SuccResponse();
+				response.sales=result[0];
+				response.stats=result[1];
+				res.send(JSON.stringify(response));
 			}
 		}
-
+	
+		console.log(req.body);
 		if(req.body.option === "period"){
 			async.parallel([function(callback){
 				mariaDB.getSalesPeriod(req.body.takitId, req.body.startTime, req.body.endTime, callback);
@@ -522,7 +547,7 @@ router.getSalesAndSatas = function(req,res){
 
 				async.parallel([function(callback){
 					mariaDB.getSales(req.body.takitId,startTime,callback);
-				},function(result,callback){
+				},function(callback){
 					mariaDB.getStatsMenu(req.body.takitId,startTime,callback);
 				}],callback);
 			}],finalCallback);
@@ -537,10 +562,16 @@ router.getAccount = function(req,res){
 	mariaDB.getAccountShop(req.body.takitId,function(err,result){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
 		}else{
 			console.log(result);
-			res.send(JSON.stringify({"result":"success","account":result.account, "bankName":result.bankName, "bankCode":result.bankCode, "depositer":result.depositer}));
+			let response = new index.SuccResponse();
+			response.account=result.account;
+			response.bankName=result.bankName;
+			response.bankCode=result.bankCode;
+			response.depositer=result.depositer;
+         res.send(JSON.stringify(response));
 		}
 	});
 }

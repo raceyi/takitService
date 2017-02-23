@@ -144,7 +144,7 @@ app.all('*',function(req,res,next){
       }else{
          var url=req.url.toString();
 			if((req.url==="/signup" || req.url==="/kakaoLogin" || req.url==="/emailLogin" || req.url === "/facebooklogin" ||
-            req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || 
+            req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || req.url==="/shop/emailLogin" || 
 				req.url ==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset") 
 				&& req.method === "POST"){
             next();
@@ -159,7 +159,7 @@ app.all('*',function(req,res,next){
 	   console.log("invalid session");
       var url=req.url.toString();
       if((req.url==="/signup" || req.url==="/kakaoLogin" || req.url==="/emailLogin" || req.url === "/facebooklogin" ||
-			req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || 
+			req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || req.url==="/shop/emailLogin" ||
 			req.url==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset") 
 			&& req.method === "POST"){
          next();  
@@ -173,7 +173,7 @@ app.all('*',function(req,res,next){
 });
 
 app.use('/', index);
-app.post('/shopEnter',index.shopEnter);
+app.post('/shopEnter',users.shopEnter);
 //app.use('/users', users);
 
 app.get('/oauthSuccess',tomcatServer.oauthSuccess);
@@ -247,13 +247,16 @@ app.get('/cafe/shopHome',mariaDB.queryCafeHome);
 app.post('/takitIdAutocomplete',function(req,res,next){
 	console.log("takitIdAutocomplete comes(req:"+JSON.stringify(req.body)+")");
 	mariaDB.findTakitId(req,function(shoplist){
-		res.end(JSON.stringify(shoplist)); //hum... Why shoplist doesn't work? 
+		let response = shoplist;
+		response.prototype = new index.Response();
+		
+		res.end(JSON.stringify(response)); //hum... Why shoplist doesn't work? 
 	});
 });
 
 app.get('/oauth',function(req,res,next){ // kakaotalk oauth 
      console.log("/oauth comes req.url:"+req.url);
-    var body={result:"success"};
+    var body=new index.SuccResponse();
     var url=String(req.url);
     console.log("url:"+url);
     if(url.indexOf("code=")>0){
@@ -344,12 +347,13 @@ app.post('/registrationId',function(req,res){
 	
 	mariaDB.updatePushId(req.session.uid,req.body.registrationId,req.body.platform,function(err,result){
 		if(err){
-			res.statusCode=500;
-			res.end(JSON.stringify(err));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
 		}else{
 			console.log("registraionId added into DB successfully.Do I need this procedure every login process?");
-            console.log("Just do it when app is installed in new device.!!! Please check it!!!");
-			res.end(JSON.stringify({"result":"success"}));
+         console.log("Just do it when app is installed in new device.!!! Please check it!!!");
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
 		}
 	});
 });
@@ -362,15 +366,15 @@ app.post('/shop/registrationId',function(req,res){
 		console.log("registrationId:"+req.body.registrationId);
 		console.log("session.id:"+req.session.uid);
 		console.log("session.takitId"+req.session.takitId);
-		mariaDB.updateShopPushId(req.session.uid,req.body.takitId,req.body.registrationId,req.body.platform,
-		function(err,result){
+		mariaDB.updateShopPushId(req.session.uid,req.body.takitId,req.body.registrationId,req.body.platform,function(err,result){
 			if(err){
-				res.statusCode=500;
-            	res.end(JSON.stringify(err));
+				let response = new index.FailResponse(err);
+         	res.send(JSON.stringify(response));
 			}else{
 				console.log("registraionId added into DB successfully.Do I need this procedure every login process?");
-            	console.log("Just do it when app is installed in new device.!!! Please check it!!!");
-            	res.end(JSON.stringify({"result":"success"}));
+            console.log("Just do it when app is installed in new device.!!! Please check it!!!");
+				let response = new index.SuccResponse();
+         	res.send(JSON.stringify(response));
 			}
 		});	
 });

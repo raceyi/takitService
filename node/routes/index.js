@@ -6,11 +6,32 @@ var moment=require('moment');
 var join = path.join;
 var exec = require('child-process-promise').exec;
 var s3=require('./s3');
-var mariaDB=require('./mariaDB');
+//var mariaDB=require('./mariaDB');
+var config = require('../config');
 
 var infile_path;
 var outfile_path;
 var ocr_command;
+
+router.Response = function(result){
+   this.result = result;
+   this.version = config.VERSION;
+}
+
+router.FailResponse=function(error){
+	this.result = "failure";
+   this.error = error;
+   this.version = config.VERSION;
+};
+
+router.SuccResponse=function(){
+   this.result = "success";
+   this.version = config.VERSION;	
+};
+
+let response = new router.SuccResponse();
+console.log(response);
+
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
@@ -107,6 +128,8 @@ function resultOCR(infile,outfile,req,res){
 	
 }
 */
+
+/*
 function runOCR(infile,outfile,req,res){
 	console.log("[runOCR]"+ocr_command+" "+infile+" "+outfile);
 	exec(ocr_command+" "+infile+" "+outfile)
@@ -141,7 +164,7 @@ router.ocr_submit = function(req, res, next){
 		      if (err){ 
 		    	  console.log("fail to rename ocr image file. "+JSON.stringify(err)); 
 		    	  res.statusCode=500;// internal server error
-		    	  res.end({error:JSON.stringify(err)}); // Please change error message later.
+				  res.end({error:JSON.stringify(err)});
 		      } // system error...
 		      runOCR(infile,outfile,req,res);
 		});
@@ -152,11 +175,12 @@ router.shopEnter=function(req, res, next){
 		console.log("check req.session.uid:"+req.session.uid+"shopList"+req.body.shopList);
        		mariaDB.updateShopList(req.session.uid,req.body.shopList,function(err,result){
         		if(!err){
-				var body={"result":"success"};
-				res.end(JSON.stringify(body));
+					var body={"result":"success"};
+					res.end(JSON.stringify(body));
 	        	}
 		});
         }
 };
+*/
 
 module.exports = router;

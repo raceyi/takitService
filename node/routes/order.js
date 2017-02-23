@@ -7,11 +7,15 @@ let cash = require('./cash');
 let gcm = require('node-gcm');
 let timezoneJS = require('timezone-js');
 let config = require('../config');
+let index = require('./index');
 let async = require('async');
 let Scheduler = require('redis-scheduler');
 let scheduler = new Scheduler();
 let	redis = require('redis');
 let redisCli = redis.createClient(); 
+
+let a = new index.SuccResponse();
+console.log(a);
 
 function updateOrderStatus(order){
    let title;
@@ -57,7 +61,12 @@ function sendOrderMSGUser(order,userInfo,next){
          const SMS = {};
          SMS.title = GCM.title;
          SMS.content = GCM.content+"\n상단바 알림을 클릭하시면 문자를 받지 않을 수 있습니다.";
-         noti.setRedisScheduleLMS(order.userId+"_gcm_user_"+messageId,order.userPhone,SMS,callback);
+
+			if(userInfo.pushId === null || userInfo.pushId === undefined){
+         	noti.setRedisScheduleLMS(order.userId+"_gcm_user_"+messageId,order.userPhone,SMS,10000,callback);
+			}else{
+				noti.setRedisScheduleLMS(order.userId+"_gcm_user_"+messageId,order.userPhone,SMS,60000,callback);
+			}
       },function(result,callback){
          noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId], userInfo.platform, callback);
       }],function(err,result){
@@ -163,7 +172,8 @@ router.saveOrder=function(req, res){
 	}],function(err,localOrderedTime){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
 		}else{
 			order.localOrderedTime=localOrderedTime.time;
 			order.localOrderedHour=localOrderedTime.hour;
@@ -199,17 +209,20 @@ router.saveOrder=function(req, res){
       			}],callback);
    			}],function(err,result){
       			if(err){
-         			res.send(JSON.stringify({"result":"failure","error":err}));
-      			}else{
-						let response=result[1];
-						response.result = "success";
-         			console.log("save order result:"+JSON.stringify(result));
+						let response = new index.FailResponse(err);
          			res.send(JSON.stringify(response));
+      			}else{
+						let response = new index.SuccResponse();
+						response.order = result[1].order;
+         			response.messageId = result[1].messageId;
+         			console.log("save order result:"+JSON.stringify(result));
+						res.send(JSON.stringify(response));
      			 	}
    			});
 			}else{
 				console.log("shop off time");
-				res.send(JSON.stringify({"result":"failure","error":"shop's off"}));
+				let response = new index.FailResponse("shop's off");
+         	res.send(JSON.stringify(response));
 			}
 		}
 	});
@@ -222,15 +235,13 @@ router.getOrdersUser=function(req,res){
 	mariaDB.getOrdersUser(req.session.uid,req.body.takitId,req.body.lastOrderId,req.body.limit,function(err,orders){
 		
 		if(err){
-			res.end(JSON.stringify({"result" : "failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
 		}else{
-
-			var body={};
-			body.result="success";
-			body.orders=orders;
-			res.end(JSON.stringify(body));
-		}
-		    
+			let response = new index.SuccResponse();
+			response.orders=orders;
+         res.send(JSON.stringify(response));
+		}    
 	});
 
 }
@@ -242,24 +253,24 @@ router.getOrdersShop=function(req,res){
 		mariaDB.getPeriodOrdersShop(req.body.takitId,req.body.startTime,req.body.endTime,req.body.lastOrderId,req.body.limit,function(err,orders){
 			if(err){
 				console.log(err);
-				res.end(JSON.stringify({"result":"failure"}));
+				let response = new index.FailResponse(err);
+         	res.send(JSON.stringify(response));
 			}else{
-				var body={};
-            	body.result="success";
-            	body.orders=orders;
-            	res.end(JSON.stringify(body));
+				let response = new index.SuccResponse();
+         	response.orders=orders;
+				res.send(JSON.stringify(response));
 			}
 		});
 	}else{			
 		mariaDB.getOrdersShop(req.body.takitId,req.body.option,req.body.lastOrderId,req.body.limit,function(err,orders){
 			if(err){
 				console.log(err);
-				res.end(JSON.stringify({"result":"failure"}));
+				let response = new index.FailResponse(err);
+        	 	res.send(JSON.stringify(response));
 			}else{
-				var body={};
-            	body.result="success";
-            	body.orders=orders;
-            	res.end(JSON.stringify(body));
+				let response = new index.SuccResponse();
+				response.orders=orders;
+         	res.send(JSON.stringify(response));
 			}	
 		});
 		
@@ -282,7 +293,7 @@ router.checkOrder=function(req,res){ // previous status must be "paid".
 	},function(result,callback){
       //주문상태 update
 		mariaDB.updateOrderStatus(req.body.orderId,'paid','checked','checkedTime',
-		new Date().toISOString(),req.body.cancelReason,callback);
+		new Date(),req.body.cancelReason,null,callback);
 	},function(result,callback){
 		mariaDB.getOrder(req.body.orderId,callback);
 	},function(result,callback){
@@ -294,9 +305,11 @@ router.checkOrder=function(req,res){ // previous status must be "paid".
    }],function(err,result){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"failure", "err":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
 		}else{
-			res.send(JSON.stringify({"result":"success"}))
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
 		}
 	});
 };
@@ -318,7 +331,7 @@ router.completeOrder=function(req,res){//previous status must be "checked".
    },function(result,callback){
       //주문상태 update
       mariaDB.updateOrderStatus(req.body.orderId,'checked','completed','completedTime',
-      new Date().toISOString(),req.body.cancelReason,callback);
+      new Date(),req.body.cancelReason,null,callback);
    },function(result,callback){
       //update된 상태user, shopUser에게  msg보내줌
       mariaDB.getOrder(req.body.orderId,callback);
@@ -329,9 +342,11 @@ router.completeOrder=function(req,res){//previous status must be "checked".
       sendOrderMSGUser(order,userInfo,callback);
    }],function(err,result){
       if(err){
-          res.send(JSON.stringify({"result":"failure", "err":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    });
 };
@@ -351,7 +366,8 @@ router.cancelOrderUser=function(req,res){
     let order = {};
     async.waterfall([function(callback){
        //orderStatus가 paid 일 때만 주문 취소 가능 .. -> oldStatus = 'paid'로 지정
-       mariaDB.updateOrderStatus(req.body.orderId,'paid','cancelled','cancelledTime',new Date().toISOString(),req.body.cancelReason,callback);
+       mariaDB.updateOrderStatus(req.body.orderId,'paid','cancelled','cancelledTime',
+		 new Date(),req.body.cancelReason,"Asia/Seoul",callback);
     },function(result,callback){
        mariaDB.getOrder(req.body.orderId,callback);
     },function(result,callback){
@@ -370,12 +386,14 @@ router.cancelOrderUser=function(req,res){
     }],function(err,result){
        if(err){
           console.log(err);
-          res.send(JSON.stringify({"result":"failure", "err":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
        }else{
           console.log(result);
-          res.send(JSON.stringify({"result":"success"}));
-       }
-    });
+			let response = new index.SuccResponse();
+        res.send(JSON.stringify(response));
+		 }
+	});
 };
 
 //shop취소
@@ -394,7 +412,7 @@ router.shopCancelOrder=function(req,res){
       mariaDB.getShopUserInfo(req.session.uid,callback);
    },function(result,callback){
       mariaDB.updateOrderStatus(req.body.orderId,'','cancelled','cancelledTime',
-      new Date().toISOString(),req.body.cancelReason,callback);
+      new Date(),req.body.cancelReason,"Asia/Seoul" ,callback);
    },function(result,callback){
       mariaDB.getOrder(req.body.orderId,callback);
    },function(result,callback){
@@ -415,9 +433,11 @@ router.shopCancelOrder=function(req,res){
    }],function(err,result){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure", "err":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else {
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    });
 };

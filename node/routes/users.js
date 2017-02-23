@@ -9,7 +9,7 @@ const http = require('http');
 const https = require('https');
 const config = require('../config');
 const noti = require('./notification');
-
+const index = require('./index');
 const redis = require("redis");
 const redisCli = redis.createClient();
 
@@ -78,11 +78,11 @@ router.preventMultiLogin=function(req,res){
       GCM.custom = null;
 
       noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId],userInfo.platform,callback);
-   },function(result,callback){
-		console.log(userInfo.sessionId);
-		redisCli.del(userInfo.sessionId,callback);
 	},function(result,callback){
-		console.log("del result:"+result);
+      console.log(userInfo.sessionId);
+      redisCli.del(userInfo.sessionId,callback);
+   },function(result,callback){
+      console.log("del result:"+result);
       let nowTime = new Date();
       let beforeLastTime = new Date(userInfo.lastLoginTime); // UTC time. +32400000 -> localTime
                                                                   //usrInfo.lastLoginTime 그대로 넣으면 로컬시
@@ -95,33 +95,42 @@ router.preventMultiLogin=function(req,res){
       }else{
          sessionInfo.multiLoginCount = 1;
       }
-
       sessionInfo.sessionId = "sess:"+req.sessionID //now sessionID
       sessionInfo.lastLoginTime = nowTime.toISOString();
-		sessionInfo.userId = req.session.uid;
-		
+      sessionInfo.userId = req.session.uid;
+		sessionInfo.deviceUuid = req.body.uuid;
+
+		console.log("device info:"+req.body.uuid);
+
       mariaDB.updateSessionInfo(sessionInfo,callback);
-   
+
    }],function(err,result){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log(result);
          delete userInfo.password;
          delete userInfo.salt;
          delete userInfo.pushId;
          delete userInfo.userId;
-
-         res.send(JSON.stringify({"result":"success","userInfo":userInfo}));
+			let response = new index.SuccResponse();
+			response.userInfo=userInfo;
+         res.send(JSON.stringify(response));
+			
       }
    });
 }
 
-function checkSession(userInfo,sessionId,next){
+
+function checkSession(userInfo,sessionId,deviceUuid,next){
    console.log("checkSession");
+	console.log("device info:"+deviceUuid);
+
+	console.log("userInfo deviceInfo:"+userInfo.deviceUuid);
    async.waterfall([function(callback){
-      if(userInfo.sessionId===null || userInfo.sessionId === sessionId){ //이전 session과 현재 session비교
+      if(userInfo.sessionId===null || userInfo.sessionId === sessionId || userInfo.deviceUuid === deviceUuid || userInfo.deviceUuid === null){ //이전 session과 현재 session비교
          callback(null,"correct session");
       }else{
          console.log("sessionId:"+userInfo.sessionId);
@@ -133,6 +142,7 @@ function checkSession(userInfo,sessionId,next){
             }else{
                let beforeSession = JSON.parse(result);
                if(beforeSession.hasOwnProperty('uid') && beforeSession.uid === userInfo.userId){
+                  console.log("beforeUid:"+beforeSession.uid);
                   callback("multiLogin");
                }else{
                   callback(null,"killed session");
@@ -147,9 +157,9 @@ function checkSession(userInfo,sessionId,next){
       sessionInfo.sessionId = sessionId
       sessionInfo.multiLoginCount = 1;
       sessionInfo.lastLoginTime = new Date().toISOString();
+		sessionInfo.deviceUuid = deviceUuid;
 
       mariaDB.updateSessionInfo(sessionInfo,callback);
-
 
    }],function(err,result){
       if(err){
@@ -162,119 +172,123 @@ function checkSession(userInfo,sessionId,next){
    });
 }
 
-
-
 router.facebookLogin = function(req, res){
-	var data = req.body;
-	console.log("facebooklogin:"+JSON.stringify(req.body));
+   console.log("facebooklogin:"+JSON.stringify(req.body));
 
-	/*var validateUri="https://graph.facebook.com/debug_token?input_token="+FACEBOOK_APP_TOKEN+"&access_token="+req.body.token;
-	console.log(validateUri);
-	console.log("validuri success");
-	
-	request(validateUri, function (error, response, body) {
-		console.log("facebook login request 11111");
-		if (!error && response.statusCode === 200) {
-			console.log("request no error");
-			console.log(JSON.stringify(req.body));
-			// Please check facebook id exists in DB.
-	*/	
-			mariaDB.existUser(req.body.referenceId,function(err,userInfo){
-			console.log("existUser function result:");
-				
-				if(!err){
-					var body={};
-					console.log("id:"+userInfo.userId);
-				 	
-					body.result="success";
-				    // save user id in session
-					req.session.uid=userInfo.userId;
-					console.log("faceboologin session uid:"+typeof req.session.uid ==='string');
-					//console.log("facebooklogin-id:"+result.userId);
-					
-					delete userInfo.password;
-					delete userInfo.salt;
-					delete userInfo.userId;
-					delete userInfo.pushId;
-					delete userInfo.countryCode;
-	
-					body.userInfo=userInfo; 
-					
-					console.log("facebook login:"+JSON.stringify(body));
-					res.end(JSON.stringify(body));
-				 
-				}else{
-					console.log("existUser err : "+err);
-            	res.end(JSON.stringify({result:"invalidId"}));
-            }
-		 	});
+   let userInfo = {};
+   let sessionId = "sess:"+req.sessionID //now sessionID
 
-		/*}else{ 
-			console.log("err : "+error);
-			console.log("response : " +JSON.stringify(response));
-			res.statusCode=response.statusCode;//401
-			// please send error reason if access token is invalid or if user not found.
-			res.end(JSON.stringify(response.body));
-		}
-	});*/
-};
+   async.waterfall([function(callback){
+      mariaDB.existUser(req.body.referenceId,callback);
+   },function(result,callback){
+      userInfo=result;
+      console.log("existUser function result:");
+      console.log("id:"+userInfo.userId);
 
+      // save user id in session
+      req.session.uid=userInfo.userId;
 
-router.kakaoLogin=function(req,res){//referenceId 확인해서 로그인.
-	
-	console.log("kakaoLogin request"+JSON.stringify(req.body));
-	
-	mariaDB.existUser(req.body.referenceId,function(err,userInfo){
-		if(err){
-			console.log(err);
-			res.send(JSON.stringify({"result":"invalidId"}));
-		}else{
-			const body={};
-			body.result="success";
-		    // save user id in session
-			req.session.uid = userInfo.userId;
-					
-			delete userInfo.password;
-      	delete userInfo.salt;
-         delete userInfo.userId;
-      	delete userInfo.pushId;
-      	delete userInfo.countryCode;
-
-         body.userInfo=userInfo;
-			console.log(JSON.stringify(body))
-			res.end(JSON.stringify(body));
-		}
-	});
-}
-
-router.emailLogin=function(req,res){
-	mariaDB.existEmailAndPassword(req.body.email,req.body.password,function(err,userInfo){
-    	const body={};
-    	
-    	if(err){
-			console.log(err);
-      	body.result="invalidId";
-      	res.send(JSON.stringify(body));
-    	}else{
-      	body.result="success";
-        	// save user id in session
-
-      	req.session.uid=userInfo.userId;
-      	console.log("login-id:"+userInfo.userId);
-      		
+      //checkSession(userInfo,sessionId,req.body.uuid,callback);
+		callback(null,"success");
+   }],function(err,result){
+      if(err){
+         console.log(err);
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
+      }else{
          delete userInfo.password;
          delete userInfo.salt;
          delete userInfo.userId;
          delete userInfo.pushId;
-         delete userInfo.countryCode;
-
-         body.userInfo=userInfo;
-
-      	res.send(JSON.stringify(body));
-      }	  
-	});
+         delete userInfo.countryCode
+			let response = new index.SuccResponse();
+			response.userInfo=userInfo;
+         res.send(JSON.stringify(response));
+      }
+   });
 };
 
+router.kakaoLogin=function(req,res){//referenceId 확인해서 로그인.
+
+   console.log("kakaoLogin request"+JSON.stringify(req.body));
+
+   let userInfo = {};
+   let sessionId = "sess:"+req.sessionID //now sessionID
+
+   console.log(req.sessionID);
+
+   async.waterfall([function(callback){
+      mariaDB.existUser(req.body.referenceId,callback);
+   },function(result,callback){
+      userInfo=result;
+      console.log("existUser function result:");
+      console.log("id:"+userInfo.userId);
+
+      // save user id in session
+      req.session.uid=userInfo.userId;
+
+      //checkSession(userInfo,sessionId,req.body.uuid,callback);
+		callback(null,"success");
+   }],function(err,result){
+      if(err){
+         console.log(err);
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
+      }else{
+         delete userInfo.password;
+         delete userInfo.salt;
+         delete userInfo.userId;
+         delete userInfo.pushId;
+         delete userInfo.countryCode
+			let response = new index.SuccResponse();
+			response.userInfo=userInfo;
+			console.log(JSON.stringify(response));
+         res.send(JSON.stringify(response));
+      }
+   });
+}
+
+router.emailLogin=function(req,res){
+
+   let userInfo = {};
+   let sessionId = "sess:"+req.sessionID; //now sessionID
+
+   console.log("sessionId:"+sessionId);
+   console.log("req.body:"+JSON.stringify(req.body));
+
+   async.waterfall([function(callback){
+      mariaDB.existEmailAndPassword(req.body.email,req.body.password,callback);
+   },function(result,callback){
+		
+      // save user id in session
+      userInfo = result;
+      req.session.uid=userInfo.userId;
+      console.log("login-id:"+userInfo.userId);
+
+		if(userInfo.userId == 87){//tourmode 일 때
+			callback(null,"tourMode");		
+		}else{
+      	//checkSession(userInfo,sessionId,req.body.uuid,callback);
+			callback(null,"success");
+		}
+   }],function(err,result){
+      if(err){
+         console.log(err);
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
+      }else{
+         delete userInfo.password;
+         delete userInfo.salt;
+         delete userInfo.userId;
+         delete userInfo.pushId;
+         delete userInfo.countryCode
+         console.log(result);
+			let response = new index.SuccResponse();
+			response.userInfo=userInfo;		
+         res.send(JSON.stringify(response));
+      }
+   })
+};
 
 function validityCheck(email,phone){
     console.log("come validityCheck function");
@@ -310,7 +324,9 @@ router.signup=function(req,res){
 
 	if(validityCheck(req.body.email,req.body.phone)){
 		console.log("email and phone is valid");
-		let password=null;
+
+
+		/*let password=null;
    		if(req.body.hasOwnProperty('password') && req.body.password !==null){
          	password=req.body.password;
         	}
@@ -319,52 +335,54 @@ router.signup=function(req,res){
         	if(req.body.hasOwnProperty('referenceId') && req.body.referenceId !==null){
          	referenceId=req.body.referenceId;
         	}
-
-       	mariaDB.insertUser(referenceId,password,req.body.name,req.body.email,req.body.country, req.body.phone,0,function(err,result){
+		*/
+			mariaDB.insertUser(req.body,function(err,result){
+       	/*mariaDB.insertUser(referenceId,password,req.body.name,req.body.email,req.body.country, req.body.phone,0,function(err,result){*/
         	console.log("mariaDB next function."+JSON.stringify(result));
-            const body={};
             if(err){
-            	body.result="failure";
-               body.error=err;
-               console.log(JSON.stringify(body));
-               res.end(JSON.stringify(body));
+					console.log(JSON.stringify(response));
+					let response = new index.FailResponse(err);
+         		res.send(JSON.stringify(response));
 
             }else{
+					let response = new index.Response();
             	if(result === "duplication"){
-               	body.result = result;
-                  res.end(JSON.stringify(body));
+               	response.result = result;
+                  res.end(JSON.stringify(response));
                }else{
-               	body.result="success";
-                	body.email=req.body.email;
+               	response.result="success";
+               	response.email=req.body.email;
                   req.session.uid=result;
 
                   console.log(req.session.uid);
-                  console.log('send result'+JSON.stringify(body));
-               	res.end(JSON.stringify(body));
+                  console.log('send result'+JSON.stringify());
+               	res.end(JSON.stringify(response));
                }
             }
         });
 	}else{
-		res.send(JSON.stringify({"result":"Invalid email or phone"}));
+		let response = new index.Response("Invalid email or phone");
+		res.send(JSON.stringify(response));
 		
 	}
 
 };
 
-
 router.logout=function(req,res){
    console.log("logout start!!");
-   mariaDB.updatePushId(req.session.uid,null,null,function(err,result){
+   mariaDB.removeSessionInfo(req.session.uid,null,null,null,function(err,result){
       if(err){
          res.send(JSON.stringify({"result":"failure","error":err}));
       }else{
          req.session.destroy(function(err){
             if(err){
                console.log(err);
-               res.send(JSON.stringify({"result":"failure","error":err}));
+					let response = new index.FailResponse(err);
+         		res.send(JSON.stringify(response));
             }else{
                console.log("destroy success");
-               res.send(JSON.stringify({"result":"success"}));
+					let response = new index.SuccResponse();
+         		res.send(JSON.stringify(response));
             }
          });
       }
@@ -391,14 +409,13 @@ router.unregister=function(req,res){
 	console.log("accountWithdrawal function ");
 	console.log(req.session.uid);
 	mariaDB.deleteUserInfo(req.session.uid,function(err,result){
-		var body={};
 		if(err){
-			body.result="failure";
-			res.end(JSON.stringify(body));
+			let response = new index.FailResponse(err);
+			res.send(JSON.stringify(response));
 		}else{
 			req.session.destroy(function(err){
-         	body.result="success";
-         	res.send(JSON.stringify(body));       	
+				let response = new index.SuccResponse();
+         	res.send(JSON.stringify(response));
         	});
 		}
 	});
@@ -475,16 +492,19 @@ router.SMSCertification = function(req,res){
 				redisCli.hset("SMSCerti",req.body.phone,code,function(err,result){
 					if(err){
 						console.log(err);
-						res.send(JSON.stringify({"result":"failure"}));
+						let response = new index.FailResponse(err);
+         			res.send(JSON.stringify(response));
 					}else{
-						res.send(JSON.stringify({"result":"success"}));
+						let response = new index.SuccResponse();
+         			res.send(JSON.stringify(response));
 					}
 				});
 				
 			}
 		});
 	}else{
-		res.send(JSON.stringify({'result':'failure'}));
+		let response = new index.FailResponse("hasn't phone number");
+      res.send(JSON.stringify(response));
 	}
 	
 }
@@ -495,15 +515,18 @@ router.checkSMSCode=function(req,res){
 	redisCli.hget('SMSCerti',req.body.phone,function(err,result){
 		if(err){
 			console.log(err);
-			res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
 		}else{
 			console.log(result);
 			if(result === req.body.code){
 				console.log("check code success");
-				res.send(JSON.stringify({"result":"success"}));
+				let response = new index.SuccResponse();
+         	res.send(JSON.stringify(response));
 			}else{
 				console.log("checkcode failure");
-				res.send(JSON.stringify({"result":"invalid code"}))
+				let response = new index.Response("invalid code");
+				res.send(JSON.stringify(response));
 			}
 		}
 	});
@@ -518,7 +541,8 @@ router.passwordReset=function(req,res){
 		//1)user의 email과 phone번호 확인
 		mariaDB.existUserEmail(req.body.email,function(err,userInfo){
 			if(err){
-				res.send(JSON.stringify({"result":"failure"}));
+				let response = new index.FailResponse(err);
+         	res.send(JSON.stringify(response));
 			}else{
 				
 				if(req.body.phone === userInfo.phone){
@@ -531,7 +555,8 @@ router.passwordReset=function(req,res){
 					userInfo.email=req.body.email;
 					mariaDB.updateUserInfo(userInfo,function(err,result){
 						if(err){
-							res.send(JSON.stringify({"result":"failure"}));
+							let response = new index.FailResponse(err);
+         				res.send(JSON.stringify(response));
 						}else{
 							//3) random 패스워드 email로 보냄
 							let subject="임시 비밀번호";
@@ -540,9 +565,11 @@ router.passwordReset=function(req,res){
 							noti.sendEmail(req.body.email,subject,content,function(err,result){
 								if(err){
 									console.log(err);
-									res.send(JSON.stringify({"result":"failure"}));
+									let response = new index.FailResponse(err);
+         						res.send(JSON.stringify(response));
 								}else{
-									res.send(JSON.stringify({"result":"success"}));
+									let response = new index.SuccResponse();
+         						res.send(JSON.stringify(response));
 		
 								}
 							});
@@ -551,63 +578,81 @@ router.passwordReset=function(req,res){
 				}else{
 					console.log("phone failure");
 					console.log(userInfo.phone);
-					res.send(JSON.stringify({"result":"failure"}));
+					let response = new index.FailResponse(err);
+         		res.send(JSON.stringify(response));
 				}
 			}
 		});
 			
 			
 	}else{
-		res.send(JSON.stringify({"result":"failure"}));
+		let response = new index.FailResponse("email or phone is null");
+      res.send(JSON.stringify(response));
 	}
 }
 
+//회원정보 수정
 router.modifyUserInfo = function(req,res){
    console.log("modifyUserInfo function start!!");
 
    const userInfo ={};
    userInfo.email = req.body.email;
+	userInfo.oldPassword = req.body.oldPassword;
    userInfo.password = req.body.newPassword;
    userInfo.phone = req.body.phone;
    userInfo.name = req.body.name;
    userInfo.userId = req.session.uid;
+	userInfo.receiptIssue = req.body.receiptIssue;
+	userInfo.receiptId = req.body.receiptId;
+	userInfo.receiptType = req.body.receiptType;
 	
 	console.log(JSON.stringify(userInfo));
 
-   if(req.body.hasOwnProperty('oldPassword') && req.body.oldPassword !== ""){
+   if(req.body.oldPassword !== undefined){
 		console.log("has oldPassword");
       mariaDB.getUserInfo(req.session.uid,function(err,result){
          if(err){
             console.log(err);
-            res.send(JSON.stringify({"result":"failure", "error":err}));
+				let response = new index.FailResponse(err);
+         	res.send(JSON.stringify(response));
          }else{
             console.log("getUserInfo success");
 				let secretOldPwd = crypto.createHash('sha256').update(req.body.oldPassword+result.salt).digest('hex');
-				
+				if(req.body.newPassword !== undefined){
+					userInfo.password = req.body.newPassword;
+				}else{
+					userInfo.password = req.body.oldPassword;
+				}
+	
             if(secretOldPwd === result.password){
                mariaDB.updateUserInfo(userInfo,function(err,result){
                   if(err){
                      console.log(err);
-                     res.send(JSON.stringify({"result":"failure","error":err}));
+							let response = new index.FailResponse(err);
+         				res.send(JSON.stringify(response));
                   }else{
                      console.log("modify UserInfo:"+JSON.stringify(result));
-                     res.send(JSON.stringify({"result":"success"}));
+							let response = new index.SuccResponse();
+         				res.send(JSON.stringify(response));
                   }
                });
             }else{
-					res.send(JSON.stringify({"result":"failure","error":"incorrect oldPassword"}));
+					let response = new index.FailResponse("incorrect oldPassword");
+         		res.send(JSON.stringify(response));
 				}
          }
       });
-   }else{
+   }else if(req.body.newPassword === undefined && req.body.oldPassword === undefined){ //비밀번호 정보 없는 kakao, facebook등
 		console.log("has not oldPassword");
       mariaDB.updateUserInfo(userInfo,function(err,result){
          if(err){
             console.log(err);
-            res.send(JSON.stringify({"result":"failure","error":"hasn't oldPassword"}));
+				let response = new index.FailResponse("hasn't oldPassword");
+         	res.send(JSON.stringify(response));
          }else{
             console.log("modify UserInfo:"+JSON.stringify(result));
-            res.send(JSON.stringify({"result":"success"}));
+				let response = new index.SuccResponse();
+         	res.send(JSON.stringify(response));
          }
       });
    }
@@ -618,10 +663,12 @@ router.successGCM=function(req,res){
    console.log("messageId : "+req.body.messageId);
    redisCli.del(req.session.uid+"_gcm_user_"+req.body.messageId,function(err,result){
       if(err){
-         res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log("!!!!!!!!!!!success gcm 성공!!!!!!" +result);
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    })
 }
@@ -639,12 +686,12 @@ router.orderNotiMode=function(req,res){
    }],function(err,result){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log("getOrdersNotiMode result:"+JSON.stringify(result));
-         const response = {};
+         const response = new index.SuccResponse();
          response.orders = result[1];
-         response.result = "success";
          res.send(JSON.stringify(response));
       }
    });
@@ -662,7 +709,8 @@ router.sleepMode=function(req,res){
    }],function(err,result){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log(JSON.stringify(result));
          for(let i=0; i<result[1].length; i++){
@@ -670,17 +718,20 @@ router.sleepMode=function(req,res){
             redisCli.del(result[i],function(err,reply){
                if(err){
                   console.log(err);
-                  res.send(JSON.stringify({"result":"failure"}));
+						let response = new index.FailResponse(err);
+         			res.send(JSON.stringify(response));
                }else{
                   console.log(reply);
                }
             });
-            res.send(JSON.stringify({"result":"success"}));
+				let response = new index.SuccResponse();
+	         res.send(JSON.stringify(response));
 
          }
 
          if(result[0] === null || result[0] === undefined){
-            res.send(JSON.stringify({"result":"success"}));
+				let response = new index.SuccResponse();
+         	res.send(JSON.stringify(response));
          }
       }
    });
@@ -691,10 +742,12 @@ router.wakeMode=function(req,res){
 
    mariaDB.changeSMSNoti(req.session.uid,"on",function(err,result){
       if(err){
-         res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log("SMS noti on success");
-			res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    });
 };
@@ -704,12 +757,27 @@ router.getDiscountRate = function(req,res){
 
    mariaDB.getDiscountRate(req.body.takitId,function(err,discountRate){
       if(err){
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log("SMS noti on success");
-         res.send(JSON.stringify({"result":"success","discountRate":discountRate}));
+			let response = new index.SuccResponse();
+			response.discountRate=discountRate;
+         res.send(JSON.stringify(response));
       }
    });
 }
+
+router.shopEnter=function(req, res, next){
+   if(req.session.uid){
+      console.log("check req.session.uid:"+req.session.uid+"shopList"+req.body.shopList);
+            mariaDB.updateShopList(req.session.uid,req.body.shopList,function(err,result){
+            if(!err){
+					let response = new index.SuccResponse();
+         		res.send(JSON.stringify(response));
+            }
+      });
+        }
+};
 
 module.exports = router;

@@ -3,7 +3,6 @@ let router = express.Router();
 let request = require('request');
 let mariaDB = require('./mariaDB');
 let noti = require('./notification');
-let gcm = require('node-gcm');
 let config = require('../config');
 let async = require('async');
 let Scheduler = require('redis-scheduler');
@@ -11,8 +10,10 @@ let scheduler = new Scheduler();
 let redis = require('redis');
 let redisCli = redis.createClient();
 let timezoneJS = require('timezone-js');
+let index = require('./index');
 
 const NHCode = "011";
+
 
 router.createCashId=function(req,res){
    //
@@ -22,9 +23,11 @@ router.createCashId=function(req,res){
          res.send(JSON.stringify({"result":"failure","error":err}));
       }else{
 			if(result === "duplicationCashId"){
-				res.send(JSON.stringify({"result":"failure","error":"duplicationCashId"}));
+				let response = new index.FailResponse("duplicationCashId");
+				res.send(JSON.stringify(response));
 			}else{
-         	res.send(JSON.stringify({"result":"success"}));
+				let response = new index.SuccResponse();
+         	res.send(JSON.stringify(response));
 			}
       }
    });
@@ -34,9 +37,11 @@ router.modifyCashPwd=function(req,res){
    console.log("modifyCashPwd function start!!");
    mariaDB.updateCashPassword(req.session.uid,req.body.cashId.toUpperCase(),req.body.password,function(err,result){
       if(err){
-         res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    });
 }
@@ -47,10 +52,12 @@ router.checkCashInfo = function(req,res){
    mariaDB.checkCashPwd(req.body.cashId.toUpperCase(),req.body.password,function(err,cashInfo){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure", "error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log("checkCashInfo success");
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    });
 }
@@ -431,10 +438,12 @@ router.checkCashInstantly = function(req,res){
    }],function(err,result){
       if(err){
          console.log(err);
-			res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log(result);
-			res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    });
 }
@@ -527,8 +536,11 @@ router.checkCashUserself = function(req,res){
    },function(result,callback){
 		cashList.cashTuno = result.cashTuno;
       cashList.bankName = result.bankName;
-      mariaDB.getPushId(req.session.uid,callback);
+  		mariaDB.updateConfirmCount(req.body.cashId,0,callback);
+      //mariaDB.getPushId(req.session.uid,callback);
    },function(result,callback){
+		mariaDB.getPushId(req.session.uid,callback);
+	},function(result,callback){
       const GCM ={};
       GCM.title = "입금된 캐쉬를 확인해주세요";
       GCM.content = cashList.amount+"캐쉬 확인 바로가기";
@@ -536,13 +548,21 @@ router.checkCashUserself = function(req,res){
       GCM.GCMType = "cash";
 
       noti.sendGCM(config.SERVER_API_KEY,GCM,[result.pushId],result.platform,callback); //API_KEY,MSG,pushId, platform,
-   },function(result,callback){
-      mariaDB.updateConfirmCount(req.body.cashId,0,callback);
+   //},function(result,callback){
+
+      //mariaDB.updateConfirmCount(req.body.cashId,0,callback);
    }],function(err,result){
       if(err){
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
-         res.send(JSON.stringify({"result":"success"}));
+			if(result === "gcm:400"){
+				let response = new index.FailResponse(result);
+				res.send(JSON.stringify(response));
+         }else{
+				let response = new index.SuccResponse();
+				res.send(JSON.stringify(response));
+			}
       }
    });
 }
@@ -555,10 +575,12 @@ router.removeWrongCashList = function(req,res){
    mariaDB.updateTransactionType(req.body.cashTuno,"wrong",function(err,result){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log(result);
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    });
 }
@@ -588,10 +610,12 @@ router.addCash = function(req,res){
    }],function(err,result){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log("addCash success:"+JSON.stringify(result));
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+            res.send(JSON.stringify(response));
       }
    });
 };
@@ -696,10 +720,12 @@ router.registRefundAccount = function(req,res){
    }],function(err,result){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));	
       }else{
          console.log(result);
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    });
 };
@@ -713,20 +739,26 @@ router.checkRefundCount = function(req,res){
    mariaDB.getCashInfo(req.body.cashId.toUpperCase(),function(err,result){
       if(err){
          console.log("err");
-         res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log("result");
+			let response = new index.SuccResponse();
       	if(result.refundCount >=4 && req.body.bankCode === NHCode && result.balance >= 150){
             console.log("환불 4회 초과 입니다.")
-            res.send(JSON.stringify({"result":"success","fee":"150"}));
+				response.fee = "150";
+				res.send(JSON.stringify(response));
          }else if(result.refundCount >=4 && req.body.bankCode !== NHCode && result.balance >= 400){
             console.log("환불 4회 초과 입니다.")
-            res.send(JSON.stringify({"result":"success","fee":"400"}));
+				response.fee = "400";
+				res.send(JSON.stringify(response));
          }else if(result.refundCount <4){
             console.log("환불 4회 이하 입니다.")
-            res.send(JSON.stringify({"result":"success","fee":"0"}));
+				response.fee = "0";
+				res.send(JSON.stringify(response));
          }else{
-            res.send(JSON.stringify({"result":"failure","error":"check your balance"}))
+				response = new index.FailResponse("check your balance");
+				res.send(JSON.stringify(response));
          }
 		}
    });
@@ -781,10 +813,12 @@ router.refundCash=function(req,res){
 	}],function(err,result){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+			res.send(JSON.stringify(response));
       }else{
          console.log("success:"+JSON.stringify(result));
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    });
 
@@ -802,21 +836,27 @@ router.checkWithdrawalCountShop = function(req,res){
    mariaDB.getShopInfo(req.body.takitId,function(err,result){
       if(err){
          console.log("err");
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
          console.log("result");
-
+			
+			let response = new index.SuccResponse();
          if(result.withdrawalCount >=4 && req.body.bankCode === NHCode && result.balance >= 150){
             console.log("인출 4회 초과 입니다. NH")
-            res.send(JSON.stringify({"result":"success","fee":"150"}));
+				response.fee="150";
+				res.send(JSON.stringify(response));
          }else if(result.withdrawalCount >=4 && req.body.bankCode !== NHCode && result.balance >= 400){
             console.log("인출 4회 초과 입니다. other")
-            res.send(JSON.stringify({"result":"success","fee":"400"}));
+				response.fee="400";
+				res.send(JSON.stringify(response));
          }else if(result.withdrawalCount < 4){
             console.log("인출 4회 이하 입니다.")
-            res.send(JSON.stringify({"result":"success","fee":"0"}));
+				response.fee="0";
+				res.send(JSON.stringify(response));
          }else{
-            res.send(JSON.stringify({"result":"failure","error":"check your balance"}))
+				response = new index.FailResponse("check your balance");
+				res.send(JSON.stringify(response));
          }
       }
    });
@@ -832,10 +872,10 @@ router.withdrawCashShop = function(req,res){
    let shopInfo={};
    let fee =0;
    async.waterfall([function(callback){
-      mariaDB.getShopInfo(req.body.takitId,callback);
+      mariaDB.getShopInfoWithAccount(req.body.takitId,callback);
    },function(result,callback){
       shopInfo=result;
-      console.log( "shopInfo:"+shopInfo);
+      console.log( "shopInfo:"+JSON.stringify(shopInfo));
       console.log("req.body:"+JSON.stringify(req.body));
       if(shopInfo.withdrawalCount >=4 && req.body.bankCode === NHCode){
          console.log("인출 4회 초과 입니다. NH");
@@ -845,7 +885,7 @@ router.withdrawCashShop = function(req,res){
          fee = 400;
       }
 
-      console.log("fee:"+cashList.fee);
+      console.log("fee:"+fee);
       if(parseInt(shopInfo.balance) >= parseInt(req.body.withdrawalAmount)+fee){ //환불받으려는 금액보다 잔액이 많아야 환불 가능
          if(req.body.bankCode === NHCode){ //농협계좌로 환불할 때
             router.ReceivedTransferAccountNumber(shopInfo.account,req.body.withdrawalAmount,callback);
@@ -862,10 +902,12 @@ router.withdrawCashShop = function(req,res){
    }],function(err,result){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse("failure",err);
+         res.send(JSON.stringify(response));
       }else{
          console.log(result);
-         res.send(JSON.stringify({"result":"success"}));
+			let response = new index.SuccResponse();
+         res.send(JSON.stringify(response));
       }
    });
 }
@@ -874,9 +916,15 @@ router.withdrawCashShop = function(req,res){
 router.getBalnaceShop = function(req,res){
    mariaDB.getBalnaceShop(req.body.takitId,function(err,result){
       if(err){
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			console.log(err);
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
-         res.send(JSON.stringify({"result":"success","sales":result.sales, "balance":result.balance}));
+			console.log(result);
+			let response = new index.SuccResponse();
+			response.sales = result.sales;
+			response.balance=result.balance;
+         res.send(JSON.stringify(response));
       }
    })
 }
@@ -887,9 +935,12 @@ router.getWithdrawalListShop = function(req,res){
    console.log("getWithdrawalList comes");
    mariaDB.getWithdrawalList(req.body.takitId,req.body.lastWithdNO,req.body.limit,function(err,result){
       if(err){
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
-         res.send(JSON.stringify({"result":"success", "withdrawalList": result}));
+			let response = new index.SuccResponse();
+			response.withdrawalList=result;
+         res.send(JSON.stringify(response));
       }
    })
 }
@@ -899,9 +950,12 @@ router.branchNameAutoComplete = function(req,res){
 	console.log("bankCodeAutoComplete comes(req:"+JSON.stringify(req.body)+")");
 	mariaDB.findBranchName(req.body.branchName,req.body.bankName,function(err,bankInfo){
       if(err){
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
-         res.send(JSON.stringify({"result":"success", "bankInfo": bankInfo}));
+			let response = new index.SuccResponse();
+			response.bankInfo=bankInfo;
+         res.send(JSON.stringify(response));
       }
 	});
 };
@@ -911,9 +965,12 @@ router.getBalanceCash = function(req,res){
 
    mariaDB.getBalanceCash(req.body.cashId.toUpperCase(),function(err,balance){
       if(err){
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
-         res.send(JSON.stringify({"result":"success", "balance": balance}));
+			let response = new index.SuccResponse();
+			response.balance=balance;
+         res.send(JSON.stringify(response));
       }
    });
 }
@@ -922,9 +979,12 @@ router.getBalanceCash = function(req,res){
 router.getCashList = function(req,res){
 	mariaDB.getCashList(req.body.cashId.toUpperCase(),req.body.lastTuno,req.body.limit,function(err,cashList){
       if(err){
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
-         res.send(JSON.stringify({"result":"success","cashList":cashList}));
+			let response = new index.SuccResponse();
+			response.cashList=cashList;
+			res.send(JSON.stringify(response));
       }
    });
 };
@@ -934,9 +994,13 @@ router.branchNameAutoComplete = function(req,res){
 	console.log("bankCodeAutoComplete comes(req:"+JSON.stringify(req.body)+")");
 	mariaDB.findBranchName(req.body.branchName,req.body.bankName,function(err,bankInfo){
       if(err){
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         res.send(JSON.stringify(response));
       }else{
-         res.send(JSON.stringify({"result":"success", "bankInfo": bankInfo}));
+			let response = new index.SuccResponse();
+			response.bankInfo=bankInfo;
+			res.send(JSON.stringify(response));
+
       }
 	});
 };
