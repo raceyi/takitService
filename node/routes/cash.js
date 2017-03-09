@@ -24,9 +24,11 @@ router.createCashId=function(req,res){
       }else{
 			if(result === "duplicationCashId"){
 				let response = new index.FailResponse("duplicationCashId");
+				response.setVersion(config.MIGRATION,req.version);	
 				res.send(JSON.stringify(response));
 			}else{
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}
       }
@@ -38,9 +40,11 @@ router.modifyCashPwd=function(req,res){
    mariaDB.updateCashPassword(req.session.uid,req.body.cashId.toUpperCase(),req.body.password,function(err,result){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    });
@@ -53,10 +57,12 @@ router.checkCashInfo = function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log("checkCashInfo success");
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    });
@@ -439,10 +445,12 @@ router.checkCashInstantly = function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log(result);
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    });
@@ -483,7 +491,7 @@ setInterval(function(){
          console.log("setInterval checkAccountHistory success:"+JSON.stringify(result));
       }
    });
-},300000);
+},30000); //30초 마다
 
 //cash 수동 확인 -> cashId는 있고, 통장인자내역에 cashId를 넣지 않아서, user가 정보 넣고 조회 할 때
 //depositDate, depositAmount, bankName,
@@ -500,7 +508,7 @@ router.checkCashUserself = function(req,res){
    },function(result,callback){
 		console.log(result);
 		console.log(result.confirmCount);
-      if(result.confirmCount <= 3){
+      if(result.confirmCount < 3){
          mariaDB.updateConfirmCount(req.body.cashId.toUpperCase(), parseInt(result.confirmCount)+1,callback);
       }else{
          callback("count excess");
@@ -554,13 +562,16 @@ router.checkCashUserself = function(req,res){
    }],function(err,result){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
 			if(result === "gcm:400"){
 				let response = new index.FailResponse(result);
+				response.setVersion(config.MIGRATION,req.version);
 				res.send(JSON.stringify(response));
          }else{
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
 				res.send(JSON.stringify(response));
 			}
       }
@@ -576,10 +587,12 @@ router.removeWrongCashList = function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log(result);
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    });
@@ -592,10 +605,17 @@ router.addCash = function(req,res){
    	mariaDB.getCashListWithTuno(req.body.cashTuno,callback);
    },function(result,callback){
       if(result.confirm === '0'){
+		//if(result.confirm === '0' && parseInt(req.body.amount) <= 100000  && parseInt(result[1].monthDeposit) <= 2000000){
          mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), parseInt(req.body.amount),callback);
-      }else{
+		}else{ //if(result[0].confirm === '1'){
          callback("already checked cash");
-      }
+
+		//}else if( ){
+		//	callback("excess amount 100000");
+
+      }//else if(parseInt(result[1].monthDeposit) > 2000000){
+         //callback("excess month deposit 2000000");
+      //}
 	},function(result,callback){
       mariaDB.getBalanceCash(req.body.cashId.toUpperCase(),callback)
    },function(balance,callback){
@@ -611,11 +631,13 @@ router.addCash = function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log("addCash success:"+JSON.stringify(result));
 			let response = new index.SuccResponse();
-            res.send(JSON.stringify(response));
+			response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
       }
    });
 };
@@ -721,10 +743,12 @@ router.registRefundAccount = function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));	
       }else{
          console.log(result);
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    });
@@ -740,10 +764,12 @@ router.checkRefundCount = function(req,res){
       if(err){
          console.log("err");
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log("result");
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
       	if(result.refundCount >=4 && req.body.bankCode === NHCode && result.balance >= 150){
             console.log("환불 4회 초과 입니다.")
 				response.fee = "150";
@@ -758,6 +784,7 @@ router.checkRefundCount = function(req,res){
 				res.send(JSON.stringify(response));
          }else{
 				response = new index.FailResponse("check your balance");
+				response.setVersion(config.MIGRATION,req.version);
 				res.send(JSON.stringify(response));
          }
 		}
@@ -814,10 +841,12 @@ router.refundCash=function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
 			res.send(JSON.stringify(response));
       }else{
          console.log("success:"+JSON.stringify(result));
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    });
@@ -837,11 +866,13 @@ router.checkWithdrawalCountShop = function(req,res){
       if(err){
          console.log("err");
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log("result");
 			
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          if(result.withdrawalCount >=4 && req.body.bankCode === NHCode && result.balance >= 150){
             console.log("인출 4회 초과 입니다. NH")
 				response.fee="150";
@@ -856,6 +887,7 @@ router.checkWithdrawalCountShop = function(req,res){
 				res.send(JSON.stringify(response));
          }else{
 				response = new index.FailResponse("check your balance");
+				response.setVersion(config.MIGRATION,req.version);
 				res.send(JSON.stringify(response));
          }
       }
@@ -903,10 +935,12 @@ router.withdrawCashShop = function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse("failure",err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log(result);
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    });
@@ -918,10 +952,12 @@ router.getBalnaceShop = function(req,res){
       if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
 			console.log(result);
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.sales = result.sales;
 			response.balance=result.balance;
          res.send(JSON.stringify(response));
@@ -936,9 +972,11 @@ router.getWithdrawalListShop = function(req,res){
    mariaDB.getWithdrawalList(req.body.takitId,req.body.lastWithdNO,req.body.limit,function(err,result){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.withdrawalList=result;
          res.send(JSON.stringify(response));
       }
@@ -951,9 +989,11 @@ router.branchNameAutoComplete = function(req,res){
 	mariaDB.findBranchName(req.body.branchName,req.body.bankName,function(err,bankInfo){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.bankInfo=bankInfo;
          res.send(JSON.stringify(response));
       }
@@ -966,9 +1006,11 @@ router.getBalanceCash = function(req,res){
    mariaDB.getBalanceCash(req.body.cashId.toUpperCase(),function(err,balance){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.balance=balance;
          res.send(JSON.stringify(response));
       }
@@ -980,9 +1022,11 @@ router.getCashList = function(req,res){
 	mariaDB.getCashList(req.body.cashId.toUpperCase(),req.body.lastTuno,req.body.limit,function(err,cashList){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.cashList=cashList;
 			res.send(JSON.stringify(response));
       }
@@ -995,9 +1039,11 @@ router.branchNameAutoComplete = function(req,res){
 	mariaDB.findBranchName(req.body.branchName,req.body.bankName,function(err,bankInfo){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.bankInfo=bankInfo;
 			res.send(JSON.stringify(response));
 

@@ -173,6 +173,7 @@ router.saveOrder=function(req, res){
 		if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			order.localOrderedTime=localOrderedTime.time;
@@ -210,9 +211,11 @@ router.saveOrder=function(req, res){
    			}],function(err,result){
       			if(err){
 						let response = new index.FailResponse(err);
+						response.setVersion(config.MIGRATION,req.version);
          			res.send(JSON.stringify(response));
       			}else{
 						let response = new index.SuccResponse();
+						response.setVersion(config.MIGRATION,req.version);
 						response.order = result[1].order;
          			response.messageId = result[1].messageId;
          			console.log("save order result:"+JSON.stringify(result));
@@ -222,6 +225,7 @@ router.saveOrder=function(req, res){
 			}else{
 				console.log("shop off time");
 				let response = new index.FailResponse("shop's off");
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}
 		}
@@ -236,9 +240,11 @@ router.getOrdersUser=function(req,res){
 		
 		if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.orders=orders;
          res.send(JSON.stringify(response));
 		}    
@@ -254,9 +260,11 @@ router.getOrdersShop=function(req,res){
 			if(err){
 				console.log(err);
 				let response = new index.FailResponse(err);
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}else{
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
          	response.orders=orders;
 				res.send(JSON.stringify(response));
 			}
@@ -266,9 +274,11 @@ router.getOrdersShop=function(req,res){
 			if(err){
 				console.log(err);
 				let response = new index.FailResponse(err);
+				response.setVersion(config.MIGRATION,req.version);
         	 	res.send(JSON.stringify(response));
 			}else{
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
 				response.orders=orders;
          	res.send(JSON.stringify(response));
 			}	
@@ -306,9 +316,11 @@ router.checkOrder=function(req,res){ // previous status must be "paid".
 		if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}
 	});
@@ -343,9 +355,11 @@ router.completeOrder=function(req,res){//previous status must be "checked".
    }],function(err,result){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    });
@@ -387,10 +401,12 @@ router.cancelOrderUser=function(req,res){
        if(err){
           console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
        }else{
           console.log(result);
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
         res.send(JSON.stringify(response));
 		 }
 	});
@@ -434,9 +450,11 @@ router.shopCancelOrder=function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else {
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    });

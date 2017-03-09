@@ -21,11 +21,13 @@ router.oauthSuccess=function(req,res){
    console.log(userName.toString(CryptoJS.enc.Utf8));
 	*/
 	let response = new index.Response("oauth success");
+	response.setVersion(config.MIGRATION,req.version);
 	res.send(JSON.stringify(response));
 };
 
 router.oauthFailure=function(req,res){
 	let response = new index.Response("oauth failure");
+	response.setVersion(config.MIGRATION,req.version);
    res.send(JSON.stringify(response));
 };
 
@@ -39,10 +41,12 @@ router.validUserInfo=function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log(result);
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    });

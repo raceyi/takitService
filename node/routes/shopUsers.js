@@ -73,10 +73,12 @@ router.facebookLogin= function(req,res){
 
             if(err){
 					let response = new index.Response("invalidId");
+					response.setVersion(config.MIGRATION,req.version);
          		res.send(JSON.stringify(response));
             }else{
                console.log("[facebookLogin]shopUserInfo:"+JSON.stringify(shopUserInfo));
                let response = new index.SuccResponse();
+					response.setVersion(config.MIGRATION,req.version);
                // save user id in session
                req.session.uid=shopUserInfo[0].userId;
                console.log("facebooklogin-id:"+shopUserInfo[0].userId);
@@ -111,12 +113,13 @@ router.kakaoLogin=function(req,res){
    	if(err){
       	console.log(err);
 			let response = new index.Response("InvalidId");
+			response.setVersion(config.MIGRATION,req.version);
 			res.send(JSON.stringify(response));
       }else{
 			req.session.uid = shopUserInfo[0].userId;
 			//body.shopUserInfo={};
 			let response = new index.SuccResponse();
-
+			response.setVersion(config.MIGRATION,req.version);
 			//delete secret info
 			for(let i=0; i<shopUserInfo.length; i++){
 				delete shopUserInfo[i].userId;
@@ -148,19 +151,23 @@ router.emailLogin=function(req,res){
 		if(err){
 			console.log(err);
 			let response = new index.Response("invalidId");
+			response.setVersion(config.MIGRATION,req.version);
 			res.send(JSON.stringify(response));
 		}else{
 			console.log("mariaDB.existEmailAndPassword success");
 			mariaDB.getShopUserInfo(result.userId,function(err,shopUserInfo){
 				if(err){
 					console.log(err);
-					res.send(JSON.stringify({"result":"invalidId"}));
+					let response = new index.Response("invalidId");
+         		response.setVersion(config.MIGRATION,req.version);
+					res.send(JSON.stringify(response));
 				}else{
 					console.log("getShopUserInfo function result:");
 					console.log(shopUserInfo);
 					req.session.uid = shopUserInfo[0].userId;
 			         //body.shopUserInfo={};
 					let response = new index.SuccResponse();
+					response.setVersion(config.MIGRATION,req.version);
 
 		         //delete secret info
 		         for(let i=0; i<shopUserInfo.length; i++){
@@ -206,6 +213,7 @@ router.secretLogin=function(req,res){
 			if(err){
 				console.log(err);
 				let response = new index.FailResponse(err);
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}else{
 				console.log(result);
@@ -213,6 +221,7 @@ router.secretLogin=function(req,res){
 					if(err){
 						console.log(err);
 						let response = new index.FailResponse(err);
+						response.setVersion(config.MIGRATION,req.version);
          			res.send(JSON.stringify(response));
 					}else{
 						console.log(result);
@@ -223,11 +232,13 @@ router.secretLogin=function(req,res){
 					if(err){
 						console.log(err);
 						let response = new index.FailResponse(err);
+						response.setVersion(config.MIGRATION,req.version);
         				res.send(JSON.stringify(response));
 					}else{
 						console.log(result);		
          			req.session.uid = shopUserInfos[0].userId;
 						let response = new index.SuccResponse();
+						response.setVersion(config.MIGRATION,req.version);
          			//delete secret info
          			for(let i=0; i<shopUserInfos.length; i++){
             			delete shopUserInfos[i].userId;
@@ -259,12 +270,14 @@ router.secretLogin=function(req,res){
 	      if(err){
    	      console.log(err);
 				let response = new index.FailResponse(err);
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}else{
 				mariaDB.getShopUserInfo(userInfo.userId,function(err,shopUserInfos){
             	if(err){
 						console.log(err);
 						let response = new index.FailResponse(err);
+						response.setVersion(config.MIGRATION,req.version);
          			res.send(JSON.stringify(response));
             	}else{
 						let secretPassword = crypto.createHash('sha256').update(req.body.password+shopUserInfos[0].salt).digest('hex');
@@ -275,6 +288,7 @@ router.secretLogin=function(req,res){
 							mariaDB.updateShopRefId(userInfo.userId,req.body.referenceId,function(err,result){
 								if(err){
 									let response = new index.FailResponse(err);
+									response.setVersion(config.MIGRATION,req.version);
          						res.send(JSON.stringify(response));
 								}else{
 									console.log(result);
@@ -284,6 +298,8 @@ router.secretLogin=function(req,res){
 							req.session.uid = shopUserInfos[0].userId;
 							
 							let response = new index.SuccResponse();
+							response.setVersion(config.MIGRATION,req.version);
+
             			//delete secret info
             			for(let i=0; i<shopUserInfos.length; i++){
                			delete shopUserInfos[i].userId;
@@ -323,10 +339,12 @@ router.openShop=function(req,res){
 		if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			console.log("openShop function success");
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}
 	});
@@ -339,10 +357,12 @@ router.closeShop=function(req,res){
 		if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			console.log("closeShop function success");
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}
 	});
@@ -395,10 +415,12 @@ router.changeNotiMember=function(req,res){
 		if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			console.log("change Noti Member success result:"+JSON.stringify(result));
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}
 	});
@@ -409,10 +431,12 @@ router.successGCM=function(req,res){
    redisCli.del(req.session.uid+"_gcm_shop_"+req.body.messageId,function(err,result){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log("!!!!!!!!!!!success gcm 성공!!!!!!" +result);
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    })
@@ -424,7 +448,9 @@ router.sleepMode=function(req,res){
    redisCli.keys(req.session.uid+"_gcm_shop_*",function(err,result){
       if(err){
          console.log(err);
-         res.send(JSON.stringify({"result":"failure"}));
+			let response = new index.FailResponse(err);
+         response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
       }else{
          console.log(result);
          for(let i=0; i<result.length; i++){
@@ -433,6 +459,7 @@ router.sleepMode=function(req,res){
                if(err){
                   console.log(err);
 						let response = new index.FailResponse(err);
+						response.setVersion(config.MIGRATION,req.version);
          			res.send(JSON.stringify(response));
                }else{
                   console.log(reply);
@@ -441,12 +468,14 @@ router.sleepMode=function(req,res){
 
             if(i === result.length-1){
 					let response = new index.SuccResponse();
+					response.setVersion(config.MIGRATION,req.version);
          		res.send(JSON.stringify(response));
             }
          }
 
          if(result[0] === null || result[0] === undefined){
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(responsde));
          }
       }
@@ -460,6 +489,7 @@ router.getShopInfo=function(req,res){
 		if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			delete shopInfo.orderNumberCounter;
@@ -467,6 +497,7 @@ router.getShopInfo=function(req,res){
 
 			console.log("success");
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.shopInfo=shopInfo;
 			res.send(JSON.stringify(response));
 		}
@@ -484,11 +515,13 @@ router.refreshInfo=function(req,res){
 		if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			console.log(result);
 
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.shopUserInfo={};
 			response.shopInfo = result[1];
 			for(let i=0; i<result[0].length; i++){ //getShopUserInfo가 여러개 shop 가지고 있는 user들을 여러명 검색하므로 이 작업 필요
@@ -522,10 +555,12 @@ router.getSalesAndSatas = function(req,res){
 			if(err){
 				console.log(err);
 				let response = new index.FailResponse(err);
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}else{
 				console.log("getSalesAndSatas success");
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
 				response.sales=result[0];
 				response.stats=result[1];
 				res.send(JSON.stringify(response));
@@ -563,10 +598,12 @@ router.getAccount = function(req,res){
 		if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			console.log(result);
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.account=result.account;
 			response.bankName=result.bankName;
 			response.bankCode=result.bankCode;

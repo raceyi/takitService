@@ -122,6 +122,7 @@ var createGracefulShutdownMiddleware = require('express-graceful-shutdown');
 app.use(createGracefulShutdownMiddleware(secureServer, {forceTimeout:30000}));
 
 
+
 app.all('*',function(req,res,next){
 	console.log("req.url:"+req.url);
 	
@@ -185,7 +186,7 @@ app.post('/emailLogin', users.emailLogin);
 app.post('/preventMultiLogin',users.preventMultiLogin);
 app.post('/signup',users.signup);
 app.post('/logout', users.logout)
-app.post('/userPaymentInfo',users.getUserPaymentInfo);
+//app.post('/userPaymentInfo',users.getUserPaymentInfo);
 app.post('/unregister',users.unregister);
 app.post('/sleepMode', users.sleepMode);
 app.post('/wakeMode',users.wakeMode);
@@ -240,6 +241,7 @@ app.post('/shop/withdrawCash',cash.withdrawCashShop);
 app.post('/shop/getBalance',cash.getBalnaceShop);
 app.post('/shop/getWithdrawalList',cash.getWithdrawalListShop);
 app.post('/shop/getAccount',shopUsers.getAccount);
+app.post('/cafe/shopHome',mariaDB.queryCafeHomePost);
 
 app.get('/cafe/shopHome',mariaDB.queryCafeHome);
 
@@ -247,9 +249,11 @@ app.get('/cafe/shopHome',mariaDB.queryCafeHome);
 app.post('/takitIdAutocomplete',function(req,res,next){
 	console.log("takitIdAutocomplete comes(req:"+JSON.stringify(req.body)+")");
 	mariaDB.findTakitId(req,function(shoplist){
-		let response = shoplist;
-		response.prototype = new index.Response();
-		
+		let response = new index.Response();
+		response.setVersion(config.MIGRATION,req.version); 
+		response.shoplist = shoplist;
+	
+		console.log(JSON.stringify(response));	
 		res.end(JSON.stringify(response)); //hum... Why shoplist doesn't work? 
 	});
 });
@@ -348,11 +352,13 @@ app.post('/registrationId',function(req,res){
 	mariaDB.updatePushId(req.session.uid,req.body.registrationId,req.body.platform,function(err,result){
 		if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			console.log("registraionId added into DB successfully.Do I need this procedure every login process?");
          console.log("Just do it when app is installed in new device.!!! Please check it!!!");
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}
 	});
@@ -369,11 +375,13 @@ app.post('/shop/registrationId',function(req,res){
 		mariaDB.updateShopPushId(req.session.uid,req.body.takitId,req.body.registrationId,req.body.platform,function(err,result){
 			if(err){
 				let response = new index.FailResponse(err);
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}else{
 				console.log("registraionId added into DB successfully.Do I need this procedure every login process?");
             console.log("Just do it when app is installed in new device.!!! Please check it!!!");
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}
 		});	

@@ -634,11 +634,13 @@ function queryCafeHomeCategory(cafeHomeResponse,req, res){
 		if(err){
 			console.error("queryCafeHomeCategory function Unable to query. Error:", JSON.stringify(err, null, 2));
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			if(result.info.numRows==0){
 				console.log("[queryCafeHomeCategory categories]:"+result.info.numRows);
 				let response = new index.FailResponse("query failure");
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}else{
 			   console.log("queryCafeHomeCategory func Query succeeded. "+JSON.stringify(result));
@@ -675,11 +677,13 @@ function queryCafeHomeMenu(cafeHomeResponse,req, res){
 		if(err){
 			console.error("queryCafeHomeMenu func Unable to query. Error:", JSON.stringify(err, null, 2));
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			console.dir("[Get cafeHomeMenu]:"+result.info.numRows);
 			if(result.info.numRows==0){
 				let response = new index.FailResponse("query failure");
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}else{
 				console.log("queryCafeHomeMenu Query succeeded. "+JSON.stringify(result[0]));
@@ -705,6 +709,7 @@ router.queryCafeHome=function(req, res){
 	var takitId=decodeURI(url_strs[1]);
 	console.log("takitId:"+takitId);
 	let cafeHomeResponse = new index.SuccResponse();
+	cafeHomeResponse.setVersion(config.MIGRATION,req.version);
 
 	var command="select *from shopInfo where takitId=?";
 	var values = [takitId];
@@ -712,11 +717,13 @@ router.queryCafeHome=function(req, res){
 		if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			if(result.info.numRows==="0"){
 				console.log("queryCafeHome function's query failure");
 				let response = new index.FailResponse("query failure");
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}else{
 				result.forEach(function(item){
@@ -728,6 +735,116 @@ router.queryCafeHome=function(req, res){
 			}
 		}
 	});
+};
+
+function queryCafeHomeCategoryPost(cafeHomeResponse,req, res){
+	var takitId=req.body.takitId;
+   console.log("takitId:"+takitId);
+
+   console.log(cafeHomeResponse);
+   var command="SELECT *FROM categories WHERE takitId=?";
+   var values = [takitId];
+   performQueryWithParam(command,values,function(err,result) {
+      if(err){
+         console.error("queryCafeHomeCategory function Unable to query. Error:", JSON.stringify(err, null, 2));
+         let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+      }else{
+         if(result.info.numRows==0){
+            console.log("[queryCafeHomeCategory categories]:"+result.info.numRows);
+            let response = new index.FailResponse("query failure");
+				response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+         }else{
+            console.log("queryCafeHomeCategory func Query succeeded. "+JSON.stringify(result));
+
+            var categories=[];
+            result.forEach(function(item) {
+               console.log(JSON.stringify(item));
+               categories.push(item);
+            });
+
+            cafeHomeResponse.categories=categories;
+            console.log("cafeHomeResponse:"+(JSON.stringify(cafeHomeResponse)));
+            console.log("send res");
+            res.end(JSON.stringify(cafeHomeResponse));
+
+         }
+      }
+   });
+}
+
+function queryCafeHomeMenuPost(cafeHomeResponse,req, res){
+   console.log("req url:"+req.url);
+
+   var takitId=req.body.takitId;
+   console.log(":takitId"+takitId);
+
+   var menus=[];
+
+   var command="SELECT *FROM menus WHERE menuNO LIKE '"+takitId+"%'";
+   console.log("queryCafeHomeMenu command:"+command);
+   performQuery(command,function(err,result) {
+      if(err){
+         console.error("queryCafeHomeMenu func Unable to query. Error:", JSON.stringify(err, null, 2));
+         let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+      }else{
+         console.dir("[Get cafeHomeMenu]:"+result.info.numRows);
+         if(result.info.numRows==0){
+            let response = new index.FailResponse("query failure");
+				response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+         }else{
+            console.log("queryCafeHomeMenu Query succeeded. "+JSON.stringify(result[0]));
+
+            var menus=[];
+            result.forEach(function(item) {
+               console.log(JSON.stringify(item));
+               menus.push(item);
+            });
+
+            cafeHomeResponse.menus=menus;
+         	queryCafeHomeCategoryPost(cafeHomeResponse,req, res);
+
+         }
+      }
+   });
+}
+
+router.queryCafeHomePost=function(req, res){
+   console.log("queryCafeHome:"+JSON.stringify(req.url));
+	var takitId=req.body.takitId;
+   console.log("takitId:"+takitId);
+   let cafeHomeResponse = new index.SuccResponse();
+	cafeHomeResponse.setVersion(config.MIGRATION,req.version);
+
+   var command="select *from shopInfo where takitId=?";
+   var values = [takitId];
+   performQueryWithParam(command,values,function(err,result) {
+      if(err){
+         console.log(err);
+         let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+      }else{
+         if(result.info.numRows==="0"){
+            console.log("queryCafeHome function's query failure");
+            let response = new index.FailResponse("query failure");
+				response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+         }else{
+            result.forEach(function(item){
+               delete item.account;
+               console.log(JSON.stringify(item));
+               cafeHomeResponse.shopInfo=item;
+               queryCafeHomeMenuPost(cafeHomeResponse,req, res);
+            });
+         }
+      }
+   });
 };
 
 //shopList string으로 저장..
@@ -1574,8 +1691,8 @@ router.getCashInfo=function(cashId,next){
 
 
 router.updateBalanceCash=function(cashId,amount,next){
-
-   let command = "UPDATE cash SET balance=balance+? WHERE cashId = ?";
+	
+	let command = "UPDATE cash SET balance=balance+? WHERE cashId = ?";
    let values = [amount,cashId];
 
    performQueryWithParam(command, values, function(err,result) {

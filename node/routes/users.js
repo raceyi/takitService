@@ -24,7 +24,6 @@ router.get('/', function(req, res, next) {
   res.send('respond with a resource');
 });
 
-
 router.getAppToken=function( ){
 	var uri="https://graph.facebook.com/oauth/access_token?client_id="+FACEBOOK_APP_ID+"&client_secret="+FACEBOOK_APP_SECRET+"&grant_type=client_credentials";
 	request(uri, function (error, response, body) {
@@ -108,6 +107,7 @@ router.preventMultiLogin=function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log(result);
@@ -116,6 +116,7 @@ router.preventMultiLogin=function(req,res){
          delete userInfo.pushId;
          delete userInfo.userId;
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.userInfo=userInfo;
          res.send(JSON.stringify(response));
 			
@@ -193,7 +194,8 @@ router.facebookLogin = function(req, res){
    }],function(err,result){
       if(err){
          console.log(err);
-			let response = new index.FailResponse(err);
+			let response = new index.Response("invalidId");
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          delete userInfo.password;
@@ -202,6 +204,7 @@ router.facebookLogin = function(req, res){
          delete userInfo.pushId;
          delete userInfo.countryCode
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.userInfo=userInfo;
          res.send(JSON.stringify(response));
       }
@@ -232,7 +235,8 @@ router.kakaoLogin=function(req,res){//referenceId 확인해서 로그인.
    }],function(err,result){
       if(err){
          console.log(err);
-			let response = new index.FailResponse(err);
+			let response = new index.Response("invalidId");
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          delete userInfo.password;
@@ -241,6 +245,7 @@ router.kakaoLogin=function(req,res){//referenceId 확인해서 로그인.
          delete userInfo.pushId;
          delete userInfo.countryCode
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.userInfo=userInfo;
 			console.log(JSON.stringify(response));
          res.send(JSON.stringify(response));
@@ -274,7 +279,8 @@ router.emailLogin=function(req,res){
    }],function(err,result){
       if(err){
          console.log(err);
-			let response = new index.FailResponse(err);
+			let response = new index.Response("invalidId");
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          delete userInfo.password;
@@ -284,6 +290,7 @@ router.emailLogin=function(req,res){
          delete userInfo.countryCode
          console.log(result);
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.userInfo=userInfo;		
          res.send(JSON.stringify(response));
       }
@@ -342,26 +349,29 @@ router.signup=function(req,res){
             if(err){
 					console.log(JSON.stringify(response));
 					let response = new index.FailResponse(err);
+					response.setVersion(config.MIGRATION,req.version);
          		res.send(JSON.stringify(response));
 
             }else{
 					let response = new index.Response();
+					response.setVersion(config.MIGRATION,req.version);
             	if(result === "duplication"){
                	response.result = result;
-                  res.end(JSON.stringify(response));
+                  res.send(JSON.stringify(response));
                }else{
-               	response.result="success";
+						response.result = "success";
                	response.email=req.body.email;
                   req.session.uid=result;
 
                   console.log(req.session.uid);
                   console.log('send result'+JSON.stringify());
-               	res.end(JSON.stringify(response));
+               	res.send(JSON.stringify(response));
                }
             }
         });
 	}else{
 		let response = new index.Response("Invalid email or phone");
+		response.setVersion(config.MIGRATION,req.version);
 		res.send(JSON.stringify(response));
 		
 	}
@@ -372,16 +382,20 @@ router.logout=function(req,res){
    console.log("logout start!!");
    mariaDB.removeSessionInfo(req.session.uid,null,null,null,function(err,result){
       if(err){
-         res.send(JSON.stringify({"result":"failure","error":err}));
+			let response = new index.FailResponse(err);
+         response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
       }else{
          req.session.destroy(function(err){
             if(err){
                console.log(err);
 					let response = new index.FailResponse(err);
+					response.setVersion(config.MIGRATION,req.version);
          		res.send(JSON.stringify(response));
             }else{
                console.log("destroy success");
 					let response = new index.SuccResponse();
+					response.setVersion(config.MIGRATION,req.version);
          		res.send(JSON.stringify(response));
             }
          });
@@ -389,7 +403,7 @@ router.logout=function(req,res){
    });
 };
 
-router.getUserPaymentInfo=function(req,res){
+/*router.getUserPaymentInfo=function(req,res){
 	if(!req.session.uid){
 		console.log("invalid session. Please login");
 		res.status(401);
@@ -402,7 +416,8 @@ router.getUserPaymentInfo=function(req,res){
 			res.end(JSON.stringify(err));
 		});
 	}
-};
+};*/
+
 
 //회원탈퇴 
 router.unregister=function(req,res){
@@ -411,10 +426,12 @@ router.unregister=function(req,res){
 	mariaDB.deleteUserInfo(req.session.uid,function(err,result){
 		if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
 			res.send(JSON.stringify(response));
 		}else{
 			req.session.destroy(function(err){
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
         	});
 		}
@@ -493,9 +510,11 @@ router.SMSCertification = function(req,res){
 					if(err){
 						console.log(err);
 						let response = new index.FailResponse(err);
+						response.setVersion(config.MIGRATION,req.version);
          			res.send(JSON.stringify(response));
 					}else{
 						let response = new index.SuccResponse();
+						response.setVersion(config.MIGRATION,req.version);
          			res.send(JSON.stringify(response));
 					}
 				});
@@ -504,6 +523,7 @@ router.SMSCertification = function(req,res){
 		});
 	}else{
 		let response = new index.FailResponse("hasn't phone number");
+		response.setVersion(config.MIGRATION,req.version);
       res.send(JSON.stringify(response));
 	}
 	
@@ -516,16 +536,19 @@ router.checkSMSCode=function(req,res){
 		if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
 		}else{
 			console.log(result);
 			if(result === req.body.code){
 				console.log("check code success");
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}else{
 				console.log("checkcode failure");
 				let response = new index.Response("invalid code");
+				response.setVersion(config.MIGRATION,req.version);
 				res.send(JSON.stringify(response));
 			}
 		}
@@ -542,6 +565,7 @@ router.passwordReset=function(req,res){
 		mariaDB.existUserEmail(req.body.email,function(err,userInfo){
 			if(err){
 				let response = new index.FailResponse(err);
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
 			}else{
 				
@@ -556,6 +580,7 @@ router.passwordReset=function(req,res){
 					mariaDB.updateUserInfo(userInfo,function(err,result){
 						if(err){
 							let response = new index.FailResponse(err);
+							response.setVersion(config.MIGRATION,req.version);
          				res.send(JSON.stringify(response));
 						}else{
 							//3) random 패스워드 email로 보냄
@@ -566,9 +591,11 @@ router.passwordReset=function(req,res){
 								if(err){
 									console.log(err);
 									let response = new index.FailResponse(err);
+									response.setVersion(config.MIGRATION,req.version);
          						res.send(JSON.stringify(response));
 								}else{
 									let response = new index.SuccResponse();
+									response.setVersion(config.MIGRATION,req.version);
          						res.send(JSON.stringify(response));
 		
 								}
@@ -579,6 +606,7 @@ router.passwordReset=function(req,res){
 					console.log("phone failure");
 					console.log(userInfo.phone);
 					let response = new index.FailResponse(err);
+					response.setVersion(config.MIGRATION,req.version);
          		res.send(JSON.stringify(response));
 				}
 			}
@@ -587,6 +615,7 @@ router.passwordReset=function(req,res){
 			
 	}else{
 		let response = new index.FailResponse("email or phone is null");
+		response.setVersion(config.MIGRATION,req.version);
       res.send(JSON.stringify(response));
 	}
 }
@@ -614,6 +643,7 @@ router.modifyUserInfo = function(req,res){
          if(err){
             console.log(err);
 				let response = new index.FailResponse(err);
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
          }else{
             console.log("getUserInfo success");
@@ -629,10 +659,12 @@ router.modifyUserInfo = function(req,res){
                   if(err){
                      console.log(err);
 							let response = new index.FailResponse(err);
+							response.setVersion(config.MIGRATION,req.version);
          				res.send(JSON.stringify(response));
                   }else{
                      console.log("modify UserInfo:"+JSON.stringify(result));
 							let response = new index.SuccResponse();
+							response.setVersion(config.MIGRATION,req.version);
          				res.send(JSON.stringify(response));
                   }
                });
@@ -648,10 +680,12 @@ router.modifyUserInfo = function(req,res){
          if(err){
             console.log(err);
 				let response = new index.FailResponse("hasn't oldPassword");
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
          }else{
             console.log("modify UserInfo:"+JSON.stringify(result));
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
          }
       });
@@ -664,10 +698,12 @@ router.successGCM=function(req,res){
    redisCli.del(req.session.uid+"_gcm_user_"+req.body.messageId,function(err,result){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log("!!!!!!!!!!!success gcm 성공!!!!!!" +result);
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    })
@@ -687,10 +723,12 @@ router.orderNotiMode=function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log("getOrdersNotiMode result:"+JSON.stringify(result));
-         const response = new index.SuccResponse();
+         let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          response.orders = result[1];
          res.send(JSON.stringify(response));
       }
@@ -710,6 +748,7 @@ router.sleepMode=function(req,res){
       if(err){
          console.log(err);
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log(JSON.stringify(result));
@@ -719,18 +758,21 @@ router.sleepMode=function(req,res){
                if(err){
                   console.log(err);
 						let response = new index.FailResponse(err);
+						response.setVersion(config.MIGRATION,req.version);
          			res.send(JSON.stringify(response));
                }else{
                   console.log(reply);
                }
             });
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
 	         res.send(JSON.stringify(response));
 
          }
 
          if(result[0] === null || result[0] === undefined){
 				let response = new index.SuccResponse();
+				response.setVersion(config.MIGRATION,req.version);
          	res.send(JSON.stringify(response));
          }
       }
@@ -743,10 +785,12 @@ router.wakeMode=function(req,res){
    mariaDB.changeSMSNoti(req.session.uid,"on",function(err,result){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log("SMS noti on success");
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }
    });
@@ -758,10 +802,12 @@ router.getDiscountRate = function(req,res){
    mariaDB.getDiscountRate(req.body.takitId,function(err,discountRate){
       if(err){
 			let response = new index.FailResponse(err);
+			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          console.log("SMS noti on success");
 			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
 			response.discountRate=discountRate;
          res.send(JSON.stringify(response));
       }
@@ -774,6 +820,7 @@ router.shopEnter=function(req, res, next){
             mariaDB.updateShopList(req.session.uid,req.body.shopList,function(err,result){
             if(!err){
 					let response = new index.SuccResponse();
+					response.setVersion(config.MIGRATION,req.version);
          		res.send(JSON.stringify(response));
             }
       });
