@@ -332,6 +332,8 @@ function checkAccountHistory(pageNO,count,startDate,next){
 
             accHistory = result;
             let i = 0;
+				
+				if(accHistory.Iqtcnt !== undefined){
             async.whilst(function(){ return i < accHistory.Iqtcnt-count;},
             function(callback){
                let cashList = {};
@@ -399,8 +401,12 @@ function checkAccountHistory(pageNO,count,startDate,next){
                   }
                   callback(null,result);
                }
-         });
-      });
+        	});
+
+			}else{
+         	next("now isn't service time");
+      	}
+      });	
    },function(err,result){
       if(err){
          next(err);
@@ -410,7 +416,6 @@ function checkAccountHistory(pageNO,count,startDate,next){
       }
    });
 }
-
 
 
 router.checkCashInstantly = function(req,res){
@@ -663,7 +668,7 @@ router.payCash = function(cashId,amount,next){
 
       async.parallel([function(callback){
          if(balance >= amount){ //갖고 있는 캐쉬가 구매하려는 상품의 가격보다 같거나 많으면 구매할 수 있음
-            mariaDB.updateBalanceCash(cashId.toUpperCase(), -parseInt(amount),callback);
+            mariaDB.updateBalanceCash(cashId.toUpperCase(), -parseInt(amount),callback); //지불할 캐쉬만큼 update
          }else{
             callback("check your balance");
          }

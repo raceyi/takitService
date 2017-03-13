@@ -142,7 +142,7 @@ router.setRedisScheduleLMS = function(keyName,phone,SMS,expireTime,next){
 }
 
 
-router.sendGCM=function(API_KEY,MSG,pushId, platform, next){
+router.sendGCM=function(API_KEY,MSG,pushId, platform,sound, next){
 
    let sender = new gcm.Sender(API_KEY);
 
@@ -165,7 +165,7 @@ router.sendGCM=function(API_KEY,MSG,pushId, platform, next){
          notification: {
            title: MSG.content,
            body: MSG.title,
-			  sound:"appbeep.wav",
+			  sound:sound,
 			  badge : "0"
          }
       };
@@ -219,7 +219,7 @@ router.sendGCM=function(API_KEY,MSG,pushId, platform, next){
             custom  : MSG.custom,
             "content-available": 1,
             notId: MSG.messageId,
-            sound:"takit",
+            sound:sound,
          }
       });
 

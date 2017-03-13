@@ -48,8 +48,7 @@ function sendOrderMSGUser(order,userInfo,next){
    }
 
    GCM.GCMType = "order";
-   GCM.custom = JSON.stringify(order);
-
+   GCM.custom = JSON.stringify(order);	
 
    //noti 받는 사람
    if(userInfo.SMSNoti==="on"){
@@ -68,7 +67,7 @@ function sendOrderMSGUser(order,userInfo,next){
 				noti.setRedisScheduleLMS(order.userId+"_gcm_user_"+messageId,order.userPhone,SMS,60000,callback);
 			}
       },function(result,callback){
-         noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId], userInfo.platform, callback);
+         noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId], userInfo.platform,"takit",callback);
       }],function(err,result){
          if(err){
             console.log(err);
@@ -82,7 +81,7 @@ function sendOrderMSGUser(order,userInfo,next){
       });
    }else{ //noti받지 않는 사람
 		console.log("SMSNoti off!!!!");
-      noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId], userInfo.platform, function(err,result){
+      noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId], userInfo.platform,"takit", function(err,result){
          if(err){
             console.log(err);
             next(err);
@@ -117,9 +116,14 @@ function sendOrderMSGShop(order, shopUserInfo,next){
       const SMS = {};
       SMS.title = GCM.title;
       SMS.content = "주문번호 "+order.orderNO+" 새로고침 버튼을 눌러주세요";
+		noti.sendSMS(SMS.title+" "+SMS.content,["01042588226"]);
       noti.setRedisSchedule(shopUserInfo.userId+"_gcm_shop_"+messageId,shopUserInfo.phone,SMS,callback);
    },function(result,callback){
-      noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform, callback);
+		let sound = "takit";
+		if(order.orderStatus === "cancelled"){
+			sound = "cancelOrder";
+		}
+      noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform,sound,callback);
    }],function(err,result){
       if(err){
          console.log(err);
@@ -200,14 +204,14 @@ router.saveOrder=function(req, res){
 					}],callback);
 
    			},function(result,callback){
-					async.parallel([function(callback){
-         			mariaDB.updateSalesShop(req.body.takitId,req.body.amount,callback); //지불한 상점에 매출 더해줌.
-      			},function(callback){
+					//async.parallel([function(callback){
+         		//	mariaDB.updateSalesShop(req.body.takitId,req.body.amount,callback); //지불한 상점에 매출 더해줌.
+      			//},function(callback){
          			console.log("getShopPushId result:"+JSON.stringify(result));
          			console.log(result[0]);
          			console.log(result[1]);
          			sendOrderMSGShop(result[0],result[1],callback); //result[0]:order, result[1] :shopUserInfo(shopPushId, userId, platform)
-      			}],callback);
+      			//}],callback);
    			}],function(err,result){
       			if(err){
 						let response = new index.FailResponse(err);
@@ -216,8 +220,8 @@ router.saveOrder=function(req, res){
       			}else{
 						let response = new index.SuccResponse();
 						response.setVersion(config.MIGRATION,req.version);
-						response.order = result[1].order;
-         			response.messageId = result[1].messageId;
+						response.order = result.order;
+         			response.messageId = result.messageId;
          			console.log("save order result:"+JSON.stringify(result));
 						res.send(JSON.stringify(response));
      			 	}
@@ -349,8 +353,13 @@ router.completeOrder=function(req,res){//previous status must be "checked".
       mariaDB.getOrder(req.body.orderId,callback);
    },function(result,callback){
       order = result;
-      mariaDB.getPushId(order.userId,callback);
-   },function(userInfo,callback){
+		async.parallel([function(callback){
+			mariaDB.updateSalesShop(order.takitId,order.amount,callback);
+		},function(callback){
+      	mariaDB.getPushId(order.userId,callback);
+		}],callback);
+   },function(result,callback){
+		let userInfo = result[1];
       sendOrderMSGUser(order,userInfo,callback);
    }],function(err,result){
       if(err){

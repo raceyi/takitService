@@ -815,7 +815,7 @@ function queryCafeHomeMenuPost(cafeHomeResponse,req, res){
 }
 
 router.queryCafeHomePost=function(req, res){
-   console.log("queryCafeHome:"+JSON.stringify(req.url));
+   console.log("queryCafeHomePost:"+JSON.stringify(req.url));
 	var takitId=req.body.takitId;
    console.log("takitId:"+takitId);
    let cafeHomeResponse = new index.SuccResponse();
@@ -860,7 +860,7 @@ router.updateShopList=function(userId,shopList,next){
          console.error("updateUserInfoShopList function Unable to query. Error:", JSON.stringify(err, null, 2));
          next(err);
 		}else{
-         console.log("updateUserInfoShopList func Query succeeded. "+JSON.stringify(result[0]));
+         console.log("updateUserInfoShopList func Query succeeded. "+JSON.stringify(result));
 			next(null);
       }
    });

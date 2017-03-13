@@ -112,7 +112,7 @@ router.kakaoLogin=function(req,res){
    mariaDB.existShopUser(req.body.referenceId,function(err,shopUserInfo){
    	if(err){
       	console.log(err);
-			let response = new index.Response("InvalidId");
+			let response = new index.Response("invalidId");
 			response.setVersion(config.MIGRATION,req.version);
 			res.send(JSON.stringify(response));
       }else{
@@ -400,7 +400,7 @@ router.changeNotiMember=function(req,res){
 		GCM.custom.email=userInfo.email;
 
 		async.parallel([function(callback){
-			noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform,callback); //현재 알림 멤버에게 gcm보내줌 
+			noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform, "changeNotifier",callback); //현재 알림 멤버에게 gcm보내줌 
 		},function(callback){
 			let onMyShopList= JSON.parse(shopUserInfo.myShopList);
 			onMyShopList[0].GCMNoti = "on";
