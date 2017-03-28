@@ -1845,8 +1845,8 @@ router.getDepositedCash = function(cashList,next){
 
 	console.log("cashList:"+JSON.stringify(cashList));
 	let command = "SELECT * FROM cashList WHERE cashId =:depositMemo and amount=:amount and branchCode LIKE \'"
-                  +cashList.branchCode.substring(0,6)+"%\' and transactionTime LIKE \'"+cashList.depositDate+"%\'";
-
+                  +cashList.branchCode.substring(0,6)+"%\' and depositTime LIKE \'"+cashList.depositDate+"%\'";
+	//branchCode 7지만 6자리만 검사 (농협 때문?)
 
    performQueryWithParam(command, cashList, function(err,result){
       if(err){

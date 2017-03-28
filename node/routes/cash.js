@@ -333,7 +333,7 @@ function checkAccountHistory(pageNO,count,startDate,next){
             accHistory = result;
             let i = 0;
 				
-				if(accHistory.Iqtcnt !== undefined){
+				if(accHistory !== undefined){
             async.whilst(function(){ return i < accHistory.Iqtcnt-count;},
             function(callback){
                let cashList = {};
@@ -383,7 +383,7 @@ function checkAccountHistory(pageNO,count,startDate,next){
 
                   i++;
                   if(result[1] !== "incorrect cashId"){
-                     noti.sendGCM(config.SERVER_API_KEY,GCM,[result[1].pushId],result[1].platform,callback);
+                     noti.sendGCM(config.SERVER_API_KEY,GCM,[result[1].pushId],result[1].platform,"takit",callback);
                   }else{
                      callback(null,"incorrect cashId");
                   }
@@ -560,7 +560,7 @@ router.checkCashUserself = function(req,res){
       GCM.custom = JSON.stringify(cashList);
       GCM.GCMType = "cash";
 
-      noti.sendGCM(config.SERVER_API_KEY,GCM,[result.pushId],result.platform,callback); //API_KEY,MSG,pushId, platform,
+      noti.sendGCM(config.SERVER_API_KEY,GCM,[result.pushId],result.platform,"takit",callback); //API_KEY,MSG,pushId, platform,
    //},function(result,callback){
 
       //mariaDB.updateConfirmCount(req.body.cashId,0,callback);

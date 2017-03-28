@@ -165,7 +165,7 @@ router.sendGCM=function(API_KEY,MSG,pushId, platform,sound, next){
          notification: {
            title: MSG.content,
            body: MSG.title,
-			  sound:sound,
+			  sound:"appbeep.wav",
 			  badge : "0"
          }
       };

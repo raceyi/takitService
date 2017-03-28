@@ -121,7 +121,7 @@ function sendOrderMSGShop(order, shopUserInfo,next){
    },function(result,callback){
 		let sound = "takit";
 		if(order.orderStatus === "cancelled"){
-			sound = "cancelOrder";
+			sound = "cancelorder";
 		}
       noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform,sound,callback);
    }],function(err,result){

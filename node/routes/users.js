@@ -76,7 +76,7 @@ router.preventMultiLogin=function(req,res){
       GCM.GCMType = "multiLogin";
       GCM.custom = null;
 
-      noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId],userInfo.platform,callback);
+      noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId],userInfo.platform,"takit",callback);
 	},function(result,callback){
       console.log(userInfo.sessionId);
       redisCli.del(userInfo.sessionId,callback);
