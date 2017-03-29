@@ -492,9 +492,10 @@ router.updateCashPassword=function(userId,cashId,password,next){
    });
 }
 
-router.updateRefundCashInfo = function(cashId,amount,next){
-   let command = "UPDATE cash SET balance=balance+?,refundCount=refundCount+1 WHERE cashId = ?";
-   let values = [amount,cashId];
+
+router.updateRefundCashInfo = function(cashId,amount,balance,next){
+   let command = "UPDATE cash SET balance=balance+?,refundCount=refundCount+1 WHERE cashId = ? and balance=?";
+   let values = [amount,cashId,balance];
 
    performQueryWithParam(command, values, function(err,result) {
       if(err){
@@ -506,6 +507,7 @@ router.updateRefundCashInfo = function(cashId,amount,next){
       }
    });
 }
+
 
 router.getCashInfo=function(cashId,next){
    console.log("getCashInfo function start");
@@ -1689,22 +1691,24 @@ router.getCashInfo=function(cashId,next){
 
 }
 
+router.updateBalanceCash=function(cashId,amount,balance,next){
 
-router.updateBalanceCash=function(cashId,amount,next){
-	
-	let command = "UPDATE cash SET balance=balance+? WHERE cashId = ?";
-   let values = [amount,cashId];
+    let command = "UPDATE cash SET balance=balance+? WHERE cashId =? and balance=?";
+    let values = [amount,cashId,balance];
 
-   performQueryWithParam(command, values, function(err,result) {
-      if(err){
-         console.log("updateBalanceCash function err:"+JSON.stringify(err));
-         next(err);
-      }else{
-         console.log("updateBalanceCash:"+JSON.stringify(result));
-         next(null,"success");
-      }
-   });
-
+    performQueryWithParam(command, values, function(err,result) {
+        if(err){
+            console.log("updateBalanceCash function err:"+JSON.stringify(err));
+            next(err);
+        }else{
+				console.log("updateBalanceCash:"+JSON.stringify(result));
+            if(amount !== 0 && result.info.affectedRows==="0"){
+                next("already checked cash");
+            }else{
+                next(null,"success");
+            }
+        }
+    });
 };
 
 
@@ -1816,11 +1820,10 @@ router.updateTransactionType = function(cashTuno,type,next){
    });
 }
 
-
 router.getCashListWithTuno = function(cashTuno, next){
    console.log("mariaDB.getCashList start!!");
-
-   let command = "SELECT *FROM cashList where cashTuno = ?"
+ 
+	let command = "SELECT * FROM cashList where cashTuno = ?"
    let values = [cashTuno];
 
    performQueryWithParam(command, values, function(err,result){
@@ -1985,9 +1988,9 @@ router.updateSalesShop = function(takitId,amount,next){
    });
 }
 
-router.updateWithdrawalShop = function(takitId,amount,next){
-   let command = "UPDATE shopInfo SET balance=balance+?,withdrawalCount=withdrawalCount+1 WHERE takitId=?";
-   let values = [amount,takitId];
+router.updateWithdrawalShop = function(takitId,amount,balance,next){
+   let command = "UPDATE shopInfo SET balance=balance+?,withdrawalCount=withdrawalCount+1 WHERE takitId=? and balance=?";
+   let values = [amount,takitId,balance];
 
    performQueryWithParam(command, values, function(err,result){
       if(err){

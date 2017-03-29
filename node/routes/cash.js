@@ -606,46 +606,46 @@ router.removeWrongCashList = function(req,res){
 
 //user가 확인버튼 눌렀을 때
 router.addCash = function(req,res){
-   async.waterfall([function(callback){
-   	mariaDB.getCashListWithTuno(req.body.cashTuno,callback);
-   },function(result,callback){
-      if(result.confirm === '0'){
-		//if(result.confirm === '0' && parseInt(req.body.amount) <= 100000  && parseInt(result[1].monthDeposit) <= 2000000){
-         mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), parseInt(req.body.amount),callback);
-		}else{ //if(result[0].confirm === '1'){
-         callback("already checked cash");
+    let preBalance;
+    async.waterfall([function(callback){
+        async.parallel([function(callback){ //cashId를 잘 못 입력하는 경우가 있으므로 JOIN 사용 불가.
+            mariaDB.getCashListWithTuno(req.body.cashTuno,callback);
+        },function(callback){
+            mariaDB.getBalanceCash(req.body.cashId.toUpperCase(),callback)
+        }],callback);
+    },function(result,callback){
+        let preCashList = result[0];
+        preBalance = result[1];
 
-		//}else if( ){
-		//	callback("excess amount 100000");
-
-      }//else if(parseInt(result[1].monthDeposit) > 2000000){
-         //callback("excess month deposit 2000000");
-      //}
-	},function(result,callback){
-      mariaDB.getBalanceCash(req.body.cashId.toUpperCase(),callback)
-   },function(balance,callback){
-      const cashList = {};
-		cashList.cashId = req.body.cashId.toUpperCase();
-      cashList.cashTuno = req.body.cashTuno;
-      cashList.transactionTime = new Date().toISOString();
-		cashList.transactionType = "deposit"; 
-     	cashList.confirm = 1;
-      cashList.nowBalance = balance;
-      mariaDB.updateCashList(cashList,callback);
-   }],function(err,result){
-      if(err){
-         console.log(err);
+        if(preCashList.confirm === '0'){
+            mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), parseInt(req.body.amount),preBalance,callback);
+        }else{
+            callback("already checked cash");
+        }
+    },function(result,callback){
+        const cashList = {};
+        cashList.cashId = req.body.cashId.toUpperCase();
+        cashList.cashTuno = req.body.cashTuno;
+        cashList.transactionTime = new Date().toISOString();
+        cashList.transactionType = "deposit"; 
+        cashList.confirm = 1;
+        cashList.nowBalance = parseInt(preBalance)+parseInt(req.body.amount);
+        mariaDB.updateCashList(cashList,callback);
+    }],function(err,result){
+        if(err){
+			console.log(err);
 			let response = new index.FailResponse(err);
 			response.setVersion(config.MIGRATION,req.version);
-         res.send(JSON.stringify(response));
-      }else{
-         console.log("addCash success:"+JSON.stringify(result));
+         	res.send(JSON.stringify(response));
+        }else{
+			console.log("addCash success:"+JSON.stringify(result));
 			let response = new index.SuccResponse();
 			response.setVersion(config.MIGRATION,req.version);
-         res.send(JSON.stringify(response));
-      }
-   });
+         	res.send(JSON.stringify(response));
+        }
+    });
 };
+
 
 /////////// 캐쉬 전환 API end.
 
@@ -668,7 +668,7 @@ router.payCash = function(cashId,amount,next){
 
       async.parallel([function(callback){
          if(balance >= amount){ //갖고 있는 캐쉬가 구매하려는 상품의 가격보다 같거나 많으면 구매할 수 있음
-            mariaDB.updateBalanceCash(cashId.toUpperCase(), -parseInt(amount),callback); //지불할 캐쉬만큼 update
+            mariaDB.updateBalanceCash(cashId.toUpperCase(), -parseInt(amount),balance,callback); //지불할 캐쉬만큼 update
          }else{
             callback("check your balance");
          }
@@ -703,7 +703,7 @@ router.payCash = function(cashId,amount,next){
 
 router.cancelCash = function(cashId,amount,next){
    async.waterfall([function(callback){
-      mariaDB.updateBalanceCash(cashId.toUpperCase(), parseInt(amount),callback);
+      mariaDB.updateBalanceCash(cashId.toUpperCase(), parseInt(amount),balance,callback);
    },function(result,callback){
       mariaDB.getBalanceCash(cashId,callback)
    },function(balance,callback){
@@ -829,7 +829,7 @@ router.refundCash=function(req,res){
       }
    },function(result,callback){
    	async.parallel([function(callback){
-         mariaDB.updateRefundCashInfo(req.body.cashId.toUpperCase(), -parseInt(req.body.withdrawalAmount)-cashList.fee, callback)
+         mariaDB.updateRefundCashInfo(req.body.cashId.toUpperCase(), -parseInt(req.body.withdrawalAmount)-cashList.fee,cashInfo.balance,callback)
       },function(callback){
          cashList.cashId = req.body.cashId.toUpperCase();
          cashList.transactionType = "refund";
@@ -933,7 +933,7 @@ router.withdrawCashShop = function(req,res){
          callback("check your balance");
       }
    },function(result,callback){
-      mariaDB.updateWithdrawalShop(req.body.takitId,-parseInt(req.body.withdrawalAmount)-fee,callback);
+      mariaDB.updateWithdrawalShop(req.body.takitId,-parseInt(req.body.withdrawalAmount)-fee,shopInfo.balance,callback);
    },function(result,callback){
       mariaDB.insertWithdrawalList(req.body.takitId,req.body.withdrawalAmount,fee,parseInt(shopInfo.balance)-parseInt(req.body.withdrawalAmount)-fee,callback);
    }],function(err,result){
