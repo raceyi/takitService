@@ -702,32 +702,32 @@ router.payCash = function(cashId,amount,next){
 //////// 주문 취소로 cash로 환불 //////
 
 router.cancelCash = function(cashId,amount,next){
-   async.waterfall([function(callback){
-      mariaDB.updateBalanceCash(cashId.toUpperCase(), parseInt(amount),balance,callback);
-   },function(result,callback){
-      mariaDB.getBalanceCash(cashId,callback)
-   },function(balance,callback){
-      const cashList = {};
-
-		console.log("amount :"+amount);
-		cashList.cashId = cashId.toUpperCase();
-      cashList.transactionType = "cancel";
-      cashList.amount = amount;
-      cashList.transactionTime = new Date().toISOString();
-      cashList.confirm = 1;
-      cashList.nowBalance = balance;
-      mariaDB.insertCashList(cashList,callback);
-   }],function(err,result){
-      if(err){
-         console.log(err);
-         next(err);
-      }else{
-         console.log("addCash success:"+JSON.stringify(result));
-         next(null,"success");
-      }
-   });
+    let balance;
+    async.waterfall([function(callback){
+        mariaDB.getBalanceCash(cashId,callback);
+    },function(result,callback){
+        balance = result;
+        mariaDB.updateBalanceCash(cashId.toUpperCase(), parseInt(amount),balance,callback);
+    },function(result,callback){
+        const cashList = {};
+        console.log("amount :"+amount);
+        cashList.cashId = cashId.toUpperCase();
+        cashList.transactionType = "cancel";
+        cashList.amount = amount;
+        cashList.transactionTime = new Date().toISOString();
+        cashList.confirm = 1;
+        cashList.nowBalance = parseInt(balance)+parseInt(amount);
+        mariaDB.insertCashList(cashList,callback);
+    }],function(err,result){
+        if(err){
+            console.log(err);
+            next(err);
+        }else{
+            console.log("addCash success:"+JSON.stringify(result));
+            next(null,"success");
+        }
+    });
 }
-
 
 ///////////환불 API////////////
 
@@ -952,8 +952,8 @@ router.withdrawCashShop = function(req,res){
 }
 
 
-router.getBalnaceShop = function(req,res){
-   mariaDB.getBalnaceShop(req.body.takitId,function(err,result){
+router.getBalanceShop = function(req,res){
+   mariaDB.getBalanceShop(req.body.takitId,function(err,result){
       if(err){
 			console.log(err);
 			let response = new index.FailResponse(err);

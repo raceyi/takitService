@@ -736,47 +736,52 @@ router.orderNotiMode=function(req,res){
 };
 
 router.sleepMode=function(req,res){
-   console.log("sleepMode comes!!!!");
+    console.log("sleepMode comes!!!!");
 
-   async.parallel([function(callback){
-      //1. SMS Noti 끄기
-      mariaDB.changeSMSNoti(req.session.uid,"off",callback);
-   },function(callback){
-      console.log("SMS noti off success");
-      redisCli.keys(req.session.uid+"_gcm_user_*",callback);
-   }],function(err,result){
-      if(err){
-         console.log(err);
-			let response = new index.FailResponse(err);
-			response.setVersion(config.MIGRATION,req.version);
-         res.send(JSON.stringify(response));
-      }else{
-         console.log(JSON.stringify(result));
-         for(let i=0; i<result[1].length; i++){
-            console.log(result[i]);
-            redisCli.del(result[i],function(err,reply){
-               if(err){
-                  console.log(err);
-						let response = new index.FailResponse(err);
-						response.setVersion(config.MIGRATION,req.version);
-         			res.send(JSON.stringify(response));
-               }else{
-                  console.log(reply);
-               }
+    let errCallback= (err)=>{
+        console.log(err);
+        let response = new index.FailResponse(err);
+        response.setVersion(config.MIGRATION,req.version);
+        res.send(JSON.stringify(response));
+    }
+
+    let succCallback = (result)=>{
+        console.log(result);
+        let response = new index.SuccResponse();
+        response.setVersion(config.MIGRATION,req.version);
+        res.send(JSON.stringify(response));
+    }
+
+    //SMS Noti 끄기
+    async.parallel([function(callback){
+        mariaDB.changeSMSNoti(req.session.uid,"off",callback);        
+    },function(callback){
+        //해당 user의 모든 messageId key 찾기å
+        redisCli.keys(req.session.uid+"_gcm_user_*",callback);
+    }],function(err,result){
+        if(err){
+            errCallback(err);
+        }else{
+            let messageKeys = result[1];
+            let idx = 0;
+            //messageKeys delete 
+            async.whilst(function(){return idx < messageKeys.length;},
+            function(callback){
+                redisCli.del(messageKeys[i],callback);
+                idx++;
+            },function(err,result){
+                if(err){
+                    errCallback(err);
+                }else{
+                    succCallback(result);
+                }
             });
-				let response = new index.SuccResponse();
-				response.setVersion(config.MIGRATION,req.version);
-	         res.send(JSON.stringify(response));
 
-         }
-
-         if(result[0] === null || result[0] === undefined){
-				let response = new index.SuccResponse();
-				response.setVersion(config.MIGRATION,req.version);
-         	res.send(JSON.stringify(response));
-         }
-      }
-   });
+            if(messageKeys === null || messageKeys === undefined){
+                succCallback(messageKeys);
+            }
+        }
+    }); 
 }
 
 router.wakeMode=function(req,res){

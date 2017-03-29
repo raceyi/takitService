@@ -1971,11 +1971,10 @@ router.updateConfirmCount = function(cashId, confirmCount, next){
 
 
 //shop-cash
-router.updateSalesShop = function(takitId,amount,next){
-   console.log("updateShopSales start");
-	let command = "UPDATE shopInfo SET sales=sales+?,balance=balance+? WHERE takitId=?";
-   let values = [amount,amount,takitId];
-
+router.updateSalesShop = function(takitId,amount,balance,next){
+   	console.log("updateShopSales start");
+	let command = "UPDATE shopInfo SET sales=sales+?,balance=balance+? WHERE takitId=? and balance=?";
+   let values = [amount,amount,takitId,balance];
 	
    performQueryWithParam(command, values, function(err,result){
       if(err){
@@ -2003,6 +2002,7 @@ router.updateWithdrawalShop = function(takitId,amount,balance,next){
    });
 }
 
+/*
 router.updateBalanceShop = function(takitId,amount,next){
    let command = "UPDATE shopInfo SET balance=balance+? WHERE takitId=?";
    let values = [amount,takitId];
@@ -2017,23 +2017,23 @@ router.updateBalanceShop = function(takitId,amount,next){
       }
    });
 }
-
-router.getBalnaceShop = function(takitId,next){
-   console.log("mariaDB.getBalnaceShop start!!");
+*/
+router.getBalanceShop = function(takitId,next){
+   console.log("mariaDB.getBalanceShop start!!");
 
    let command = "SELECT sales,balance FROM shopInfo where takitId = ?"
    let values = [takitId];
 
    performQueryWithParam(command, values, function(err,result){
       if(err){
-         console.log("getBalnaceShop function Error:"+JSON.stringify(err));
+         console.log("getBalanceShop function Error:"+JSON.stringify(err));
          next(err);
       }else{
          console.log("result:"+JSON.stringify(result));
          if(result.info.numRows === '0'){
             next("invalid takitId");
          }else{
-            console.log("getBalnaceShop find cashList");
+            console.log("getBalanceShop find cashList");
             next(null,result[0]);
          }
       }

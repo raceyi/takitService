@@ -238,7 +238,7 @@ app.post('/getCashList',cash.getCashList);
 app.post('/removeWrongCashList',cash.removeWrongCashList);
 app.post('/shop/checkWithdrawalCount',cash.checkWithdrawalCountShop);
 app.post('/shop/withdrawCash',cash.withdrawCashShop);
-app.post('/shop/getBalance',cash.getBalnaceShop);
+app.post('/shop/getBalance',cash.getBalanceShop);
 app.post('/shop/getWithdrawalList',cash.getWithdrawalListShop);
 app.post('/shop/getAccount',shopUsers.getAccount);
 app.post('/cafe/shopHome',mariaDB.queryCafeHomePost);
