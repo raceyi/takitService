@@ -354,7 +354,8 @@ router.completeOrder=function(req,res){//previous status must be "checked".
    },function(result,callback){
        order=result;
        mariaDB.getBalanceShop(order.takitId,callback);
-   },function(balance,callback){
+   },function(result,callback){
+		let balance = result.balance;
 		async.parallel([function(callback){
 			mariaDB.updateSalesShop(order.takitId,order.amount,balance,callback);
 		},function(callback){
@@ -396,19 +397,15 @@ router.cancelOrderUser=function(req,res){
        mariaDB.getOrder(req.body.orderId,callback);
     },function(result,callback){
        order = result;
-		mariaDB.getBalanceShop(order.takitId,callback);
-    },function(balance,callback){
        console.log("cancel order :"+order.amount);
        async.parallel([function(callback){
           cash.cancelCash(req.body.cashId,parseInt(order.amount),callback); //cash로 다시 돌려줌
-       },function(callback){
-          mariaDB.updateSalesShop(order.takitId,-parseInt(order.amount),balance,callback);
        },function(callback){
           mariaDB.getShopPushId(order.takitId,callback);
        }],callback);
     },function(result,callback){
        //shop한테 noti 보내줌
-       sendOrderMSGShop(order,result[2],callback);
+       sendOrderMSGShop(order,result[1],callback);
     }],function(err,result){
        if(err){
           console.log(err);
@@ -448,7 +445,7 @@ router.shopCancelOrder=function(req,res){
       order = result;
 	  mariaDB.getBalanceShop(order.takitId,callback);
   },function(result,callback){
-	  balance=result;
+	  balance=result.balance;
       mariaDB.getCashId(order.userId,callback);
    },function(cashId,callback){
       console.log("cancel order :"+JSON.stringify(order));

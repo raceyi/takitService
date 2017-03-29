@@ -1112,10 +1112,10 @@ function getTimezoneLocalTime(timezone,timeInMilliSec){ // return current local 
 }
 
 //increaseOrderNumber function orderNumberCounter 수 증가 시키고, 마지막 주문 시간 재 설정.
-function increaseOrderNumber(takitId,next){
+function increaseOrderNumber(takitId,orderNumberCounter,next){
 
-	var command="UPDATE shopInfo SET orderNumberCounter=orderNumberCounter+1,orderNumberCounterTime=? WHERE takitId=? and orderNumberCounter=orderNumberCounter";
-   var values = [new Date().toISOString(),takitId];
+	var command="UPDATE shopInfo SET orderNumberCounter=orderNumberCounter+1,orderNumberCounterTime=? WHERE takitId=? and orderNumberCounter=?";
+   var values = [new Date().toISOString(),takitId,orderNumberCounter];
 
 	performQueryWithParam(command, values, function(err,result) {
       if(err){
@@ -1163,7 +1163,7 @@ router.getOrderNumber=function(takitId,next){
 			console.log("localTime:"+localTime.substring(0,10));
 			console.log("counterLocalTime:"+counterLocalTime.substring(0,10));
 		}
-		if(shopInfo.orderNumberCounterTime===null|| shopInfo.orderNumberCounterTime === undefined ||    //맨 처음 주문이거나
+        if(shopInfo.orderNumberCounterTime===null|| shopInfo.orderNumberCounterTime === undefined ||    //맨 처음 주문이거나
 			localTime.substring(0,10)!==counterLocalTime.substring(0,10)){ //counterLocaltime이 어제 주문한 시간이라 localTime과 맞지 않으면(다음날이 된 경우) reset
 				       
 			// set orderNumberCounter as zero and then increment it
@@ -1182,44 +1182,44 @@ router.getOrderNumber=function(takitId,next){
 //							increaseOrderNumber();
 //						} // mariadb is what's error 
 					    				  
-					    	console.error("getOrderNumber func Unable to query. Error:", JSON.stringify(err));
-					    	next(err);
+                        console.error("getOrderNumber func Unable to query. Error:", JSON.stringify(err));
+                        next(err);
 					}else{
 						console.dir("[getOrderNumber func update orderNumberCounter]:"+result.info.numRows);
 					    	
 						if(result.info.affectedRows==='0'){
-					    		next(null,result.info.affectedRows);
-					    	}else{
-					    		console.log("getOrderNumber func Query succeeded. "+JSON.stringify(result));
-					    		increaseOrderNumber(takitId,function(){
-								router.getShopInfo(takitId,function(err,shopInfo){
-									if(err){
-										next(err);
-									}else{
-									console.log("orderNumberCounter:"+shopInfo.orderNumberCounter);
-									next(null,shopInfo.orderNumberCounter);
-									}
-								});	
-							});
-					    	}
+					    	next(null,result.info.affectedRows);
+                        }else{
+                            console.log("getOrderNumber func Query succeeded. "+JSON.stringify(result));
+                            increaseOrderNumber(takitId,shopInfo.orderNumberCounter,function(){
+                                router.getShopInfo(takitId,function(err,shopInfo){
+                                    if(err){
+                                        next(err);
+                                    }else{
+                                        console.log("orderNumberCounter:"+shopInfo.orderNumberCounter);
+                                        next(null,shopInfo.orderNumberCounter);
+                                    }
+                                });	
+                            });
+                        }
 					}
 				});// end update orderNumberCounterTime
 
 
 			}
   	
-		}else{ //같은 날의 주문일 경우
-			increaseOrderNumber(takitId,function(){
-         	router.getShopInfo(takitId,function(err,shopInfo){
+        }else{ //같은 날의 주문일 경우
+			increaseOrderNumber(takitId,shopInfo.orderNumberCounter,function(){
+         	    router.getShopInfo(takitId,function(err,shopInfo){
 					if(err){
 						console.log(err);
 						next(err);
 					}else{
-					console.log("orderNumberCounter:"+shopInfo.orderNumberCounter);
-            	next(null,shopInfo.orderNumberCounter);
-					}
-         	});     
-      	});     
+                        console.log("orderNumberCounter:"+shopInfo.orderNumberCounter);
+                        next(null,shopInfo.orderNumberCounter);
+				    }
+         	    });     
+      	    });     
 		}
 	
 	        
@@ -1227,6 +1227,7 @@ router.getOrderNumber=function(takitId,next){
 	        //////////////////////////////////////////////////////////////////////
 	});
 };
+
 
 router.saveOrder=function(order,shopInfo,next){
    console.log("[order:"+JSON.stringify(order)+"]");
