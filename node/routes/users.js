@@ -1,5 +1,5 @@
 const express = require('express');
-const router = express.Router();
+
 const request = require('request');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
@@ -12,6 +12,7 @@ const noti = require('./notification');
 const index = require('./index');
 const redis = require("redis");
 const redisCli = redis.createClient();
+const router = express.Router();
 
 var FACEBOOK_APP_ID;
 var FACEBOOK_APP_SECRET;
@@ -347,7 +348,7 @@ router.signup=function(req,res){
        	/*mariaDB.insertUser(referenceId,password,req.body.name,req.body.email,req.body.country, req.body.phone,0,function(err,result){*/
         	console.log("mariaDB next function."+JSON.stringify(result));
             if(err){
-					console.log(JSON.stringify(response));
+					console.log(JSON.stringify(err));
 					let response = new index.FailResponse(err);
 					response.setVersion(config.MIGRATION,req.version);
          		res.send(JSON.stringify(response));
@@ -734,7 +735,6 @@ router.orderNotiMode=function(req,res){
       }
    });
 };
-
 router.sleepMode=function(req,res){
     console.log("sleepMode comes!!!!");
 
@@ -744,7 +744,7 @@ router.sleepMode=function(req,res){
         response.setVersion(config.MIGRATION,req.version);
         res.send(JSON.stringify(response));
     }
-
+    
     let succCallback = (result)=>{
         console.log(result);
         let response = new index.SuccResponse();
@@ -752,7 +752,7 @@ router.sleepMode=function(req,res){
         res.send(JSON.stringify(response));
     }
 
-    //SMS Noti 끄기
+	    //SMS Noti 끄기
     async.parallel([function(callback){
         mariaDB.changeSMSNoti(req.session.uid,"off",callback);        
     },function(callback){
@@ -763,6 +763,7 @@ router.sleepMode=function(req,res){
             errCallback(err);
         }else{
             let messageKeys = result[1];
+
             let idx = 0;
             //messageKeys delete 
             async.whilst(function(){return idx < messageKeys.length;},
@@ -781,7 +782,8 @@ router.sleepMode=function(req,res){
                 succCallback(messageKeys);
             }
         }
-    }); 
+    });     
+
 }
 
 router.wakeMode=function(req,res){

@@ -1,3 +1,4 @@
+
 var express = require('express');
 
 
@@ -23,16 +24,17 @@ var path = require('path');
 var favicon = require('serve-favicon');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+let index = require('./routes/index');
+let users = require('./routes/users');
+let s3= require('./routes/s3');
 
-var index = require('./routes/index');
-var users = require('./routes/users');
-var s3= require('./routes/s3');
-var mariaDB=require('./routes/mariaDB');
-var order=require('./routes/order');
-var shopUsers= require('./routes/shopUsers');
+let mariaDB=require('./routes/mariaDB');
+let order=require('./routes/order');
+let shopUsers= require('./routes/shopUsers');
 let cash = require('./routes/cash');
-var config=require('./config');
+let config=require('./config');
 let tomcatServer=require("./routes/tomcatServer");
+let op = require('./routes/op')
 
 var app = express();
 
@@ -41,7 +43,6 @@ var session = require('express-session');
 var redis = require('redis');
 var redisStore = require('connect-redis')(session);
 var client = redis.createClient();
-var FileStore = require('session-file-store')(session);
 
 //view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -146,7 +147,9 @@ app.all('*',function(req,res,next){
          var url=req.url.toString();
 			if((req.url==="/signup" || req.url==="/kakaoLogin" || req.url==="/emailLogin" || req.url === "/facebooklogin" ||
             req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || req.url==="/shop/emailLogin" || 
-				req.url ==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset") 
+				req.url ==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset" ||
+			 	req.url ==="/shop/insertTakitId" || req.url ==="/shop/insertCategory" || req.url ==="/shop/insertMenu" ||
+				req.url ==="/shop/insertShopInfo" || req.url ==="/shop/updateCategory" || req.url ==="/shop/updateMenu") 
 				&& req.method === "POST"){
             next();
          }else if(url.startsWith("/oauth") && req.method==="GET"){ // just for kakaotalk login
@@ -161,7 +164,9 @@ app.all('*',function(req,res,next){
       var url=req.url.toString();
       if((req.url==="/signup" || req.url==="/kakaoLogin" || req.url==="/emailLogin" || req.url === "/facebooklogin" ||
 			req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || req.url==="/shop/emailLogin" ||
-			req.url==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset") 
+			req.url==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset" ||
+			req.url ==="/shop/insertTakitId" || req.url ==="/shop/insertCategory" || req.url ==="/shop/insertMenu" ||
+                req.url ==="/shop/insertShopInfo" || req.url ==="/shop/updateCategory" || req.url ==="/shop/updateMenu") 
 			&& req.method === "POST"){
          next();  
       }else if(url.startsWith("/oauth") && req.method==="GET"){ // just for kakaotalk login
@@ -238,10 +243,18 @@ app.post('/getCashList',cash.getCashList);
 app.post('/removeWrongCashList',cash.removeWrongCashList);
 app.post('/shop/checkWithdrawalCount',cash.checkWithdrawalCountShop);
 app.post('/shop/withdrawCash',cash.withdrawCashShop);
-app.post('/shop/getBalance',cash.getBalanceShop);
+app.post('/shop/getBalance',cash.getBalnaceShop);
 app.post('/shop/getWithdrawalList',cash.getWithdrawalListShop);
 app.post('/shop/getAccount',shopUsers.getAccount);
 app.post('/cafe/shopHome',mariaDB.queryCafeHomePost);
+
+app.post('/shop/insertTakitId', shopUsers.insertTakitId);
+app.post('/shop/insertShopInfo',shopUsers.insertShopInfo);
+app.post('/shop/insertCategory',shopUsers.insertCategory);
+app.post('/shop/updateCategory',shopUsers.updateCategory);
+app.post('/shop/insertMenu', shopUsers.insertMenu);
+app.post('/shop/updateMenu', shopUsers.updateMenu);
+
 
 app.get('/cafe/shopHome',mariaDB.queryCafeHome);
 
@@ -430,7 +443,7 @@ app.configure=function(){
 	
 	
 	//console.log("__dirname:"+__dirname);
-	mariaDB.setDir(__dirname+"/routes");
+	op.setDir(__dirname+"/routes");
 };
 
 app.configure();
@@ -439,5 +452,12 @@ app.configure();
 secureServer.listen(443);
 //server.listen(80);
 //HTTPS-end
+
+let t = new Date();
+let d = new Date('2017-04-02 02:55:33'); //2017-04-03T18:34:19.580Z 
+console.log(d);
+console.log(t.toISOString());
+console.log(op.getTimezoneLocalTime('Asia/Seoul',t).toISOString());
+console.log(op.getTimezoneLocalTime('Asia/Seoul',d).toISOString());
 
 module.exports = app;

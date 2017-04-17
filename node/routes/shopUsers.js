@@ -1018,5 +1018,139 @@ router.customerSearch=function(req,res,next){
 
 */
 
+router.insertTakitId=function(req,res){
+	console.log("router.insertTakitId");
+
+	mariaDB.insertTakitId(req.body,function(err,result){
+		if(err){
+			console.log(err);
+			let response = new index.FailResponse("failure",err);
+			response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+         	res.send(JSON.stringify(response));
+		}else{
+			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+         	res.send(JSON.stringify(response));
+		}
+	});
+
+};
+
+router.insertCategory=function(req,res){
+	console.log("router.insertCategory");
+
+    mariaDB.insertCategory(req.body,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse("failure",err);
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }
+    });
+
+}
+
+router.updateCategory=function(req,res){
+    console.log("router.updateCategory");
+
+    mariaDB.updateCategory(req.body,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse("failure",err);
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }
+    });
+
+}
+
+router.insertMenu=function(req,res){
+    console.log("router.insertMenu");
+
+    mariaDB.insertMenu(req.body,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse("failure",err);
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }
+    });
+
+}
+
+
+router.updateMenu=function(req,res){
+    console.log("router.updateMenu");
+
+    mariaDB.updateMenu(req.body,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse("failure",err);
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }
+    });
+
+}
+
+router.insertShopInfo=function(req,res){
+	mariaDB.insertShopInfo(req.body,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse("failure",err);
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }
+    });
+};
+
+router.updateShopInfo=function(req,res){
+    mariaDB.updateShopInfo(req.body,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse("failure",err);
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }
+    });
+};
 
 module.exports = router;
