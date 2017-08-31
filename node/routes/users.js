@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const async = require('async');
 const mariaDB = require('./mariaDB');
+const mongoDB = require('./mongoDB');
 const http = require('http');
 const https = require('https');
 const config = require('../config');
@@ -195,8 +196,8 @@ router.facebookLogin = function(req, res){
    }],function(err,result){
       if(err){
          console.log(err);
-			let response = new index.Response("invalidId");
-			response.setVersion(config.MIGRATION,req.version);
+		 let response = new index.FailResponse("invalidId");
+		 response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
          delete userInfo.password;
@@ -204,9 +205,9 @@ router.facebookLogin = function(req, res){
          delete userInfo.userId;
          delete userInfo.pushId;
          delete userInfo.countryCode
-			let response = new index.SuccResponse();
-			response.setVersion(config.MIGRATION,req.version);
-			response.userInfo=userInfo;
+		 let response = new index.SuccResponse();
+		 response.setVersion(config.MIGRATION,req.version);
+		 response.userInfo=userInfo;
          res.send(JSON.stringify(response));
       }
    });
@@ -236,7 +237,7 @@ router.kakaoLogin=function(req,res){//referenceId 확인해서 로그인.
    }],function(err,result){
       if(err){
          console.log(err);
-			let response = new index.Response("invalidId");
+			let response = new index.FailResponse("invalidId");
 			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
@@ -280,7 +281,7 @@ router.emailLogin=function(req,res){
    }],function(err,result){
       if(err){
          console.log(err);
-			let response = new index.Response("invalidId");
+			let response = new index.FailResponse("invalidId");
 			response.setVersion(config.MIGRATION,req.version);
          res.send(JSON.stringify(response));
       }else{
@@ -300,7 +301,7 @@ router.emailLogin=function(req,res){
 
 function validityCheck(email,phone){
     console.log("come validityCheck function");
-	var emailPat = /[^\s]+@[^\.\s]+\.[^\s]+/;
+	var emailPat = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
     var emailCheck = false;
 
     // 1. email validity check
@@ -348,9 +349,9 @@ router.signup=function(req,res){
        	/*mariaDB.insertUser(referenceId,password,req.body.name,req.body.email,req.body.country, req.body.phone,0,function(err,result){*/
         	console.log("mariaDB next function."+JSON.stringify(result));
             if(err){
-					console.log(JSON.stringify(err));
-					let response = new index.FailResponse(err);
-					response.setVersion(config.MIGRATION,req.version);
+				console.log(JSON.stringify(err));
+				let response = new index.FailResponse(err);
+				response.setVersion(config.MIGRATION,req.version);
          		res.send(JSON.stringify(response));
 
             }else{
@@ -635,7 +636,10 @@ router.modifyUserInfo = function(req,res){
 	userInfo.receiptIssue = req.body.receiptIssue;
 	userInfo.receiptId = req.body.receiptId;
 	userInfo.receiptType = req.body.receiptType;
-	
+	userInfo.taxIssueEmail=req.body.taxIssueEmail;
+	userInfo.taxIssueCompanyName=req.body.taxIssueCompanyName;	
+
+
 	console.log(JSON.stringify(userInfo));
 
    if(req.body.oldPassword !== undefined){
@@ -768,7 +772,7 @@ router.sleepMode=function(req,res){
             //messageKeys delete 
             async.whilst(function(){return idx < messageKeys.length;},
             function(callback){
-                redisCli.del(messageKeys[i],callback);
+                redisCli.del(messageKeys[idx],callback);
                 idx++;
             },function(err,result){
                 if(err){
@@ -833,5 +837,165 @@ router.shopEnter=function(req, res, next){
       });
         }
 };
+
+router.getKeywordShops=(req,res)=>{
+    console.log("shopUsers.getSejongShops:"+JSON.stringify(req.body));
+    redisCli.lrange('keywordShops',0,20,(err,result)=>{
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            console.log("getKeywordShops success:"+JSON.stringify(result));
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            response.keywordShops=result;
+            res.send(JSON.stringify(response));
+        }
+    })
+}
+
+router.getKeywordShopInfos=(req,res)=>{
+    console.log("shopUsers.getKeywordShopInfos:"+JSON.stringify(req.body));
+    mariaDB.selectKeywordShopInfos(req.body,(err,shopInfos)=>{
+        if(err){
+			let response = new index.FailResponse(err);
+		    response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            console.log("users.getKeywordShopInfos success:"+JSON.stringify(shopInfos));
+			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
+			response.shopInfos=shopInfos;
+            res.send(JSON.stringify(response));
+        }
+    })
+}
+
+router.getFavoriteShops=(req,res)=>{
+    console.log("users.getFavoriteShops:"+JSON.stringify(req.body));
+    mariaDB.selectFavoriteShops(req.session.uid,(err,shopInfos)=>{
+        if(err){
+            console.log("err:"+err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            console.log(shopInfos);
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            response.shopInfos = shopInfos;
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
+router.getCoupons=(req,res)=>{
+    mongoDB.findCoupons(req.body,(err,coupons)=>{
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            console.log(result);
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            response.coupons = coupons;
+            res.send(JSON.stringify(response));
+        }
+    })
+}
+
+router.downloadCoupon = (req,res)=>{
+    let body = {};
+    body.userId = req.session.uid;
+    body.couponList = req.body.couponList;
+
+    //userInfo에 couponList 저장
+    mariaDB.updateCouponList(body,(err,result)=>{
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            console.log(result);
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
+router.getMenu = (req,res)=>{
+    mariaDB.selectOneMenu(req.body,(err,menu)=>{
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            console.log(menu);
+            let response = new index.SuccResponse();
+            response.menu = menu;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
+router.searchTakitId=(req,res)=>{
+    mariaDB.selectTakitId(req.body,(err,shopInfo)=>{
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+
+            let response = new index.SuccResponse();
+            response.shopInfo = shopInfo;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
+router.getEvents=(req,res)=>{
+    redisCli.lrange('events',0,4,(err,events)=>{
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.events = events;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
+router.enterMenuDetail=(req,res)=>{
+    console.log("enterMenuDetail:"+JSON.stringify(req.body));
+
+    async.parallel([(callback)=>{
+        mariaDB.selectOneMenu(req.body,callback);
+    },(callback)=>{
+        mariaDB.getBalanceCash(req.body.cashId,callback);
+    },(callback)=>{
+        mariaDB.getShopInfo(req.body.takitId,callback);
+    }],(err,result)=>{
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.menu = result[0];
+            response.balance = result[1];
+            response.shopInfo = result[2];
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
 
 module.exports = router;

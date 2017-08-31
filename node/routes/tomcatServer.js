@@ -52,5 +52,23 @@ router.validUserInfo=function(req,res){
    });
 }
 
+router.getUserInfo=function(req,res){
+
+    console.log(req.body);
+    let response = new index.SuccResponse();
+    
+    
+    response.userPhone = CryptoJS.AES.decrypt(decodeURI(req.body.userPhone),config.tomcat.uPhonePwd).toString(CryptoJS.enc.Utf8);
+    response.userName = CryptoJS.AES.decrypt(decodeURI(req.body.userName),config.tomcat.uNamePwd).toString(CryptoJS.enc.Utf8);
+    response.userSex = CryptoJS.AES.decrypt(decodeURI(req.body.userSex),config.tomcat.uSexPwd).toString(CryptoJS.enc.Utf8);
+    console.log(response.userSex);
+    response.userAge = CryptoJS.AES.decrypt(decodeURI(req.body.userAge),config.tomcat.uAgePwd).toString(CryptoJS.enc.Utf8);
+    console.log(response.userAge);
+
+    response.setVersion(config.MIGRATION,req.version);
+    res.send(JSON.stringify(response));
+
+}
+
 
 module.exports = router;

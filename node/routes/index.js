@@ -5,7 +5,7 @@ var fs = require('fs');
 var moment=require('moment');
 var join = path.join;
 var exec = require('child-process-promise').exec;
-var s3=require('./s3');
+//var s3=require('./s3');
 //var mariaDB=require('./mariaDB');
 var config = require('../config');
 

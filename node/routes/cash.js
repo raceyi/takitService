@@ -69,6 +69,23 @@ router.checkCashInfo = function (req, res) {
     });
 }
 
+router.validCashId = (req,res)=>{
+    mariaDB.validCashId(req.body.cashId.toUpperCase(),(err,result)=>{
+        if (err) {
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION, req.version);
+            res.send(JSON.stringify(response));
+        } else {
+            console.log("validCashId success");
+            let response = new index.SuccResponse();
+            response.duplication=result;
+            response.setVersion(config.MIGRATION, req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
 
 //거래내역 조회
 router.RetrieveAgreementAccountTransactionHistory = function (startDate, endDate, pageNO, num, next) {
@@ -81,7 +98,7 @@ router.RetrieveAgreementAccountTransactionHistory = function (startDate, endDate
 
     console.log(form);
     request.post({ url: config.nhServer+'/NHPintech/nhpintechServlet', form: form }, function (err, response, result) {
-        let body = JSON.parse(result);
+		let body = JSON.parse(result);
         if (err) {
             console.log("RetrieveAgreementAccountTransactionHistory error" + JSON.stringify(err));
             next(err);
@@ -229,7 +246,8 @@ function checkAccountHistory(pageNO, count, startDate, next) {
         if(err){
             next("now isn't service time");
         }else{
-            accHistory;
+			//console.log("accHistory:"+accHistory);
+            //accHistory;
             let i = 0;
             async.whilst(function () { return i < accHistory.Iqtcnt - count; },
                 function (callback) {
@@ -364,9 +382,9 @@ setInterval(function () {
     //redis reset을 어떻게 한번만...? 시키나ㅜㅜ expire 시간 24시간+10분으로 설정하면 될 듯
     let startDate = beforeTime.substring(0, 10).replace(/-/gi, '');
 
-    if(nowTime.getUTCHours() == '0' && (nowTime.getUTCMinutes() >=0 || nowTime.getUTCMinutes() < 30)){
-        console.log("NH isn't service time");
-    }else{
+    //if(nowTime.getUTCHours() == '0' && (nowTime.getUTCMinutes() >=0 || nowTime.getUTCMinutes() < 30)){
+      //  console.log("NH isn't service time");
+    //}else{
         async.waterfall([function (callback) {
             redisCli.exists('cash_' + startDate, callback);
         }, function (result, callback) {
@@ -396,8 +414,8 @@ setInterval(function () {
                 console.log("setInterval checkAccountHistory success:" + JSON.stringify(result));
             }
         });
-    }
-}, 30000); //30초 마다
+    //}
+}, 15000); //15초 마다
 
 
 //cash 수동 확인 -> cashId는 있고, 통장인자내역에 cashId를 넣지 않아서, user가 정보 넣고 조회 할 때
@@ -477,6 +495,13 @@ router.checkCashUserself = function (req, res) {
         cashList.depositDate = cashList.depositTime.substring(0,11);
         cashList.depositHour = parseInt(cashList.depositTime.substring(11, 13));
         cashList.bankCode = req.body.bankCode;
+        
+		/*if(req.body.bankCode==='-1'){ // toss is wooribank code since 2017.07
+            cashList.bankCode = '020';
+        }
+        if(req.body.bankCode==='-2'){ // kakaopay is wooribank code since 2017.07
+            cashList.bankCode = '088';
+        }*/
 
 		mariaDB.getDepositedCash(cashList, callback);
     }, function (cashLists, callback) {
@@ -590,7 +615,7 @@ function pad(n, length) {
 
 
 // user가 캐쉬로 주문하여 캐쉬 빠짐
-router.payCash = function (cashId, amount, next) {
+router.payCash = function (cashId, amount,orderId, next) {
     let balance;
     async.waterfall([function (callback) {
         mariaDB.getBalanceCash(cashId.toUpperCase(), callback);
@@ -611,6 +636,7 @@ router.payCash = function (cashId, amount, next) {
             cashList.transactionTime = new Date().toISOString();
             cashList.confirm = 1;
             cashList.nowBalance = balance - amount;
+            cashList.orderId = orderId;
             mariaDB.insertCashList(cashList, callback);
         }], callback);
     }], function (err, result) {

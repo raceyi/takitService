@@ -5,8 +5,10 @@ var express = require('express');
 //HTTPS-begin
 var forceSSL = require('express-force-ssl');
 var fs = require('fs');
-var http = require('http');
-var https = require('https');
+var debug = require('debug')('https')
+  , http = require('http')
+  , https = require('https')
+  , name = 'My App';
 //HTTPS-end
 var request = require('request');
 var multer = require('multer');
@@ -26,9 +28,9 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 let index = require('./routes/index');
 let users = require('./routes/users');
+let mariaDB=require('./routes/mariaDB');
 let s3= require('./routes/s3');
 
-let mariaDB=require('./routes/mariaDB');
 let order=require('./routes/order');
 let shopUsers= require('./routes/shopUsers');
 let cash = require('./routes/cash');
@@ -48,6 +50,9 @@ var client = redis.createClient();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
+debug('booting %s', name);
+//debug(req.method + ' ' + req.url);
+
 //HTTPS-begin
 var server = http.createServer(app);
 var secureServer = https.createServer(ssl_options, app);
@@ -56,6 +61,7 @@ app.use(forceSSL); //-> please uncomment this code for https
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
+
 
 
 
@@ -70,9 +76,9 @@ app.use(express.static(path.join(__dirname, 'public')))
 
 app.use(session({
 	  name: 'server-session-store',
-	  secret: 'takitSecret',
-	  saveUninitialized: true,
-	  resave: true,
+	  secret: 'takitSecret2',
+	  saveUninitialized: false, //proxy server 사용하려면 false
+	  resave: false,  //proxy server 사용하려면 false 
 	  cookie:{
 	    maxAge: 24*60*60*1000,
 	  },
@@ -90,7 +96,7 @@ app.use(function (req, res, next) {
 
 
 //logger(morgan) begin
-
+/*
 morgan.token('id', function getId(req){
     if(req.hasOwnProperty("session") && req.session.hasOwnProperty("uid")){
             return req.session.uid; 
@@ -115,7 +121,7 @@ morgan.token('params', function getParams(req){
 app.use(morgan('[:date[clf]] :id :params :remote-addr :remote-user \":method :url HTTP/:http-version\" :status :res[content-length] \":referrer\" \":user-agent\"'));
 //logger end.
 
-
+*/
 
 //express gracefully exit
 var createGracefulShutdownMiddleware = require('express-graceful-shutdown');
@@ -125,8 +131,20 @@ app.use(createGracefulShutdownMiddleware(secureServer, {forceTimeout:30000}));
 
 
 app.all('*',function(req,res,next){
+	console.log(req.cookies)
 	console.log("req.url:"+req.url);
-	
+	var url=req.url.toString();
+	/*if(req.body.version===config.OLD_VERSION || (url.startsWith("/cafe/shopHome") && req.method==="GET") ){
+		const baseUrl = 'http://127.0.0.1:3000';
+    	console.log("req.method:"+req.method);
+    	console.log("req.headers:"+JSON.stringify(req.headers));
+    	if(req.method=="GET"){
+        	request({url: baseUrl+req.url,headers: req.headers,method:req.method}).pipe(res);
+    	}else if(req.method=="POST" ){
+        	request({url: baseUrl+req.url,headers: req.headers,body: JSON.stringify(req.body),method:req.method}).pipe(res);
+    	}
+	}else{
+	*/
 	if(req.hasOwnProperty('session')){
    	console.log("valid session");
       console.log("req.session:"+JSON.stringify(req.session));
@@ -141,18 +159,20 @@ app.all('*',function(req,res,next){
             	res.end(JSON.stringify({"result":"failure"}));
 				}
 			}else{
-            next();
+            	next();
 			}
       }else{
+		console.log("invalid req.session.uid");
          var url=req.url.toString();
-			if((req.url==="/signup" || req.url==="/kakaoLogin" || req.url==="/emailLogin" || req.url === "/facebooklogin" ||
+		 if((req.url==="/signup" || req.url==="/kakaoLogin" || req.url==="/emailLogin" || req.url === "/facebooklogin" ||
             req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || req.url==="/shop/emailLogin" || 
-				req.url ==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset" ||
+				req.url ==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset" || req.url==="/getUserInfo" ||
 			 	req.url ==="/shop/insertTakitId" || req.url ==="/shop/insertCategory" || req.url ==="/shop/insertMenu" ||
 				req.url ==="/shop/insertShopInfo" || req.url ==="/shop/updateCategory" || req.url ==="/shop/updateMenu") 
 				&& req.method === "POST"){
             next();
          }else if(url.startsWith("/oauth") && req.method==="GET"){ // just for kakaotalk login
+			console.log("GET comes");
             next();
          }else{
             res.statusCode=401;
@@ -164,7 +184,7 @@ app.all('*',function(req,res,next){
       var url=req.url.toString();
       if((req.url==="/signup" || req.url==="/kakaoLogin" || req.url==="/emailLogin" || req.url === "/facebooklogin" ||
 			req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || req.url==="/shop/emailLogin" ||
-			req.url==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset" ||
+			req.url==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset" || req.url==="/getUserInfo" ||
 			req.url ==="/shop/insertTakitId" || req.url ==="/shop/insertCategory" || req.url ==="/shop/insertMenu" ||
                 req.url ==="/shop/insertShopInfo" || req.url ==="/shop/updateCategory" || req.url ==="/shop/updateMenu") 
 			&& req.method === "POST"){
@@ -175,12 +195,14 @@ app.all('*',function(req,res,next){
          res.statusCode=401;
          res.end(JSON.stringify({"result":"failure"}));
    	}
-   }
+   //}
+}
 });
 
 app.use('/', index);
 app.post('/shopEnter',users.shopEnter);
 //app.use('/users', users);
+app.post('/getMenu',users.getMenu);
 
 app.get('/oauthSuccess',tomcatServer.oauthSuccess);
 app.get('/oauthFailure',tomcatServer.oauthFailure);
@@ -197,16 +219,28 @@ app.post('/sleepMode', users.sleepMode);
 app.post('/wakeMode',users.wakeMode);
 app.post('/orderNotiMode',users.orderNotiMode);
 app.post('/validUserInfo',tomcatServer.validUserInfo);
+app.post('/getUserInfo',tomcatServer.getUserInfo);
+app.post('/validCashId',cash.validCashId);
+
 app.post('/getDiscountRate',users.getDiscountRate);
 app.post('/SMSCertification',users.SMSCertification);
 app.post('/checkSMSCode',users.checkSMSCode);
 app.post('/passwordReset',users.passwordReset);
 app.post('/successGCM',users.successGCM);
 app.post('/modifyUserInfo',users.modifyUserInfo);
+app.post('/getKeywordShops',users.getKeywordShops);
+app.post('/getKeywordShopInfos',users.getKeywordShopInfos);
+app.post('/getFavoriteShops',users.getFavoriteShops);
+app.post('/getEvents',users.getEvents);
 
 app.post('/getOrders',order.getOrdersUser);
 app.post('/saveOrder',order.saveOrder);
 app.post('/cancelOrder',order.cancelOrderUser);
+app.post('/getOldOrders',order.getOldOrders);
+
+app.post('/getCoupons',users.getCoupons);
+app.post('/downloadCoupon',users.downloadCoupon);
+
 app.post('/shop/getOrders',order.getOrdersShop);
 app.post('/shop/checkOrder',order.checkOrder);
 app.post('/shop/completeOrder',order.completeOrder);
@@ -248,15 +282,20 @@ app.post('/shop/getWithdrawalList',cash.getWithdrawalListShop);
 app.post('/shop/getAccount',shopUsers.getAccount);
 app.post('/cafe/shopHome',mariaDB.queryCafeHomePost);
 
-app.post('/shop/insertTakitId', shopUsers.insertTakitId);
-app.post('/shop/insertShopInfo',shopUsers.insertShopInfo);
-app.post('/shop/insertCategory',shopUsers.insertCategory);
-app.post('/shop/updateCategory',shopUsers.updateCategory);
-app.post('/shop/insertMenu', shopUsers.insertMenu);
-app.post('/shop/updateMenu', shopUsers.updateMenu);
+app.post('/shop/addTakitId', shopUsers.addTakitId);
+app.post('/shop/addShopInfo',shopUsers.addShopInfo);
+app.post('/shop/addCategory',shopUsers.addCategory);
+app.post('/shop/modifyCategory',shopUsers.modifyCategory);
+app.post('/shop/removeCategory',shopUsers.removeCategory);
+app.post('/shop/addMenu', shopUsers.addMenu);
+app.post('/shop/modifyMenu', shopUsers.modifyMenu);
+app.post('/shop/removeMenu',shopUsers.removeMenu);
+app.post('/shop/uploadMenuImage', shopUsers.uploadMenuImage);
 
-
+app.post('/enterMenuDetail',users.enterMenuDetail);
 app.get('/cafe/shopHome',mariaDB.queryCafeHome);
+
+app.post('/searchTakitId',users.searchTakitId);
 
 // catch 404 and forward to error handler
 app.post('/takitIdAutocomplete',function(req,res,next){
@@ -440,7 +479,7 @@ app.configure=function(){
 	shopUsers.getShopAppToken();
 	
 	// [HAVE-TO]Put aws config files in a directory other than this project.
-	
+	s3.setConfigFile('./s3.config.json');	
 	
 	//console.log("__dirname:"+__dirname);
 	op.setDir(__dirname+"/routes");

@@ -8,6 +8,15 @@ router.setDir = function (__dirname) {
     timezoneJS.timezone.init({ async: false });
 }
 
+router.computeOptionTime=(baseTime,calculatedMS)=>{ 
+    let resultTime; // finally resultTime will be ISO format
+
+    let MS=baseTime.getTime()-calculatedMS;
+    resultTime = new Date(MS);
+
+    return resultTime.toISOString();
+}
+
 router.getTimezoneLocalTime=function(timezone,time){ // return current local time in timezone area
 	console.log("timeInMilliSec:"+time);
 

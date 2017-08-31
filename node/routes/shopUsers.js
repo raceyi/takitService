@@ -11,6 +11,7 @@ const redisCli = redis.createClient();
 const async = require('async');
 const noti = require('./notification');
 let crypto = require('crypto');
+let multer = require('multer');
 
 var FACEBOOK_SHOP_APP_SECRET
 var FACEBOOK_SHOP_APP_ID;
@@ -198,138 +199,67 @@ router.emailLogin=function(req,res){
 
 
 //처음 로그인일 때 facebook, kakao가 진짜 자기인지 모르기 때문에 한번 더 패스워드 확인
+
 router.secretLogin=function(req,res){	
 	console.log("enter secretLogin");	
 
 	//1. facebook 가입인지 확인
 	//2. facebook 가입이면 token 확인
-			
-	//3. shopUserInfo에 존재하는 user인지 확인
 
-	if(req.body.referenceId.substring(0,5) === 'email'){
-		console.log('secretLogin email!!');		
-		
-		mariaDB.existEmailAndPassword(req.body.email, req.body.password, function(err,result){
-			if(err){
-				console.log(err);
-				let response = new index.FailResponse(err);
-				response.setVersion(config.MIGRATION,req.version);
-         	res.send(JSON.stringify(response));
-			}else{
-				console.log(result);
-				mariaDB.updateShopRefId(result.userId,req.body.referenceId, function(err,result){
-					if(err){
-						console.log(err);
-						let response = new index.FailResponse(err);
-						response.setVersion(config.MIGRATION,req.version);
-         			res.send(JSON.stringify(response));
-					}else{
-						console.log(result);
-					}
-				});
+    console.log('secretLogin facebook or kakaotalk');
+    let shopUserInfos
+    async.waterfall([(callback)=>{
+        mariaDB.existUserEmail(req.body.email,callback); 
+    },(result,callback)=>{
+        mariaDB.getShopUserInfo(userInfo.userId,callback);
+    },(result,callback)=>{
+        shopUserInfos = result
+        let secretPassword = crypto.createHash('sha256').update(req.body.password+shopUserInfos[0].salt).digest('hex');
 
-				mariaDB.getShopUserInfo(result.userId,function(err,shopUserInfos){
-					if(err){
-						console.log(err);
-						let response = new index.FailResponse(err);
-						response.setVersion(config.MIGRATION,req.version);
-        				res.send(JSON.stringify(response));
-					}else{
-						console.log(result);		
-         			req.session.uid = shopUserInfos[0].userId;
-						let response = new index.SuccResponse();
-						response.setVersion(config.MIGRATION,req.version);
-         			//delete secret info
-         			for(let i=0; i<shopUserInfos.length; i++){
-            			delete shopUserInfos[i].userId;
-            			delete shopUserInfos[i].password;
-            			delete shopUserInfos[i].salt;
-            			delete shopUserInfos[i].shopPushId;
-         			}
+        if(secretPassword === shopUserInfos[0].password){
+            console.log("password success!!");
+            mariaDB.updateShopRefId(userInfo.userId,req.body.referenceId,callback);
+        }else{
+            callback("password fail");
+        }
+    }],(err,result)=>{
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+        
+            console.log(result);
+            req.session.uid = shopUserInfos[0].userId;
+                
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
 
-         			response.shopUserInfo=shopUserInfos[0];
-						response.shopUserInfo.referenceId = req.body.referenceId;						
+            //delete secret info
+            for(let i=0; i<shopUserInfos.length; i++){
+                delete shopUserInfos[i].userId;
+                delete shopUserInfos[i].password;
+                delete shopUserInfos[i].salt;
+                delete shopUserInfos[i].shopPushId;
+            }
 
-         			//여러개 shopList 하나로 합치기
-         			let myShopList=[];
-         			for(let i=0; i<shopUserInfos.length; i++){
-            			let shopList = JSON.parse(shopUserInfos[i].myShopList);
-            			myShopList[i]=shopList[0];
-         			}
-         			response.shopUserInfo.myShopList=JSON.stringify(myShopList);
-         			console.log(JSON.stringify(response));
+            response.shopUserInfo=shopUserInfos[0];
+            response.shopUserInfo.referenceId = req.body.referenceId;
 
-            		res.send(JSON.stringify(response));
-					}
-				});
-			}
-		});
-	}else{
-		console.log('secretLogin facebook or kakaotalk');
-		mariaDB.existUserEmail(req.body.email,function(err,userInfo){
-	      if(err){
-   	      console.log(err);
-				let response = new index.FailResponse(err);
-				response.setVersion(config.MIGRATION,req.version);
-         	res.send(JSON.stringify(response));
-			}else{
-				mariaDB.getShopUserInfo(userInfo.userId,function(err,shopUserInfos){
-            	if(err){
-						console.log(err);
-						let response = new index.FailResponse(err);
-						response.setVersion(config.MIGRATION,req.version);
-         			res.send(JSON.stringify(response));
-            	}else{
-						let secretPassword = crypto.createHash('sha256').update(req.body.password+shopUserInfos[0].salt).digest('hex');
-
-               	if(secretPassword === shopUserInfos[0].password){
-                  	console.log("password success!!");
-						
-							mariaDB.updateShopRefId(userInfo.userId,req.body.referenceId,function(err,result){
-								if(err){
-									let response = new index.FailResponse(err);
-									response.setVersion(config.MIGRATION,req.version);
-         						res.send(JSON.stringify(response));
-								}else{
-									console.log(result);
-								
-							
-							
-							req.session.uid = shopUserInfos[0].userId;
-							
-							let response = new index.SuccResponse();
-							response.setVersion(config.MIGRATION,req.version);
-
-            			//delete secret info
-            			for(let i=0; i<shopUserInfos.length; i++){
-               			delete shopUserInfos[i].userId;
-               			delete shopUserInfos[i].password;
-               			delete shopUserInfos[i].salt;
-               			delete shopUserInfos[i].shopPushId;
-            			}
-
-            			response.shopUserInfo=shopUserInfos[0];
-							response.shopUserInfo.referenceId = req.body.referenceId;
-
-            			//여러개 shopList 하나로 합치기
-            			let myShopList=[];
-            			for(let i=0; i<shopUserInfos.length; i++){
-               			let shopList = JSON.parse(shopUserInfos[i].myShopList);
-               			myShopList[i]=shopList[0];
-            			}
-            			response.shopUserInfo.myShopList=JSON.stringify(myShopList);
-            			console.log(JSON.stringify(response));
-            			res.send(JSON.stringify(response));
-							}
-							});
-						}
-					}
-				});
-			}
-		});
-		
-	}
+                //여러개 shopList 하나로 합치기
+            let myShopList=[];
+            for(let i=0; i<shopUserInfos.length; i++){
+                let shopList = JSON.parse(shopUserInfos[i].myShopList);
+                myShopList[i]=shopList[0];
+            }
+            response.shopUserInfo.myShopList=JSON.stringify(myShopList);
+            console.log(JSON.stringify(response));
+            res.send(JSON.stringify(response));
+        }
+    });
 }
+
 
 //shop 운영 on/ off
 router.openShop=function(req,res){
@@ -615,30 +545,6 @@ router.getAccount = function(req,res){
 
 
 /*
-//!!!Please check whether requestor is manager or not!!!
-router.removeMenu=function(req,res,next){ //remove a menu
-	var no= req.body.takitId+";"+req.body.categoryNumber;
-	var name=req.body.menuName;
-	console.log("body:"+JSON.stringify(req.body));
-	console.log("no:"+no+" name:"+name);
-	dynamoDB.removeMenu(no,name,function(menu){
-		console.log("remove s3 menu image");
-		// Please find the reason why fail to remove a file from S3 with Missing credentials in config
-		//s3.remove_menu_image(menu.imagePath,function(){
-		//	console.log("return success");
-		//	return res.end(JSON.stringify({result:"success"}));
-		//},function(err){
-		//	console.log("err:"+err);
-		//	return res.end(JSON.stringify({result:"failure"}));
-		//});
-		//
-		console.log("return success");
-		return res.end(JSON.stringify({result:"success"}));
-	},function(err){
-		return res.end(JSON.stringify({result:"failure"}));
-	});
-};
-
 router.saveCafeInfoWithFile = function(req, res, next){
 	var img = req.file.path; // full name
 	console.log("img:"+req.file.path);
@@ -714,132 +620,6 @@ router.saveCafeInfo=function(req,res,next){
 	});
 };
 
-router.modifyMenu=function(req,res,next){
-	//check if menu exists or not
-	console.log("body:"+JSON.stringify(req.body.category_no));
-	dynamoDB.getMenuInfo(req.body.category_no,req.body.menuName,function(menuInfos){
-		if(menuInfos.length==1){
-			dynamoDB.updateMenuInfo(req.body,function(menu){
-				var response={result:"success",menu:JSON.stringify(menu)};
-				return res.end(JSON.stringify(response));
-			},function fail(){
-				res.end(JSON.stringify({result:"failure",reason:"menu db update failure."}));
-			});
-		}else if(menuInfos.length==0){
-			res.end(JSON.stringify({result:"failure",reason:"menu doesn't exist."}));
-		}
-	},function(err){
-		res.end(JSON.stringify({result:"failure"}));
-	});
-};
-
-router.modifyMenuWithFile=function(req,res,next){
-	console.log("[modifyMenuWithFile] req.body:"+JSON.stringify(req.body));
-	dynamoDB.getMenuInfo(req.body.category_no,req.body.menuName,function(menuInfos){
-		console.log("menuInfos:"+menuInfos.length);
-		if(menuInfos.length==1){
-			// s3 upload
-			console.log("call s3.upload_cafe_image");
-			s3.upload_cafe_image(req.file.path,req.body.category_no+"_"+req.body.menuName,function success(){
-				console.log("call dynamoDB.updateMenuInfo");
-				dynamoDB.updateMenuInfo(req.body,function(menu){
-					var response={result:"success",menu:JSON.stringify(menu)};
-					return res.end(JSON.stringify(response));
-				},function fail(){
-					res.end(JSON.stringify({result:"failure",reason:"menu db update failure."}));
-				});
-			},function fail(){
-				res.end(JSON.stringify({result:"failure",reason:"s3 upload failure"}));
-			});
-		}else if(menuInfos.length==0){
-			res.end(JSON.stringify({result:"failure",reason:"menu doesn't exist."}));
-		}
-	},function(err){
-		res.end(JSON.stringify({result:"failure"}));
-	});
-};
-
-router.registerMenuWithFile=function(req,res,next){
-	console.log("req.body:"+JSON.stringify(req.body));
-	// s3 upload
-	s3.upload_cafe_image(req.file.path,req.body.category_no+"_"+req.body.menuName,function success(){
-		dynamoDB.addMenuInfo(req.body,function(menus){
-			var response={result:"success",menus:JSON.stringify(menus)};
-			return res.end(JSON.stringify(response));
-		},function fail(){
-			res.end(JSON.stringify({result:"failure",reason:"menu db update failure."}));
-		});
-	},function fail(){
-		res.end(JSON.stringify({result:"failure",reason:"s3 upload failure"}));
-	});
-};
-
-router.addCategory=function(req,res,next){
-	// return the list of categories
-	console.log("req.body:"+JSON.stringify(req.body));
-	var category={};
-	category.takitId=req.body.takitId;
-	category.category_name=	req.body.categoryName;
-	var q=d3.queue();
-
-	q.defer(dynamoDB.addCategory,category);
-
-	q.await(function(success,results){
-		console.log("success:"+success);
-		if(!success){
-			console.log(JSON.stringify(results));
-			res.end(JSON.stringify({result:"failure"}));
-		}else{
-		    //get all the categories with takitId
-			dynamoDB.getCategoriesFunction(category.takitId,function(categories){
-				console.log("addCategory-success");
-				res.end(JSON.stringify({result:"success",categories:categories}));
-			},function fail(){
-				res.end(JSON.stringify({result:"failure"}));
-			});
-		}
-	});
-};
-
-router.removeCategory=function(req,res,next){
-	// return the list of categories
-	console.log("req.body:"+JSON.stringify(req.body));
-
-    var category={};
-	category.takitId=req.body.takitId;
-	category.category_no=req.body.no;
-
-	dynamoDB.removeCategory(category,
-			function(){
-				res.end(JSON.stringify({result:"success"}));
-			},function fail(){
-				res.end(JSON.stringify({result:"failure"}));
-			}
-	);
-};
-
-router.modifyCategory=function(req,res,next){
-	// return the list of categories
-	console.log("req.body:"+JSON.stringify(req.body));
-	var category={};
-	category.category_name=req.body.name;
-	category.takitId=req.body.takitId;
-	category.category_no=req.body.no;
-
-	var q=d3.queue();
-
-	q.defer(dynamoDB.modifyCategory,category);
-
-	q.await(function(success,results){
-		console.log("success:"+success);
-		if(!success){
-			console.log(JSON.stringify(results));
-			res.end(JSON.stringify({result:"failure"}));
-		}else{
-			res.end(JSON.stringify({result:"success"}));
-		}
-	});
-};
 */
 router.sendGMSCouponMsg=function(api_key,pushid,MSGcontents,custom,next){
 	var sender = new gcm.Sender(api_key);
@@ -1018,139 +798,244 @@ router.customerSearch=function(req,res,next){
 
 */
 
-router.insertTakitId=function(req,res){
-	console.log("router.insertTakitId");
 
-	mariaDB.insertTakitId(req.body,function(err,result){
-		if(err){
-			console.log(err);
-			let response = new index.FailResponse("failure",err);
-			response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
-         	res.send(JSON.stringify(response));
-		}else{
-			let response = new index.SuccResponse();
-			response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
-         	res.send(JSON.stringify(response));
-		}
-	});
+
+router.addTakitId=function(req,res){
+    console.log("router.insertTakitId");
+
+    mariaDB.insertTakitId(req.body,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse("failure",err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }
+    });
 
 };
 
-router.insertCategory=function(req,res){
-	console.log("router.insertCategory");
 
-    mariaDB.insertCategory(req.body,function(err,result){
+router.addCategory=function(req,res){
+    console.log("router.insertCategory"+JSON.stringify(req.body));
+    let category = req.body;
+    async.waterfall([function(callback){
+        mariaDB.updateSequence(category,"+1",callback);
+    },function(result,callback){
+        console.log(result);
+        mariaDB.insertCategory(category,callback);
+    }],function(err,result){
         if(err){
             console.log(err);
-            let response = new index.FailResponse("failure",err);
+            let response = new index.FailResponse(err);
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
             res.send(JSON.stringify(response));
         }else{
             let response = new index.SuccResponse();
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
+
+router.modifyCategory=function(req,res){
+    console.log("router.updateCategory:"+JSON.stringify(req.body));
+
+
+    let category = req.body;
+    category.oldSequence = parseInt(category.oldSequence);
+    category.newSequence = parseInt(category.newSequence);
+
+    async.waterfall([function(callback){
+        if(category.newSequence === category.oldSequence){
+            callback(null,"same sequence");
+        }else{
+            mariaDB.updateSeqWhenModify(category,callback);
+        }
+    },function(result,callback){
+        console.log(result);
+        mariaDB.updateCategory(category,callback);
+    }],function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
             res.send(JSON.stringify(response));
         }
     });
 
 }
 
-router.updateCategory=function(req,res){
-    console.log("router.updateCategory");
-
-    mariaDB.updateCategory(req.body,function(err,result){
-        if(err){
+router.removeCategory=(req,res)=>{
+	console.log("router.removeCategory:"+JSON.stringify(req.body));
+	
+	let category = req.body
+	async.waterfall([(callback)=>{
+		mariaDB.deleteCategory(category,callback);
+	},(result,callback)=>{
+        mariaDB.updateSequence(category,"-1",callback);
+	}],(err,result)=>{
+		if(err){
             console.log(err);
-            let response = new index.FailResponse("failure",err);
+            let response = new index.FailResponse(err);
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
             res.send(JSON.stringify(response));
         }else{
+            console.log(result);
             let response = new index.SuccResponse();
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
             res.send(JSON.stringify(response));
         }
-    });
-
+	});
 }
 
-router.insertMenu=function(req,res){
+router.addMenu=function(req,res){
     console.log("router.insertMenu");
 
-    mariaDB.insertMenu(req.body,function(err,result){
+    let menu = req.body;
+    mariaDB.insertMenu(menu,function(err,result){
         if(err){
             console.log(err);
-            let response = new index.FailResponse("failure",err);
+            let response = new index.FailResponse(err);
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
             res.send(JSON.stringify(response));
         }else{
             let response = new index.SuccResponse();
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
             res.send(JSON.stringify(response));
         }
     });
 
 }
 
-
-router.updateMenu=function(req,res){
+router.modifyMenu=function(req,res){
     console.log("router.updateMenu");
 
-    mariaDB.updateMenu(req.body,function(err,result){
+    let menu = req.body;
+    mariaDB.updateMenu(menu,function(err,result){
         if(err){
             console.log(err);
-            let response = new index.FailResponse("failure",err);
+            let response = new index.FailResponse(err);
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
             res.send(JSON.stringify(response));
         }else{
             let response = new index.SuccResponse();
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
             res.send(JSON.stringify(response));
         }
     });
 
 }
 
-router.insertShopInfo=function(req,res){
-	mariaDB.insertShopInfo(req.body,function(err,result){
+router.removeMenu=function(req,res){
+    console.log("router.removeMenu");
+
+    mariaDB.deleteMenu(req.body,function(err,result){
         if(err){
             console.log(err);
-            let response = new index.FailResponse("failure",err);
+            let response = new index.FailResponse(err);
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
             res.send(JSON.stringify(response));
         }else{
             let response = new index.SuccResponse();
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
+            res.send(JSON.stringify(response));
+        }
+    });
+
+}
+
+
+
+router.addShopInfo=function(req,res){
+    mariaDB.insertShopInfo(req.body,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
             res.send(JSON.stringify(response));
         }
     });
 };
 
-router.updateShopInfo=function(req,res){
+router.modifyShopInfo=function(req,res){
     mariaDB.updateShopInfo(req.body,function(err,result){
         if(err){
             console.log(err);
-            let response = new index.FailResponse("failure",err);
+            let response = new index.FailResponse(err);
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
             res.send(JSON.stringify(response));
         }else{
             let response = new index.SuccResponse();
             response.setVersion(config.MIGRATION,req.version);
-			res.setHeader("Access-Control-Allow-Origin", "*");
             res.send(JSON.stringify(response));
         }
     });
 };
+
+let storage =   multer.diskStorage({
+      destination: function (req, file, callback) {
+        callback(null, './uploads');
+      },
+      filename: function (req, file, callback) {
+		console.log(req.body);
+		console.log(req.file);
+		console.log(file)
+        callback(null, req.body.fileName);
+      }
+});
+
+let upload = multer({
+      storage: storage,
+      limits: {fileSize: 10000000, files:1},
+    }).single('file');
+
+
+router.uploadMenuImage = (req,res)=>{
+    console.log("router.uploadMenuImage start");
+
+    async.waterfall([(callback)=>{
+        upload(req,res,callback);
+    },(callback)=>{
+        console.log(callback);
+        console.log(req.body);
+		console.log(req.file);
+        mariaDB.selectImagePath(req.body,callback);
+    },(result,callback)=>{
+        let data = { fileName : req.body.fileName,
+                     bucket:config.imgBucket,
+                     key : config.s3Key }
+        s3.uploadS3(data,callback);
+    }],(err,result)=>{
+        if(err){
+            console.log("err:"+err);
+            let response = new index.FailResponse(err);
+            console.log(response);
+            response.setVersion(config.MIGRATION,req.version);
+            console.log(response);
+            res.send(JSON.stringify(response));
+        }else{
+            console.log(result);
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    })
+}
+
 
 module.exports = router;

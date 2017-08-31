@@ -7,7 +7,7 @@ let async = require('async');
 
 let config = require('../config');
 let moment = require('moment');
-let index = require('./index.js');
+let index = require('./index');
 let op = require('./op');
 
 let router = express.Router();
@@ -240,8 +240,11 @@ router.insertUser = function (userInfo, next) {
 
     console.log("secretReferenceId :" + secretReferenceId + " secretEmail : " + secretEmail + " secretPhone:" + secretPhone);
 
-    var command = 'INSERT IGNORE INTO userInfo (referenceId,password,salt,name,email,countryCode,phone,lastLoginTime, receiptIssue,receiptId,receiptType,deviceUuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)';
-    var values = [secretReferenceId, secretPassword, salt, userInfo.name, secretEmail, userInfo.countryCode, secretPhone, new Date().toISOString(), userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType, userInfo.uuid];
+    var command = 'INSERT IGNORE INTO userInfo (referenceId,password,salt,name,email,countryCode,phone,sex,age,lastLoginTime, receiptIssue,receiptId,receiptType,deviceUuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+    var values = [secretReferenceId, secretPassword, salt, userInfo.name, 
+                    secretEmail, userInfo.countryCode, secretPhone, 
+                    userInfo.userSex,userInfo.userAge,new Date().toISOString(), 
+                    userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType, userInfo.uuid];
 
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
@@ -329,6 +332,8 @@ router.updateUserInfo = function (userInfo, next) {
     values.receiptIssue = userInfo.receiptIssue;
     values.receiptId = userInfo.receiptId;
     values.receiptType = userInfo.receiptType;
+    values.taxIssueEmail=userInfo.taxIssueEmail;
+    values.taxIssueCompanyName=userInfo.taxIssueCompanyName;
 
     if (userInfo.password !== undefined && userInfo.passsword !== null) {
         values.salt = crypto.randomBytes(16).toString('hex');
@@ -342,10 +347,12 @@ router.updateUserInfo = function (userInfo, next) {
     let command;
     if (userInfo.hasOwnProperty('userId') && userInfo.userId !== null) {
         values.userId = userInfo.userId;
-        command = "UPDATE userInfo set password=:password, salt=:salt, email=:email, phone=:phone, name=:name, receiptIssue=:receiptIssue,receiptId=:receiptId,receiptType=:receiptType where userId=:userId";
+        ////?????? 
+        command = "UPDATE userInfo set password=:password, salt=:salt, email=:email, phone=:phone, name=:name, receiptIssue=:receiptIssue,receiptId=:receiptId,receiptType=:receiptType,taxIssueEmail=:taxIssueEmail,taxIssueCompanyName=:taxIssueCompanyName where userId=:userId";
     } else {
-        command = "UPDATE userInfo set password=:password, salt=:salt, receiptIssue=:receiptIssue,receiptId=:receiptId,receiptType=:receiptType where email=:email";
+        command = "UPDATE userInfo set password=:password, salt=:salt, receiptIssue=:receiptIssue,receiptId=:receiptId,receiptType=:receiptType,taxIssueEmail=:taxIssueEmail,taxIssueCompanyName=:taxIssueCompanyName where email=:email";
     }
+
 
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
@@ -511,6 +518,7 @@ router.updateRefundCashInfo = function (cashId, amount, balance, next) {
 }
 
 
+
 router.getCashInfo = function (cashId, next) {
     console.log("getCashInfo function start");
 
@@ -526,6 +534,7 @@ router.getCashInfo = function (cashId, next) {
                 next("invalidId");
             } else {
                 console.log(result);
+                decryptObj(result[0]);
                 next(null, result[0]);
             }
         }
@@ -647,14 +656,13 @@ router.findTakitId = function (req, next) {
     });
 }
 
-
 function queryCafeHomeCategory(cafeHomeResponse, req, res) {
     var url_strs = req.url.split("takitId=");
     var takitId = decodeURI(url_strs[1]);
     console.log("takitId:" + takitId);
 
     console.log(cafeHomeResponse);
-    var command = "SELECT *FROM categories WHERE takitId=?";
+    var command = "SELECT *FROM categories WHERE takitId=? ORDER BY sequence";
     var values = [takitId];
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
@@ -686,7 +694,6 @@ function queryCafeHomeCategory(cafeHomeResponse, req, res) {
         }
     });
 }
-
 
 function queryCafeHomeMenu(cafeHomeResponse, req, res) {
     console.log("req url:" + req.url);
@@ -728,7 +735,6 @@ function queryCafeHomeMenu(cafeHomeResponse, req, res) {
     });
 }
 
-
 router.queryCafeHome = function (req, res) {
     console.log("queryCafeHome:" + JSON.stringify(req.url));
     var url_strs = req.url.split("takitId=");
@@ -763,12 +769,13 @@ router.queryCafeHome = function (req, res) {
     });
 };
 
+
 function queryCafeHomeCategoryPost(cafeHomeResponse, req, res) {
     var takitId = req.body.takitId;
     console.log("takitId:" + takitId);
 
     console.log(cafeHomeResponse);
-    var command = "SELECT *FROM categories WHERE takitId=?";
+    var command = "SELECT *FROM categories WHERE takitId=? ORDER BY sequence";
     var values = [takitId];
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
@@ -777,26 +784,21 @@ function queryCafeHomeCategoryPost(cafeHomeResponse, req, res) {
             response.setVersion(config.MIGRATION, req.version);
             res.send(JSON.stringify(response));
         } else {
-            if (result.info.numRows == 0) {
-                console.log("[queryCafeHomeCategory categories]:" + result.info.numRows);
-                let response = new index.FailResponse("query failure");
-                response.setVersion(config.MIGRATION, req.version);
-                res.send(JSON.stringify(response));
-            } else {
-                console.log("queryCafeHomeCategory func Query succeeded. " + JSON.stringify(result));
+			var categories = [];
+            console.log("queryCafeHomeCategory func Query succeeded. " + JSON.stringify(result));
+            if (result.info.numRows != 0) {
 
                 var categories = [];
                 result.forEach(function (item) {
                     console.log(JSON.stringify(item));
                     categories.push(item);
                 });
-
+            }
                 cafeHomeResponse.categories = categories;
                 console.log("cafeHomeResponse:" + (JSON.stringify(cafeHomeResponse)));
                 console.log("send res");
-                res.end(JSON.stringify(cafeHomeResponse));
-
-            }
+                res.end(JSON.stringify(cafeHomeResponse));	
+            
         }
     });
 }
@@ -818,25 +820,18 @@ function queryCafeHomeMenuPost(cafeHomeResponse, req, res) {
             response.setVersion(config.MIGRATION, req.version);
             res.send(JSON.stringify(response));
         } else {
-            console.dir("[Get cafeHomeMenu]:" + result.info.numRows);
-            if (result.info.numRows == 0) {
-                let response = new index.FailResponse("query failure");
-                response.setVersion(config.MIGRATION, req.version);
-                res.send(JSON.stringify(response));
-            } else {
-                console.log("queryCafeHomeMenu Query succeeded. " + JSON.stringify(result[0]));
-
-                var menus = [];
+        	console.log("queryCafeHomeMenu Query succeeded. " + JSON.stringify(result[0]));
+            var menus = [];
+            if (result.info.numRows != 0) {
                 result.forEach(function (item) {
                     console.log(JSON.stringify(item));
                     menus.push(item);
                 });
-
+            }
                 cafeHomeResponse.menus = menus;
                 queryCafeHomeCategoryPost(cafeHomeResponse, req, res);
-
-            }
-        }
+		
+		}
     });
 }
 
@@ -1213,6 +1208,32 @@ router.getOrderNumber = function (shopInfo, next) {
     }
 };
 
+router.insertOrderList=(orderId,i,orderList,next)=>{
+    //orderId,menu,length,next
+	console.log(orderList);
+	let command = "INSERT INTO orderList(orderId,menuNO,menuName,quantity,options,price,amount) values(?,?,?,?,?,?,?)";
+    let menu = orderList.menus[i];
+	console.log(i);
+	console.log(menu);
+    let values = [orderId, menu.menuNO, menu.menuName, menu.quantity, JSON.stringify(menu.options),menu.price, menu.amount];
+                //orderList.menus.length>1 이면 장바구니 주문 => amount에는 discountAmount가 들어가야 함
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("saveOrder func insert orderList Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.log("saveOrder func insert orderList Query Succeeded");
+            if(i < orderList.menus.length-1){
+                i++;
+                router.insertOrderList(orderId,i,orderList,next);
+            }else{
+                next(null,orderId);
+            }
+        }
+    });
+}
+
 router.saveOrder = function (order, shopInfo, next) {
     console.log("[order:" + JSON.stringify(order) + "]");
     console.log("order's takeout:" + order.takeout);
@@ -1225,9 +1246,9 @@ router.saveOrder = function (order, shopInfo, next) {
 
         //3. encrypt phone
             let secretUserPhone = encryption(userInfo.phone, config.pPwd);
-            let command = "INSERT INTO orders(takitId,orderName,payMethod,amount,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            let command = "INSERT INTO orders(takitId,shopName,orderName,payMethod,amount,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,userMSG,deliveryAddress,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
-            let values = [order.takitId, order.orderName, order.paymethod, order.amount, order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType];
+            let values = [order.takitId,order.shopName, order.orderName, order.paymethod, order.amount, order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList,order.userMSG, order.deliveryAddress, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType];
             performQueryWithParam(command, values, function (err, orderResult) {
                 if (err) {
                     console.error("saveOrder func inser orders Unable to query. Error:", JSON.stringify(err, null, 2));
@@ -1239,13 +1260,17 @@ router.saveOrder = function (order, shopInfo, next) {
                     } else {
                         console.log("saveOrder func Query succeeded. " + JSON.stringify(orderResult));
                         // 3.orderList insert
-                        let command = "INSERT INTO orderList(orderId,menuNO,menuName,quantity,options,amount) values(?,?,?,?,?,?)";
+                        //let command = "INSERT INTO orderList(orderId,menuNO,menuName,quantity,options,price,amount) values(?,?,?,?,?,?)";
                         let orderList = JSON.parse(order.orderList);
-
+						
+						let i=0;
+						console.log(orderList.menus[i]);
+                        router.insertOrderList(orderResult.info.insertId,i,orderList,next);						
+						/*
                         let i=0;
                         async.whilst(function(){return i<orderList.menus.length;
                         },function(callback){
-                            console.log("menus length:" + orderList.menus.length);
+                            console.log("menus length:" + orderList.menus.length+" i:"+i);
                             let menu = orderList.menus[i];
                             let values = [orderResult.info.insertId, menu.menuNO, menu.menuName, menu.quantity, JSON.stringify(menu.options),
                                          (orderList.menus.length > 1) ? menu.discountAmount : menu.price];
@@ -1257,14 +1282,17 @@ router.saveOrder = function (order, shopInfo, next) {
                                 } else {
                                     console.log("saveOrder func insert orderList Query Succeeded");
                                     callback(null,"success");
-                                    i++;
+                                    //i++;
                                 }
                             });
+							i++;
                         },function(err,result){
                             err 
                             ? next(err) 
                             : next(null,orderResult.info.insertId);
-                        })        
+                        })*/
+
+						        
                     }
                 }
             });
@@ -1300,22 +1328,66 @@ router.getOrder = function (orderId, next) {
 
 
 //user가 주문내역 검색할 때,
-router.getOrdersUser = function (userId, takitId, lastOrderId, limit, next) {
-    console.log("takitId:" + takitId);
-    var command;
-    var values;
+// router.getOrdersUser = function (userId, takitId, lastOrderId, limit, next) {
+//     console.log("takitId:" + takitId);
+//     var command;
+//     var values;
 
-    if (lastOrderId == -1) {
-        command = "SELECT *FROM orders WHERE userId=? AND takitId=? AND orderId > ?  ORDER BY orderId DESC LIMIT " + limit;
+//     if (lastOrderId == -1) {
+//         command = "SELECT *FROM orders WHERE userId=? AND takitId=? AND orderId > ?  ORDER BY orderId DESC LIMIT " + limit;
 
-    } else {
-        command = "SELECT *FROM orders WHERE userId=? AND takitId=? AND orderId < ?  ORDER BY orderId DESC LIMIT " + limit;
+//     } else {
+//         command = "SELECT *FROM orders WHERE userId=? AND takitId=? AND orderId < ?  ORDER BY orderId DESC LIMIT " + limit;
+//     }
+
+//     values = [userId, takitId, lastOrderId];
+
+//     //해당 user와 shop에 맞는 orders 검색	
+//     performQueryWithParam(command, values, function (err, result) {
+//         if (err) {
+//             console.error("getOrdersUser func Unable to query. Error:", JSON.stringify(err, null, 2));
+//             next(err);
+//         } else {
+//             console.dir("[getOrdersUser func Get MenuInfo]:" + result.info.numRows);
+//             if (result.info.numRows == 0) {
+//                 next(null, result.info.numRows);
+//             } else {
+//                 console.log("getOrdersUser func Query succeeded. " + JSON.stringify(result.info));
+
+//                 var orders = [];
+
+//                 result.forEach(function (order) {
+//                     decryptObj(order);
+//                     orders.push(order);
+//                 });
+
+//                 next(null, orders);
+//             }
+//         }
+//     })
+
+// }
+
+router.getOrdersUser = function (body, next) {
+    console.log("takitId:" + JSON.stringify(body));
+    
+    let days=31;
+
+    //현재 월 아닌 전 달 기준으로 30일지 31일지 계산
+    switch(new Date().getMonth()){
+        case '2': case '4': case '6': case '9': case '11': 
+        days=30; break;
     }
+    
+    body.limitTime=op.computeOptionTime(new Date(),86400000*days*parseInt(body.monthOption.substring(0,1)));
+	console.log("1");
 
-    values = [userId, takitId, lastOrderId];
+    let command="SELECT *FROM orders WHERE userId=:userId AND orderedTime > :limitTime  ORDER BY orderId DESC";
+    //limitTime dateTime format으로 변경해야함 (필수는 아님 warning)
 
+	console.log("2");
     //해당 user와 shop에 맞는 orders 검색	
-    performQueryWithParam(command, values, function (err, result) {
+    performQueryWithParam(command, body, function (err, result) {
         if (err) {
             console.error("getOrdersUser func Unable to query. Error:", JSON.stringify(err, null, 2));
             next(err);
@@ -1426,23 +1498,40 @@ router.getOrdersShop = function (takitId, option, lastOrderId, limit, next) {
     });
 };
 
-
 router.getPeriodOrdersShop = function (takitId, startTime, endTime, lastOrderId, limit, next) {
     console.log("takitId:" + takitId + " startTime:" + startTime + " end:" + endTime);
 
-    if (lastOrderId == -1) {
-        var command = "SELECT *FROM orders WHERE takitId=? AND orderedTime BETWEEN ? AND ? AND orderId > ?  ORDER BY orderId DESC LIMIT " + limit;
-    } else {
-        var command = "SELECT *FROM orders WHERE takitId=? AND orderedTime BETWEEN ? AND ? AND orderId < ?  ORDER BY orderId DESC LIMIT " + limit;
-    }
-    var values = [takitId, startTime, endTime, lastOrderId];
+    //startTime and endTime => change to utc time
+    async.waterfall([(callback)=>{
+        router.getShopInfo(takitId,callback);
+    },(shopInfo,callback)=>{
 
-    performQueryWithParam(command, values, function (err, result) {
+		let tmpEnd = endTime.split('T');
+		endTime = tmpEnd[0]+"T23:59:59.999Z" // endTime은오늘의 마지막 시간으로 만들어줌
+
+		startTime=startTime.replace('T',' ').replace('Z','');
+        endTime=endTime.replace('T',' ').replace('Z','');
+
+        let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
+		let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
+		let command;
+		
+
+        if (lastOrderId == -1) {
+            command = "SELECT *FROM orders WHERE takitId=? AND orderedTime BETWEEN ? AND ? AND orderId > ?  ORDER BY orderId DESC LIMIT " + limit;
+        } else {
+            command = "SELECT *FROM orders WHERE takitId=? AND orderedTime BETWEEN ? AND ? AND orderId < ?  ORDER BY orderId DESC LIMIT " + limit;
+        }
+        let values = [takitId, lcStartTime.toISOString(), lcEndTime.toISOString(), lastOrderId];
+
+        performQueryWithParam(command, values, callback);
+    }],(err,result)=>{
         if (err) {
-            console.error("getPeriodOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
+            console.log("getPeriodOrders func Unable to query. Error:");
+            console.log(err);
             next(err);
         } else {
-            console.dir("[getPeriodOrders func Get MenuInfo]:" + result.info.numRows);
+            console.log("[getPeriodOrders func Get MenuInfo]:" + result.info.numRows);
 
             if (result.info.numRows == 0) {
                 next("not exist orders");
@@ -1458,8 +1547,6 @@ router.getPeriodOrdersShop = function (takitId, startTime, endTime, lastOrderId,
             }
         }
     });
-
-
 };
 
 
@@ -1569,7 +1656,7 @@ router.getSales = function (takitId, startTime, next) {
     //select sum(amount) from orders where takitId = "세종대@더큰도시락" and orderedTime < "2016-12-28";
     console.log("takitId:" + takitId);
 
-    let command = "SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND orderedTime > ?";
+    let command = "SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND orderStatus='completed' AND orderedTime > ?";
     let values = [takitId, startTime];
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
@@ -1581,6 +1668,7 @@ router.getSales = function (takitId, startTime, next) {
                 next(null, 0);
             } else {
                 console.log("querySales func Query succeeded. " + JSON.stringify(result.info));
+				console.log(result);
                 next(null, result[0].sales);
             }
         }
@@ -1590,10 +1678,21 @@ router.getSales = function (takitId, startTime, next) {
 router.getSalesPeriod = function (takitId, startTime, endTime, next) {
     console.log("takitId:" + takitId + " startTime:" + startTime + " end:" + endTime);
 
-    let command = "SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND orderedTime BETWEEN ? AND ?" //startTime과 endTime 위치 중요!!
-    let values = [takitId, startTime, endTime];
+	async.waterfall([(callback)=>{
+        router.getShopInfo(takitId,callback);
+    },(shopInfo,callback)=>{
+        let tmpEnd = endTime.split('T');
+        endTime = tmpEnd[0]+"T23:59:59.999Z" // endTime은오늘의 마지막 시간으로 만들어줌
 
-    performQueryWithParam(command, values, function (err, result) {
+        startTime=startTime.replace('T',' ').replace('Z','');
+        endTime=endTime.replace('T',' ').replace('Z','');
+        let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
+        let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
+
+        let command = "SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND orderStatus='completed' AND orderedTime BETWEEN ? AND ?" //startTime과 endTime 위치 중요!!
+        let values = [takitId, lcStartTime.toISOString(), lcEndTime.toISOString()];
+        performQueryWithParam(command, values, callback);
+    }],(err,result)=>{
         if (err) {
             console.error("getSalesPeriod func Unable to query. Error:", JSON.stringify(err, null, 2));
             next(err);
@@ -1614,7 +1713,7 @@ router.getStatsMenu = function (takitId, startTime, next) {
     //select menuName, SUM(quantity) FROM orderList where menuNO LIKE \'"+takitId+"%\'GROUP BY menuName";
     console.log("getStatsMenu comes");
 
-    let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE menuNO LIKE'" + takitId + "%' AND orderedTime > ? GROUP BY menuName"
+    let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE orderStatus='completed' AND menuNO LIKE '" + takitId + "%' AND orderedTime > ? GROUP BY menuName"
     let values = [startTime];
 
     performQueryWithParam(command, values, function (err, result) {
@@ -1627,6 +1726,7 @@ router.getStatsMenu = function (takitId, startTime, next) {
             } else {
                 console.log("getStatsMenu func Query succeeded. " + JSON.stringify(result.info));
                 delete result.info;
+				console.log(result);
                 next(null, result);
             }
         }
@@ -1636,17 +1736,30 @@ router.getStatsMenu = function (takitId, startTime, next) {
 router.getPeriodStatsMenu = function (takitId, startTime, endTime, next) {
     console.log("getPeriodStatsMenu comes");
 
-    let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE menuNO LIKE'" + takitId + "%' AND orderedTime BETWEEN ? AND ? GROUP BY menuName";
-    let values = [startTime, endTime];
+	async.waterfall([(callback)=>{
+        router.getShopInfo(takitId,callback);
+    },(shopInfo,callback)=>{
+        let tmpEnd = endTime.split('T');
+        endTime = tmpEnd[0]+"T23:59:59.999Z" // endTime은오늘의 마지막 시간으로 만들어줌
 
-    performQueryWithParam(command, values, function (err, result) {
+        startTime=startTime.replace('T',' ').replace('Z','');
+        endTime=endTime.replace('T',' ').replace('Z','');
+        let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
+        let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
+
+        let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE menuNO LIKE'" + takitId + "%' AND orderStatus='completed' AND orderedTime BETWEEN ? AND ? GROUP BY menuName";
+        let values = [lcStartTime.toISOString(), lcEndTime.toISOString()];
+
+        performQueryWithParam(command, values,callback);
+
+    }],(err,result)=>{
         if (err) {
             console.error("getPeriodStatsMenu func Unable to query. Error:", JSON.stringify(err, null, 2));
             next(err);
         } else {
             if (result.info.numRows == '0') {
                 console.log(result.info.numRows);
-                next("can't not find stats");
+                next(null,0);
             } else {
                 console.log("getPeriodStatsMenu func Query succeeded. " + JSON.stringify(result.info));
                 delete result.info;
@@ -1654,6 +1767,7 @@ router.getPeriodStatsMenu = function (takitId, startTime, endTime, next) {
             }
         }
     });
+
 }
 
 ////////////매출 및 통계 end////////////
@@ -1662,28 +1776,28 @@ router.getPeriodStatsMenu = function (takitId, startTime, endTime, next) {
 
 //////////////cash /////////////////
 
-router.getCashInfo = function (cashId, next) {
-    console.log("getCashInfo function start");
 
+router.validCashId=(cashId,next)=>{
     let command = "SELECT *FROM cash WHERE cashId=?";
-    let values = [cashId];
+    let values=[cashId];
 
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
-            console.log("getCashInfo function err:" + JSON.stringify(err));
+            console.log("validUserwithPhone function error:" + JSON.stringify(err));
             next(err);
         } else {
-            if (result.info.numRows === '0') {
-                next("invalidId");
+            if (result.info.numRows === "0") {
+                next(null,"valid");
             } else {
-                console.log(result);
-                decryptObj(result[0]);
-                next(null, result[0]);
+                console.log("validUserwithPhone function success");
+                next(null, "duplication");
             }
         }
     });
-
 }
+
+
+
 
 router.updateBalanceCash = function (cashId, amount, balance, next) {
 
@@ -1733,8 +1847,8 @@ router.insertCashList = function (cashList, next) {
         cashList.account = encryption(cashList.account, config.aPwd);
     }
 
-    let command = "INSERT INTO cashList(cashId,transactionType,amount,fee, nowBalance,transactionTime,depositTime, bankCode,bankName ,account,confirm)" +
-        "VALUES(:cashId,:transactionType,:amount,:fee, :nowBalance,:transactionTime,:depositTime,:bankCode,:bankName, :account,:confirm)";
+    let command = "INSERT INTO cashList(cashId,transactionType,amount,fee,nowBalance,transactionTime,orderId,depositTime, bankCode,bankName ,account,confirm)" +
+        "VALUES(:cashId,:transactionType,:amount,:fee, :nowBalance,:transactionTime,:orderId,:depositTime,:bankCode,:bankName, :account,:confirm)";
 
     performQueryWithParam(command, cashList, function (err, result) {
         if (err) {
@@ -1753,9 +1867,9 @@ router.getCashList = function (cashId, lastTuno, limit, next) {
 
     let command;
     if (lastTuno == -1) {
-        command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno > ? AND transactionType!='wrong' ORDER BY cashTuno DESC LIMIT " + limit;
+        command = "SELECT takitId,orderName,cashList.* FROM cashList LEFT JOIN orders ON cashList.orderId=orders.orderId  WHERE cashId =? AND cashTuno > ? AND transactionType!='wrong' ORDER BY cashTuno DESC LIMIT " + limit;
     } else {
-        command = "SELECT * FROM cashList WHERE cashId =? AND cashTuno < ? AND transactionType!='wrong' ORDER BY cashTuno DESC LIMIT " + limit;
+        command = "SELECT takitId,orderName,cashList.* FROM cashList LEFT JOIN orders ON cashList.orderId=orders.orderId WHERE cashId =? AND cashTuno < ? AND transactionType!='wrong' ORDER BY cashTuno DESC LIMIT " + limit;
     }
     let values = [cashId, lastTuno];
 
@@ -1800,7 +1914,7 @@ router.updateCashList = function (cashList, next) {
 router.updateTransactionType = function (cashTuno, type, next) {
     console.log("mariaDB.updateTransactionType start!!");
     let command = "UPDATE cashList SET transactionType=? where cashTuno=?";
-    let values = [cashTuno, type];
+    let values = [type,cashTuno];
 
 
     performQueryWithParam(command, values, function (err, result) {
@@ -1844,6 +1958,10 @@ router.getDepositedCash = function (cashList, next) {
 	let command = "SELECT * FROM cashList WHERE transactionType='deposit' and confirm=0 and cashId =:depositMemo and bankCode=:bankCode "
                     +"and amount=:amount and depositTime like '"+cashList.depositTime.substring(0,13)+"%'";
 
+	if(cashList.bankCode <='-1'){
+        command = "SELECT * FROM cashList WHERE transactionType='deposit' and confirm=0 and cashId =:depositMemo "
+                    +"and amount=:amount and depositTime like '"+cashList.depositTime.substring(0,13)+"%'";
+    }
 	
     // let tomorrowTime = new Date(cashList.depositTime.getTime()+86400000).toISOString();
     // let yesterDayTime = new Date(cashList.depositTime.getTime()-86400000).toISOString(); //86400000 24시간 만큼의 milliseconds
@@ -2100,6 +2218,30 @@ router.getWithdrawalList = function (takitId, lastWithdNO, limit, next) {
     });
 }
 
+router.selectCategory=function(category,next){
+        let command = "SELECT *FROM categories where takitId=:takitId and sequence >= :sequence";
+
+        if(category.sequence ===null|| category.sequence === undefined){
+            category.sequence = 0;
+        }
+        let values = [category.takitId, category.sequence];
+        performQueryWithParam(command,values,function(err,result){
+            if (err) {
+                console.log("getWithdrawalList function Error:" + JSON.stringify(err));
+                next(err);
+            } else {
+                console.log("result:" + JSON.stringify(result));
+                if (result.info.numRows === '0') {
+                    next(null,'0');
+                } else {
+                    console.log("getWithdrawalList success");
+                    delete result.info;
+                    next(null,result);
+                }
+            }
+        });
+};
+
 
 router.insertTakitId = function (takitId, next) {
     let command = "INSERT INTO takit VALUES(:serviceName,:shopName)";
@@ -2116,7 +2258,7 @@ router.insertTakitId = function (takitId, next) {
 }
 
 router.insertCategory = function (category, next) {
-    let command = "INSERT INTO categories VALUES(:takitId,:categoryNO,:categoryName,:categoryNameEn)";
+    let command = "INSERT INTO categories VALUES(:takitId,:categoryNO, :sequence,:categoryName,:categoryNameEn)";
 
     performQueryWithParam(command, category, function (err, result) {
         if (err) {
@@ -2129,15 +2271,22 @@ router.insertCategory = function (category, next) {
     });
 }
 
+
+//이전 sequence정보 필요해 보임
 router.updateCategory = function (category, next) {
+    console.log("updateCategory start!");
+    delete category.newSequence;
+    delete category.oldSequence;
+
     let command = "UPDATE categories SET ";
     //WHERE takitId=? categoryNO=?";
     let keys = Object.keys(category);
     for (let i = 0; i < keys.length; i++) {
-        if (category[keys[i]] !== "") {
+        if (category[keys[i]] !== "" &&  keys[i] !=="version") {
             command += keys[i] + "=:" + keys[i] + ", ";
         }
     }
+
     command += "WHERE takitId=:takitId and categoryNO=:categoryNO";
     console.log(typeof command);
     command = command.replace(", WHERE", " WHERE");
@@ -2154,41 +2303,154 @@ router.updateCategory = function (category, next) {
     });
 };
 
+router.deleteCategory=(category,next)=>{
+	console.log("deleteCategory start");
+
+	let command = "DELETE FROM categories where takitId=:takitId AND categoryNO=:categoryNO";
+	
+	performQueryWithParam(command, category, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+			console.log("deleteCategory success:"+JSON.stringify(result.info));
+			if(result.info.affectedRows === '0'){
+				next("not exist");
+			}else{
+            	next(null, "success");
+			}
+        }
+    });
+
+}
+
+//update 될 sequence no보다 큰 sequence no들 +1로 update해줌
+router.updateSequence=function(category,num,next){
+    let command = "UPDATE categories SET sequence=sequence"+num+" WHERE sequence >= :sequence and takitId=:takitId";
+    
+    performQueryWithParam(command, category, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("updateSeqWhenAdd success");
+            next(null, "success");
+        }
+    });
+}
+
+
+router.updateSeqWhenModify=function(category,next){
+	//newSequence : want to update sequence,   //oldSequence : saved sequence before
+	let command;
+	if(category.oldSequence > category.newSequence){
+    	command = "UPDATE categories SET sequence=(CASE WHEN sequence < :newSequence THEN sequence "
+        	+ "WHEN sequence=:oldSequence THEN :newSequence WHEN sequence > :oldSequence THEN sequence "
+        	+ "ELSE sequence+1 END)";
+	}else{
+		command = "UPDATE categories SET sequence=(CASE WHEN sequence > :newSequence THEN sequence "
+            + "WHEN sequence=:oldSequence THEN :newSequence WHEN sequence < :oldSequence THEN sequence "
+            + "ELSE sequence-1 END)";
+	}
+
+	command += " WHERE takitId=:takitId";
+
+    performQueryWithParam(command, category, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("updateSeqWhenModify success");
+            next(null, "success");
+        }
+    });
+}
+
 //shop user 정보 가져옴.
 
 
 router.insertMenu = function (menu, next) {
-    let command = "INSERT INTO menus VALUES(:menuNO,:menuName,:explanation,:price,:options,:takeout,:imagePath,:requiredTime,:menuNameEn,:explanationEn,:optionsEn)";
 
+	console.log(menu);
+	
+	if(menu.hasOwnProperty('options') && menu.options !== null){
+		menu.options = JSON.stringify(menu.options);
+	}
+
+	if(menu.hasOwnProperty('optionsEn') && menu.optionsEn !== null){
+        menu.optionsEn = JSON.stringify(menu.optionsEn);
+    }
+
+
+	//if(menu.optionsEn !== undefined){
+	//	menu.optionsEn = JOSN.stringify(menu.optionsEn);	
+	//}
+
+	delete menu.delivery;
+
+	let command = "INSERT INTO menus(";
+    let keys = Object.keys(menu);
+
+    //가지고 있는 키 만큼 query에 붙임
+    console.log(keys);
+    for (let i = 0; i < keys.length; i++) {
+        if (menu[keys[i]] !== "" && keys[i] !== "oldMenuName" && keys[i] !== "version") {
+            command += keys[i]+", ";
+        }
+    }	
+
+	command += ") VALUES("
+	command = command.replace(", )", ")");
+	
+	for (let i = 0; i < keys.length; i++) {
+        if (menu[keys[i]] !== "" && keys[i] !== "oldMenuName" && keys[i] !== "version") {
+            command += ":"+keys[i]+", ";
+        }
+    }
+	
+	command += ")";
+	command = command.replace(", )", ")");
+	
     performQueryWithParam(command, menu, function (err, result) {
         if (err) {
             console.log(err);
             next(err);
         } else {
-            console.log("updateCategory success");
+            console.log("insertMenu success");
             next(null, "success");
         }
     });
 };
 
 router.updateMenu = function (menu, next) {
+	//menu.options = JOSN.stringify(menu.options);
+    //menu.optionsEn = JOSN.stringify(menu.optionsEn);
+	delete menu.filename;
+	delete menu.categoryNO;
+	delete menu.delivery;
+
+
+	if(menu.hasOwnProperty('options') && menu.options !== null){
+        menu.options = JSON.stringify(menu.options);
+    }
+
+	if(menu.hasOwnProperty('optionsEn') && menu.optionsEn !== null){
+        menu.optionsEn = JSON.stringify(menu.optionsEn);
+    }
+	
     let command = "UPDATE menus SET ";
-    //WHERE takitId=? categoryNO=?";
     let keys = Object.keys(menu);
 
+	//가지고 있는 키 만큼 query에 붙임
     console.log(keys);
     for (let i = 0; i < keys.length; i++) {
-        if (menu[keys[i]] !== "" && [keys[i]] !== 'newMenuNO' && [keys[i]] !== "newMenuName") {
+        if (menu[keys[i]] !== "" && keys[i] !== "oldMenuName" && keys[i] !== "version") {
             command += keys[i] + "=:" + keys[i] + ", ";
-        } else if (keys[i] === "newMenuNO" && keys['newMenuNO'] !== "") {
-            command += "menuNO" + "=:" + keys[i] + ", ";
-        } else if (keys[i] === "newMenuName" && keys['newMenuName'] !== "") {
-            command += "menuName" + "=:" + keys[i] + ", ";
         }
     }
 
 
-    command += "WHERE menuNO=:menuNO and menuName=:menuName";
+    command += "WHERE menuNO=:menuNO and menuName=:oldMenuName";
     console.log(typeof command);
     command = command.replace(", WHERE", " WHERE");
     console.log(command);
@@ -2204,6 +2466,20 @@ router.updateMenu = function (menu, next) {
         }
     });
 };
+
+router.deleteMenu=function(menu,next){
+	let command = "DELETE FROM menus WHERE menuNO=:menuNO and menuName=:menuName";
+
+	performQueryWithParam(command, menu, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("router.deleteMenu success");
+            next(null, "success");
+        }
+    });
+}
 
 router.insertShopInfo = function (shopInfo, next) {
     let command = "INSERT INTO shopInfo(";
@@ -2296,6 +2572,31 @@ router.getCategories = function (takitId, categoryNO, next) {
     });
 }
 
+router.selectImagePath = (menu,next)=>{
+    let command = "select * from menus where menuNO like '"+menu.takitId+"%' and imagePath=?";
+    let values = [menu.fileName];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            if(result.info.numRows === '0'){
+                next(null,"success");
+            }else{
+				if(result[0].menuName === menu.menuName && result[0].menuNO === menu.menuNO){
+					next(null,"same menu");
+				}else{
+                	console.log("updateshopInfo success");
+                	console.log(result);
+                	delete result.info;
+                	next("exist same image");
+				}
+            }
+        }
+    });
+
+}
 
 router.updateMenusWithNO = function (takitId, categoryNO) {
 
@@ -2332,5 +2633,132 @@ router.updateMenusWithNO = function (takitId, categoryNO) {
 }
 
 //router.updateMenusWithNO("세종대@더큰도시락",13);
+
+//user별, 상점별, 메뉴별 order를 count
+router.selectOldOrders=(condition,next)=>{
+    let command = "SELECT menuNO,menuName, SUM(quantity) AS orderCount, orderList.amount FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId"
+                    +" WHERE orders.userId=:userId AND orders.takitId=:takitId GROUP BY menuName ORDER BY SUM(quantity) DESC";
+
+    performQueryWithParam(command,condition,(err,result)=>{
+        if(err){
+            console.log("selectOldOrders susccess:" + JSON.stringify(err));
+            next(err);
+        }else{
+            if(result.info.numRows==='0'){
+                next(null,"not exist oldOrders");
+            }else{
+                delete result.info;
+                next(null,result);
+            }
+        }
+    });
+}
+
+router.selectKeywordShopInfos=(body,next)=>{
+    let command = "SELECT *FROM shopInfo where keyword=:keyword";
+
+    performQueryWithParam(command,body,(err,result)=>{
+        if(err){
+            console.log("selectKewordShops susccess:" + JSON.stringify(err));
+            next(err);
+        }else{
+            if(result.info.numRows==='0'){
+                next(null,"not exist shops");
+            }else{
+                delete result.info;
+                next(null,result);
+            }
+        }
+    });
+}
+
+router.selectFavoriteShops=(userId,next)=>{
+    let command = "select count(*) as count, shopInfo.* from shopInfo "+
+                    "LEFT JOIN orders ON shopInfo.takitId=orders.takitId "+
+                    "where userId=:userId group by orders.takitId order by count desc;";
+    let values={userId:userId};
+
+    performQueryWithParam(command,values,(err,result)=>{
+        if(err){
+            console.log("selectFavoriteShops error:" + JSON.stringify(err));
+            next(err);
+        }else{
+            if(result.info.numRows==='0'){
+                next(null,[]);
+            }else{
+                delete result.info;
+                next(null,result);
+            }
+        }
+    });
+}
+
+router.updateCouponList=(bodycouponList,next)=>{
+    let command = "UPDATE userInfo set couponList=:couponList where userId=:userId";
+
+    performQueryWithParam(command,body,(err,result)=>{
+        if(err){
+            console.log("selectFavoriteShops susccess:" + JSON.stringify(err));
+            next(err);
+        }else{
+            if(result.info.numRows==='0'){
+                next(null,"not exist shops");
+            }else{
+                delete result.info;
+                next(null,result);
+            }
+        }
+    });
+}
+
+router.selectOneMenu=(body,next)=>{
+    let command = "SELECT * FROM menus WHERE menuNO=:menuNO AND menuName=:menuName";
+
+    performQueryWithParam(command,body,(err,result)=>{
+        if(err){
+            console.log("selectFavoriteShops susccess:" + JSON.stringify(err));
+            next(err);
+        }else{
+            if(result.info.numRows==='0'){
+                next(null,"not exist shops");
+            }else{
+                delete result.info;
+                next(null,result[0]);
+            }
+        }
+    });
+}
+
+router.selectTakitId = (body, next) =>{
+    console.log("mariaDB.selectTakitId " + body.hasOwnProperty("serviceName") + " " + body.hasOwnProperty("shopName"));
+    var command;
+    if (body.hasOwnProperty("serviceName") && body.hasOwnProperty("shopName")) {
+        command = "SELECT * from shopInfo where takitId='" + body.serviceName+"@"+ body.shopName+"'";
+    } else if (body.hasOwnProperty("serviceName")) {
+        command = "SELECT * from shopInfo where takitId LIKE _utf8 '" + body.serviceName + "%' LIMIT "+body.offset+","+ body.count;
+    } else if (body.hasOwnProperty("shopName")) {
+        command = "SELECT * from shopInfo where takitId LIKE _utf8 '%" + body.shopName + "' LIMIT "+body.offset+","+body.count;
+    } else {
+        console.log("no param");
+        next("not exist shop");
+        return;
+    }
+    console.log("command:" + command);
+    performQuery(command, function (err, result) {
+        if (err) {
+            console.log("findTakitId Error:" + JSON.stringify(err));
+            next(err);
+        } else {
+            console.log("result:" + JSON.stringify(result));
+            if (result.info.numRows==='0') {
+                next(null,[]);
+            } else {
+                delete result.info;
+                next(null,result);
+            }
+        }
+    });
+}
+
 
 module.exports = router;

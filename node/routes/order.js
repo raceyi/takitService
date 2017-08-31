@@ -23,22 +23,40 @@ console.log(a);
 
 function updateOrderStatus(order){
    let title;
-
-   switch (order.orderStatus){
-      case 'paid' :
-         title='[타킷] 주문 '+order.orderName; break;
-      case 'checked' :
-         title='[타킷] 주문접수 '+order.orderName; break;
-      case 'completed' :
-         title='[타킷] 주문준비완료 '+order.orderName; break;
-      case 'cancelled' :
-         title='[타킷] 주문취소 '+order.orderName; break;
-      default :
-         title = '[타킷]';
-   }
-
+	console.log("takeout:"+order.takeout);
+	
+	//배달일 경우
+	if(order.takeout == 2){
+		switch (order.orderStatus){
+      		case 'paid' :
+         		title='[타킷] 주문 '+order.orderName; break;
+      		case 'checked' :
+         		title='[타킷] 주문접수 '+order.orderName; break;
+      		case 'completed' :
+         		title='[타킷] 배달출발 '+order.orderName; break;
+      		case 'cancelled' :
+         		title='[타킷] 주문취소 '+order.orderName; break;
+      		default :
+         		title = '[타킷]';
+   			}
+	}else{
+   		switch (order.orderStatus){
+      		case 'paid' :
+         		title='[타킷] 주문 '+order.orderName; break;
+      		case 'checked' :
+         		title='[타킷] 주문접수 '+order.orderName; break;
+      		case 'completed' :
+         		title='[타킷] 주문준비완료 '+order.orderName; break;
+      		case 'cancelled' :
+         		title='[타킷] 주문취소 '+order.orderName; break;
+      		default :
+         		title = '[타킷]';
+   		}
+	}
    return title;
 }
+
+
 
 //1. user - SMS noti 필요한 사람
 //2. user - SMS noti 필요 없는 사람
@@ -120,7 +138,10 @@ function sendOrderMSGShop(order, shopUserInfo,next){
       const SMS = {};
       SMS.title = GCM.title;
       SMS.content = "주문번호 "+order.orderNO+" 새로고침 버튼을 눌러주세요";
+	  if(order.takitId==="세종대@더큰도시락"){
+		console.log("더큰도시락order");
 		noti.sendSMS(SMS.title+" "+SMS.content,["01042588226"]); //set production mode
+	  }
       noti.setRedisSchedule(shopUserInfo.userId+"_gcm_shop_"+messageId,shopUserInfo.phone,SMS,callback);
    },function(result,callback){
 		let sound = "takit";
@@ -228,7 +249,7 @@ router.saveOrder=function(req, res){
         },function(callback){
             mariaDB.getShopPushId(req.body.takitId,callback);
         },function(callback){
-            cash.payCash(req.body.cashId,req.body.amount,callback);
+            cash.payCash(req.body.cashId,req.body.amount,orderId,callback);
         }],callback);
 
     },function(result,callback){
@@ -260,8 +281,11 @@ router.saveOrder=function(req, res){
 router.getOrdersUser=function(req,res){
 	//1. period설정인지 아닌지 확인
 	//2. userId에 해당하는 order검색
+    console.log("getOrdersUsers body:"+req.body)
 	
-	mariaDB.getOrdersUser(req.session.uid,req.body.takitId,req.body.lastOrderId,req.body.limit,function(err,orders){
+	let body = req.body;
+	body.userId = req.session.uid	
+	mariaDB.getOrdersUser(body,(err,orders)=>{
 		
 		if(err){
 			let response = new index.FailResponse(err);
@@ -489,5 +513,23 @@ router.shopCancelOrder=function(req,res){
       }
    });
 };
+
+router.getOldOrders=(req,res)=>{
+    console.log("order.getOldOrders");
+    mariaDB.selectOldOrders({userId:req.session.uid,
+                             takitId:req.body.takitId},(err,oldOrders)=>{
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+      }else {
+			let response = new index.SuccResponse();
+			response.setVersion(config.MIGRATION,req.version);
+            response.oldOrders=oldOrders;
+            res.send(JSON.stringify(response));
+      }
+    });
+}
 	
 module.exports = router;
