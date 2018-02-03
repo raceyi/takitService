@@ -14,6 +14,7 @@ const index = require('./index');
 const redis = require("redis");
 const redisCli = redis.createClient();
 const router = express.Router();
+const fs=require('fs');
 
 var FACEBOOK_APP_ID;
 var FACEBOOK_APP_SECRET;
@@ -208,6 +209,7 @@ router.facebookLogin = function(req, res){
 		 let response = new index.SuccResponse();
 		 response.setVersion(config.MIGRATION,req.version);
 		 response.userInfo=userInfo;
+         response.userInfo.recommendShops=mariaDB.getRecommendShops();
          res.send(JSON.stringify(response));
       }
    });
@@ -215,7 +217,7 @@ router.facebookLogin = function(req, res){
 
 router.kakaoLogin=function(req,res){//referenceId 확인해서 로그인.
 
-   console.log("kakaoLogin request"+JSON.stringify(req.body));
+   console.log("kakaoLogin request params:"+JSON.stringify(req.body));
 
    let userInfo = {};
    let sessionId = "sess:"+req.sessionID //now sessionID
@@ -249,6 +251,7 @@ router.kakaoLogin=function(req,res){//referenceId 확인해서 로그인.
 			let response = new index.SuccResponse();
 			response.setVersion(config.MIGRATION,req.version);
 			response.userInfo=userInfo;
+            response.userInfo.recommendShops=mariaDB.getRecommendShops(); 
 			console.log(JSON.stringify(response));
          res.send(JSON.stringify(response));
       }
@@ -294,6 +297,9 @@ router.emailLogin=function(req,res){
 			let response = new index.SuccResponse();
 			response.setVersion(config.MIGRATION,req.version);
 			response.userInfo=userInfo;		
+            response.userInfo.recommendShops=mariaDB.getRecommendShops(); 
+            console.log(JSON.stringify(userInfo));
+            //console.log(JSON.stringify(response.recommendShops));
          res.send(JSON.stringify(response));
       }
    })
@@ -334,19 +340,18 @@ router.signup=function(req,res){
 	if(validityCheck(req.body.email,req.body.phone)){
 		console.log("email and phone is valid");
 
-
 		/*let password=null;
    		if(req.body.hasOwnProperty('password') && req.body.password !==null){
          	password=req.body.password;
         	}
 
-      let referenceId=null;
+            let referenceId=null;
         	if(req.body.hasOwnProperty('referenceId') && req.body.referenceId !==null){
          	referenceId=req.body.referenceId;
         	}
 		*/
 			mariaDB.insertUser(req.body,function(err,result){
-       	/*mariaDB.insertUser(referenceId,password,req.body.name,req.body.email,req.body.country, req.body.phone,0,function(err,result){*/
+       	    /* mariaDB.insertUser(referenceId,password,req.body.name,req.body.email,req.body.country, req.body.phone,0,function(err,result){ */
         	console.log("mariaDB next function."+JSON.stringify(result));
             if(err){
 				console.log(JSON.stringify(err));
@@ -358,13 +363,13 @@ router.signup=function(req,res){
 					let response = new index.Response();
 					response.setVersion(config.MIGRATION,req.version);
             	if(result === "duplication"){
-               	response.result = result;
+               	  response.result = result;
                   res.send(JSON.stringify(response));
                }else{
 						response.result = "success";
-               	response.email=req.body.email;
+               	  response.email=req.body.email;
                   req.session.uid=result;
-
+                  response.recommends= mariaDB.getRecommendShops(); 
                   console.log(req.session.uid);
                   console.log('send result'+JSON.stringify());
                	res.send(JSON.stringify(response));
@@ -446,6 +451,7 @@ router.unregister=function(req,res){
 function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min)) + min;
 }
+
 
 //청기와랩 API
 function sendSMS(content,receivers,next){
@@ -884,6 +890,7 @@ router.getFavoriteShops=(req,res)=>{
             console.log(shopInfos);
             let response = new index.SuccResponse();
             response.setVersion(config.MIGRATION,req.version);
+            console.log("-----shopInfos:"+JSON.stringify(shopInfos));
             response.shopInfos = shopInfos;
             res.send(JSON.stringify(response));
         }
@@ -958,6 +965,22 @@ router.searchTakitId=(req,res)=>{
     });
 }
 
+router.searchShop=function(req,res){
+    mariaDB.searchShop(req.body.keyword,(err,shopInfo)=>{
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+
+            let response = new index.SuccResponse();
+            response.shopInfo = shopInfo;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
 router.getEvents=(req,res)=>{
     redisCli.lrange('events',0,4,(err,events)=>{
         if(err){
@@ -997,5 +1020,22 @@ router.enterMenuDetail=(req,res)=>{
         }
     });
 }
+
+/*
+router.resetCashConfirmCount = function (req,res){
+    console.log("resetCashConfirmCount:"+JSON.stringify(req.body));
+    mariaDB.updateConfirmCount(req.body.cashId,0,function(err,result){
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+*/
 
 module.exports = router;

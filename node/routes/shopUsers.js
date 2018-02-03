@@ -146,6 +146,56 @@ router.kakaoLogin=function(req,res){
 	});
 }
 
+router.loginWithEmail=function(req,res){
+    console.log("loginWithEmail");
+    mariaDB.checkShopUserWithEmailAndPassword(req.body.email, req.body.password, function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.Response("invalidId");
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            console.log("mariaDB.existEmailAndPassword success");
+            mariaDB.getOnlyShopUserInfo(result.userId,function(err,shopUserInfo){
+                if(err){
+                    console.log(err);
+                    let response = new index.Response("invalidId");
+                response.setVersion(config.MIGRATION,req.version);
+                    res.send(JSON.stringify(response));
+                }else{
+                    console.log("getShopUserInfo function result:");
+                    console.log(shopUserInfo);
+                    req.session.uid = shopUserInfo[0].userId;
+                     //body.shopUserInfo={};
+                    let response = new index.SuccResponse();
+                    response.setVersion(config.MIGRATION,req.version);
+
+                 //delete secret info
+                 for(let i=0; i<shopUserInfo.length; i++){
+                    delete shopUserInfo[i].userId;
+                    delete shopUserInfo[i].password;
+                    delete shopUserInfo[i].salt;
+                    delete shopUserInfo[i].shopPushId;
+                 }
+
+                 console.log(shopUserInfo);
+                 response.shopUserInfo=shopUserInfo[0];
+                 //여러개 shopList 하나로 합치기
+                 let myShopList=[];
+                 for(let i=0; i<shopUserInfo.length; i++){
+                    let shopList = JSON.parse(shopUserInfo[i].myShopList);
+                    myShopList[i]=shopList[0];
+
+                 }
+                 response.shopUserInfo.myShopList=JSON.stringify(myShopList);
+                 console.log(JSON.stringify(response));
+                 res.send(JSON.stringify(response));
+                }
+            });
+        }
+    });
+}
+
 
 router.emailLogin=function(req,res){
 	mariaDB.existEmailAndPassword(req.body.email, req.body.password, function(err,result){
@@ -310,7 +360,7 @@ router.changeNotiMember=function(req,res){
 	let shopUserInfo={};
 	const GCM = {};
 	GCM.title = "주문 알림 멤버 변경"+req.body.takitId;
-	GCM.content = req.body.takitId+"의 알림이 다른 멤버로 변경 됩니다. 원하지 않는 경우 타킷운영자 앱을 실행해주세요.";
+	GCM.content = req.body.takitId+"의 알림이 다른 멤버로 변경 됩니다. 원하지 않는 경우 웨이티 상점앱을 실행해주세요.";
 	GCM.GCMType = "change_manager";
 	GCM.custom = {};
 
@@ -1036,6 +1086,5 @@ router.uploadMenuImage = (req,res)=>{
         }
     })
 }
-
 
 module.exports = router;

@@ -6,7 +6,7 @@ var express = require('express');
 var forceSSL = require('express-force-ssl');
 var fs = require('fs');
 var debug = require('debug')('https')
-  , http = require('http')
+//  , http = require('http')
   , https = require('https')
   , name = 'My App';
 //HTTPS-end
@@ -17,9 +17,9 @@ var gcm = require('node-gcm');
 ///////////////////////////////////
 // for commercial, please use below ssl_options
 var ssl_options = {
-		ca: fs.readFileSync('cert/RootChain/chain-bundle.pem'),
-		key: fs.readFileSync('cert/takit.biz_20161019FF28.key.pem'),
-		cert: fs.readFileSync('cert/takit.biz_20161019FF28.crt.pem')
+        ca: fs.readFileSync('cert/RootChain/chain-bundle.pem'),
+        key: fs.readFileSync('cert/takit.biz_201710177GY8.key.pem'),
+        cert: fs.readFileSync('cert/takit.biz_201710177GY8.crt.pem')
 };
 ////////////////////////////////////
 var path = require('path');
@@ -29,8 +29,8 @@ var bodyParser = require('body-parser');
 let index = require('./routes/index');
 let users = require('./routes/users');
 let mariaDB=require('./routes/mariaDB');
+let card=require('./routes/card');
 let s3= require('./routes/s3');
-
 let order=require('./routes/order');
 let shopUsers= require('./routes/shopUsers');
 let cash = require('./routes/cash');
@@ -38,6 +38,7 @@ let config=require('./config');
 let tomcatServer=require("./routes/tomcatServer");
 let op = require('./routes/op')
 
+var cors = require('cors');
 var app = express();
 
 var morgan = require('morgan');
@@ -54,17 +55,15 @@ debug('booting %s', name);
 //debug(req.method + ' ' + req.url);
 
 //HTTPS-begin
-var server = http.createServer(app);
+//var server = http.createServer(app);
 var secureServer = https.createServer(ssl_options, app);
-app.use(forceSSL); //-> please uncomment this code for https
+//app.use(forceSSL); //-> please uncomment this code for https
 //HTTPS-end
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 
-
-
-
+app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -134,9 +133,9 @@ app.all('*',function(req,res,next){
 	console.log(req.cookies)
 	console.log("req.url:"+req.url);
 	var url=req.url.toString();
-	/*if(req.body.version===config.OLD_VERSION || (url.startsWith("/cafe/shopHome") && req.method==="GET") ){
+	if(req.body.version===config.OLD_VERSION || (url.startsWith("/cafe/shopHome") && req.method==="GET") ){
 		const baseUrl = 'http://127.0.0.1:3000';
-    	console.log("req.method:"+req.method);
+    	console.log("old-version req.method:"+req.method);
     	console.log("req.headers:"+JSON.stringify(req.headers));
     	if(req.method=="GET"){
         	request({url: baseUrl+req.url,headers: req.headers,method:req.method}).pipe(res);
@@ -144,7 +143,6 @@ app.all('*',function(req,res,next){
         	request({url: baseUrl+req.url,headers: req.headers,body: JSON.stringify(req.body),method:req.method}).pipe(res);
     	}
 	}else{
-	*/
 	if(req.hasOwnProperty('session')){
    	console.log("valid session");
       console.log("req.session:"+JSON.stringify(req.session));
@@ -152,7 +150,7 @@ app.all('*',function(req,res,next){
       	console.log("req.session.uid:"+req.session.uid);
 			if(req.session.uid === config.tourModeId){
 				console.log("tourMode Id");
-				if(req.url !== "/saveOrder" && req.url !== "/shopEnter"){
+				if(req.url !== "/saveOrder" && req.url !="/saveOrderCart" && req.url !== "/shopEnter"){
 					next();
 				}else{
 					res.statusCode=401;
@@ -165,7 +163,7 @@ app.all('*',function(req,res,next){
 		console.log("invalid req.session.uid");
          var url=req.url.toString();
 		 if((req.url==="/signup" || req.url==="/kakaoLogin" || req.url==="/emailLogin" || req.url === "/facebooklogin" ||
-            req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || req.url==="/shop/emailLogin" || 
+            req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/loginWithEmail" || req.url==="/shop/secretLogin" || req.url==="/shop/emailLogin" || 
 				req.url ==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset" || req.url==="/getUserInfo" ||
 			 	req.url ==="/shop/insertTakitId" || req.url ==="/shop/insertCategory" || req.url ==="/shop/insertMenu" ||
 				req.url ==="/shop/insertShopInfo" || req.url ==="/shop/updateCategory" || req.url ==="/shop/updateMenu") 
@@ -183,7 +181,7 @@ app.all('*',function(req,res,next){
 	   console.log("invalid session");
       var url=req.url.toString();
       if((req.url==="/signup" || req.url==="/kakaoLogin" || req.url==="/emailLogin" || req.url === "/facebooklogin" ||
-			req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/secretLogin" || req.url==="/shop/emailLogin" ||
+			req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/loginWithEmail" || req.url==="/shop/secretLogin" || req.url==="/shop/emailLogin" ||
 			req.url==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset" || req.url==="/getUserInfo" ||
 			req.url ==="/shop/insertTakitId" || req.url ==="/shop/insertCategory" || req.url ==="/shop/insertMenu" ||
                 req.url ==="/shop/insertShopInfo" || req.url ==="/shop/updateCategory" || req.url ==="/shop/updateMenu") 
@@ -195,7 +193,7 @@ app.all('*',function(req,res,next){
          res.statusCode=401;
          res.end(JSON.stringify({"result":"failure"}));
    	}
-   //}
+   }
 }
 });
 
@@ -233,10 +231,15 @@ app.post('/getKeywordShopInfos',users.getKeywordShopInfos);
 app.post('/getFavoriteShops',users.getFavoriteShops);
 app.post('/getEvents',users.getEvents);
 
+app.post('/getOrdersDefault',order.getOrdersUserDefault); // added by kalen.lee
 app.post('/getOrders',order.getOrdersUser);
 app.post('/saveOrder',order.saveOrder);
+app.post('/saveOrderCart',order.saveOrderCart);
 app.post('/cancelOrder',order.cancelOrderUser);
+app.post('/cancelOrderCart',order.cancelOrderUserCart);
 app.post('/getOldOrders',order.getOldOrders);
+
+app.post('/getFavoriteMenu',order.getFavoriteMenu);
 
 app.post('/getCoupons',users.getCoupons);
 app.post('/downloadCoupon',users.downloadCoupon);
@@ -245,7 +248,15 @@ app.post('/shop/getOrders',order.getOrdersShop);
 app.post('/shop/checkOrder',order.checkOrder);
 app.post('/shop/completeOrder',order.completeOrder);
 app.post('/shop/cancelOrder',order.shopCancelOrder);
+//kalen.lee-begine
+app.post('/shop/checkOrderWithEmail',order.checkOrderWithEmail);
+app.post('/shop/completeOrderWithEmail',order.completeOrderWithEmail);
+app.post('/shop/cancelOrderWithEmail',order.shopCancelOrderWithEmail);
+app.post('/shop/pickupOrderWithEmail',order.pickupOrderWithEmail);
+app.post('/shop/notifyOrder',order.notifyOrder);
+//kalen.lee-end
 
+app.post('/shop/loginWithEmail',shopUsers.loginWithEmail);
 app.post('/shop/secretLogin', shopUsers.secretLogin);
 app.post('/shop/facebooklogin', shopUsers.facebookLogin);
 app.post('/shop/emailLogin', shopUsers.emailLogin);
@@ -278,6 +289,8 @@ app.post('/removeWrongCashList',cash.removeWrongCashList);
 app.post('/shop/checkWithdrawalCount',cash.checkWithdrawalCountShop);
 app.post('/shop/withdrawCash',cash.withdrawCashShop);
 app.post('/shop/getBalance',cash.getBalnaceShop);
+app.post('/resetManualFailure',cash.resetCashConfirmCount);
+
 app.post('/shop/getWithdrawalList',cash.getWithdrawalListShop);
 app.post('/shop/getAccount',shopUsers.getAccount);
 app.post('/cafe/shopHome',mariaDB.queryCafeHomePost);
@@ -291,11 +304,17 @@ app.post('/shop/addMenu', shopUsers.addMenu);
 app.post('/shop/modifyMenu', shopUsers.modifyMenu);
 app.post('/shop/removeMenu',shopUsers.removeMenu);
 app.post('/shop/uploadMenuImage', shopUsers.uploadMenuImage);
+app.post('/shop/inputReview',order.inputReview);
+app.post('/configureSoldOut',order.configureSoldOut);
 
 app.post('/enterMenuDetail',users.enterMenuDetail);
 app.get('/cafe/shopHome',mariaDB.queryCafeHome);
 
+app.post('/searchShop',users.searchShop);
 app.post('/searchTakitId',users.searchTakitId);
+app.post('/getPayMethod',mariaDB.getPayMethod);
+app.post('/removePayInfo',card.removePayInfo);
+app.post('/addPayInfo',card.addPayInfo);
 
 // catch 404 and forward to error handler
 app.post('/takitIdAutocomplete',function(req,res,next){
@@ -416,9 +435,6 @@ app.post('/registrationId',function(req,res){
 	});
 });
 				
-
-			
-
 app.post('/shop/registrationId',function(req,res){
 		console.log("req:"+JSON.stringify(req.body));
 		console.log("registrationId:"+req.body.registrationId);
@@ -489,7 +505,7 @@ app.configure();
 
 //HTTPS-begin
 secureServer.listen(443);
-//server.listen(80);
+//server.listen(8000);
 //HTTPS-end
 
 let t = new Date();

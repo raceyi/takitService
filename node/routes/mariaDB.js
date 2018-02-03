@@ -1,4 +1,3 @@
-
 let Client = require('mariasql'); //https://github.com/mscdex/node-mariasql
 let crypto = require('crypto');
 let timezoneJS = require('timezone-js');
@@ -9,6 +8,7 @@ let config = require('../config');
 let moment = require('moment');
 let index = require('./index');
 let op = require('./op');
+const fs=require('fs');
 
 let router = express.Router();
 
@@ -26,6 +26,7 @@ var c = new Client(mariaDBConfig);
 
 c.query('set names utf8;');
 c.query("use takit;");
+
 c.on('close', function () {
     console.log("DB close c.connected:" + c.connected);
     console.log("DB close c.connecting:" + c.connecting);
@@ -35,6 +36,42 @@ c.on('close', function () {
     console.log('Client connected');
 });
 
+var recommendShops;
+
+getRecommendShopsInfo(); //Please call it....
+
+function getRecommendShopsInfo(){
+    console.log("getRecommendShops\n");
+    fs.readFile('recommend.shop', 'utf8', function(err, contents) {
+        //console.log(contents);
+        let recommends=JSON.parse(contents);
+        console.log("recommends:"+JSON.stringify(recommends));
+        recommendShopInfo(recommends,function (err, info){ 
+            console.log("info:"+JSON.stringify(info));
+            let updateRecommendShops=[];
+            for(var i=0;i<info.length;i++){
+                let shop=info[i];
+                if(info[0].starCount!=0){
+                    shop.rate=shop.starRating/shop.starCount;
+                }else{
+                    shop.rate=null;
+                }
+                updateRecommendShops.push(shop);
+            }
+            recommendShops=updateRecommendShops; //!!!Please use sync and wait later
+            console.log("recommendShops:"+JSON.stringify(recommendShops));
+        });
+   });
+}
+
+router.getRecommendShops=function(){
+    console.log("recommendShops:"+JSON.stringify(recommendShops));
+    return recommendShops;
+}
+
+setInterval(()=>{
+   getRecommendShopsInfo();
+}, 60*60*1000); //every 60 minutes
 
 
 var flag;
@@ -143,6 +180,49 @@ router.existUserEmail = function (email, next) {
     });
 };
 
+function recommendShopInfo(shops,next) {
+          if(shops.length==0){
+              console.log("no recommend shops");
+              return;
+          }
+          let command;
+          let values=[];
+
+          //command="SELECT * from shopInfo where takitId=? OR takitId=? OR takitId=? OR takitId=? OR takitId=?";
+          command = "SELECT * from shopInfo where takitId=? ";
+        
+          for(var i=1;i<shops.length;i++)
+              command+="OR takitId=? ";
+          command+=";";
+
+          shops.forEach(shop=>{
+              values.push(shop);
+          });
+
+          console.log("...command:"+command);
+          performQueryWithParam(command, values, function (err, result) {
+          	if (err) {
+                console.log("performQueryWithParam error");
+                next(err);
+          	} else {
+                let shops=[];
+                console.log("result:"+JSON.stringify(result));
+                result.forEach(element => { 
+                    let shop={};
+                    shop.starRating    =element.starRating;
+                    shop.starCount     =element.starCount;
+                    shop.classification=element.classification;
+                    shop.takitId       =element.takitId;
+                    shop.imagePath     =element.imagePath;
+                    shop.paymethod     =element.paymethod;
+                    shop.deliveryArea  =element.deliveryArea;
+                    shops.push(shop); 
+                }); 
+                next(null,shops);    
+          	} 
+          });
+}
+
 router.existEmailAndPassword = function (email, password, next) {
     let secretEmail = encryption(email, config.ePwd);
 
@@ -195,7 +275,7 @@ router.existUser = function (referenceId, next) {
 };
 
 router.getUserPaymentInfo = function (id, successCallback, errorCallback) {
-    var command = "select name,email,phone from userInfo where id=\"" + id + "\";";
+    var command = "select name,email,phone from userInfo where userId=\"" + id + "\";";
     console.log("command:" + command);
     performQuery(command, function (err, result) {
         if (err) {
@@ -345,14 +425,23 @@ router.updateUserInfo = function (userInfo, next) {
     }
 
     let command;
-    if (userInfo.hasOwnProperty('userId') && userInfo.userId !== null) {
-        values.userId = userInfo.userId;
-        ////?????? 
-        command = "UPDATE userInfo set password=:password, salt=:salt, email=:email, phone=:phone, name=:name, receiptIssue=:receiptIssue,receiptId=:receiptId,receiptType=:receiptType,taxIssueEmail=:taxIssueEmail,taxIssueCompanyName=:taxIssueCompanyName where userId=:userId";
-    } else {
-        command = "UPDATE userInfo set password=:password, salt=:salt, receiptIssue=:receiptIssue,receiptId=:receiptId,receiptType=:receiptType,taxIssueEmail=:taxIssueEmail,taxIssueCompanyName=:taxIssueCompanyName where email=:email";
+    if(userInfo.password == undefined){
+          if (userInfo.hasOwnProperty('userId') && userInfo.userId !== null) {
+            values.userId = userInfo.userId;
+            command = "UPDATE userInfo set email=:email, phone=:phone, name=:name, receiptIssue=:receiptIssue,receiptId=:receiptId,receiptType=:receiptType,taxIssueEmail=:taxIssueEmail,taxIssueCompanyName=:taxIssueCompanyName where userId=:userId";
+        } else {
+            command = "UPDATE userInfo set receiptIssue=:receiptIssue,receiptId=:receiptId,receiptType=:receiptType,taxIssueEmail=:taxIssueEmail,taxIssueCompanyName=:taxIssueCompanyName where email=:email";
+        }
+        delete values.password;
+        delete values.salt;
+    }else{
+        if (userInfo.hasOwnProperty('userId') && userInfo.userId !== null) {
+            values.userId = userInfo.userId;
+            command = "UPDATE userInfo set password=:password, salt=:salt, email=:email, phone=:phone, name=:name, receiptIssue=:receiptIssue,receiptId=:receiptId,receiptType=:receiptType,taxIssueEmail=:taxIssueEmail,taxIssueCompanyName=:taxIssueCompanyName where userId=:userId";
+        } else {
+            command = "UPDATE userInfo set password=:password, salt=:salt, receiptIssue=:receiptIssue,receiptId=:receiptId,receiptType=:receiptType,taxIssueEmail=:taxIssueEmail,taxIssueCompanyName=:taxIssueCompanyName where email=:email";
+        }
     }
-
 
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
@@ -387,7 +476,12 @@ router.existShopUser = function (referenceId, next) {
 
     var secretReferenceId = encryption(referenceId, config.rPwd);
     console.log(secretReferenceId);
-    var command = "SELECT shopUserInfo.*, name, email FROM shopUserInfo LEFT JOIN userInfo ON shopUserInfo.userId=userInfo.userId where shopUserInfo.referenceId=?";
+//    var command = "SELECT shopUserInfo.*, name, email FROM shopUserInfo LEFT JOIN userInfo ON shopUserInfo.userId=userInfo.userId where shopUserInfo.referenceId=?";
+    // kalen-begin
+    var command = "SELECT shopUserInfo.* FROM shopUserInfo where shopUserInfo.referenceId=?";
+    // kalen-end
+    console.log("command:"+command);
+
     var values = [secretReferenceId];
 
     performQueryWithParam(command, values, function (err, result) {
@@ -440,8 +534,60 @@ router.getShopUserInfo = function (userId, next) {
     });
 }
 
-//userId+takitId 로 한명의 shopUser만 검색
+router.getShopUserInfoWithEmail = function (userId, next) {
+    let command = "SELECT * FROM shopUserInfo WHERE shopUserInfo.userId=?";
+    let values = [userId];
 
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log("shopUserInfo function query error:" + JSON.stringify(err));
+            next(err);
+        } else {
+            console.dir("[shopUserInfo function numRows]:" + result.info.numRows);
+            if (result.info.numRows === "0") {
+                next("invalidId");
+            } else {
+                console.log("shopUserInfo success");
+                let shopUserInfos = [];
+                result.forEach(function (shopUserInfo) {
+                    decryptObj(shopUserInfo);
+                    shopUserInfos.push(shopUserInfo);
+                });
+
+                next(null, shopUserInfos);
+            }
+        }
+    });
+}
+
+///////////////////////////////////////////////////
+router.getOnlyShopUserInfo = function (userId, next) {
+    let command = "SELECT shopUserInfo.* FROM shopUserInfo WHERE shopUserInfo.userId=?";
+    let values = [userId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log("shopUserInfo function query error:" + JSON.stringify(err));
+            next(err);
+        } else {
+            console.dir("[shopUserInfo function numRows]:" + result.info.numRows);
+            if (result.info.numRows === "0") {
+                next("invalidId");
+            } else {
+                console.log("shopUserInfo success");
+                let shopUserInfos = [];
+                result.forEach(function (shopUserInfo) {
+                    decryptObj(shopUserInfo);
+                    shopUserInfos.push(shopUserInfo);
+                });
+
+                next(null, shopUserInfos);
+            }
+        }
+    });
+}
+
+//userId+takitId 로 한명의 shopUser만 검색
 router.updateShopRefId = function (userId, referenceId, next) {
 
     let secretReferenceId = encryption(referenceId, config.rPwd);
@@ -735,6 +881,43 @@ function queryCafeHomeMenu(cafeHomeResponse, req, res) {
     });
 }
 
+router.getPayMethod = function(req,res){
+    var shops = JSON.parse(req.body.shops);
+    console.log("getPayMethod:" + JSON.stringify(shops));
+
+    let cafeHomeResponse = new index.SuccResponse();
+    cafeHomeResponse.setVersion(config.MIGRATION, req.version);
+
+    var command = "select takitId,paymethod from shopInfo where takitId=?";
+    var values = [shops[0]];
+
+    for(var i=1;i<shops.length;i++){
+      command+="OR takitId=?";
+      values.push(shops[i]);
+    }
+ 
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION, req.version);
+            res.send(JSON.stringify(response));
+        } else {
+            if (result.info.numRows === "0") {
+                let response = new index.FailResponse("query failure");
+                response.setVersion(config.MIGRATION, req.version);
+                res.send(JSON.stringify(response));
+            } else {
+               let response = new index.SuccResponse(); 
+               response.setVersion(config.MIGRATION, req.version);
+               console.log("result:"+JSON.stringify(result));
+               response.payMethods=result;
+               res.send(JSON.stringify(response));
+            }
+        }
+    });
+}
+
 router.queryCafeHome = function (req, res) {
     console.log("queryCafeHome:" + JSON.stringify(req.url));
     var url_strs = req.url.split("takitId=");
@@ -859,7 +1042,7 @@ router.queryCafeHomePost = function (req, res) {
             } else {
                 result.forEach(function (item) {
                     delete item.account;
-                    console.log(JSON.stringify(item));
+                    console.log("-----------------------hummmm"+JSON.stringify(item));
                     cafeHomeResponse.shopInfo = item;
                     queryCafeHomeMenuPost(cafeHomeResponse, req, res);
                 });
@@ -977,6 +1160,27 @@ router.getShopPushId = function (takitId, next) {
     });
 }
 
+
+router.getShopPushIdWithEmail=function(takitId,next){
+    let command = "SELECT userId,shopPushId, platform, phone, myShopList from shopUserInfo"
+        + " WHERE takitId=? and GCMNoti=? and email is not null"
+    let values = [takitId, "on"];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log("getShopPushId func Unable to query. Error:", JSON.stringify(err));
+            next(err);
+        } else {
+            console.log("[getShopPushid func get shopPushId]:" + JSON.stringify(result));
+            if (result.info.numRows === '0') {
+                next("not exist shopUser");
+            } else {
+                decryptObj(result[0]);
+                next(null, result[0]);
+            }
+        }
+    });
+}
 
 router.updateShopBusiness = function (takitId, flag, next) {
     console.log("enter updateShopBusiness function");
@@ -1208,14 +1412,15 @@ router.getOrderNumber = function (shopInfo, next) {
     }
 };
 
-router.insertOrderList=(orderId,i,orderList,next)=>{
+router.insertOrderList=(userId,orderId,i,orderList,next)=>{
     //orderId,menu,length,next
-	console.log(orderList);
-	let command = "INSERT INTO orderList(orderId,menuNO,menuName,quantity,options,price,amount) values(?,?,?,?,?,?,?)";
+	console.log("orderList:"+orderList+" userId:"+userId);
+	let command = "INSERT INTO orderList(orderId,menuNO,menuName,quantity,options,price,amount,takitId,userId) values(?,?,?,?,?,?,?,?,?)";
     let menu = orderList.menus[i];
 	console.log(i);
 	console.log(menu);
-    let values = [orderId, menu.menuNO, menu.menuName, menu.quantity, JSON.stringify(menu.options),menu.price, menu.amount];
+    let values = [orderId, menu.menuNO, menu.menuName, menu.quantity, JSON.stringify(menu.options),menu.price, menu.amount,
+                  orderList.takitId,userId];
                 //orderList.menus.length>1 이면 장바구니 주문 => amount에는 discountAmount가 들어가야 함
 
     performQueryWithParam(command, values, function (err, result) {
@@ -1226,10 +1431,23 @@ router.insertOrderList=(orderId,i,orderList,next)=>{
             console.log("saveOrder func insert orderList Query Succeeded");
             if(i < orderList.menus.length-1){
                 i++;
-                router.insertOrderList(orderId,i,orderList,next);
+                router.insertOrderList(userId,orderId,i,orderList,next);
             }else{
                 next(null,orderId);
             }
+        }
+    });
+}
+
+function removeOrderList(orderId,next){
+    let command = "DELETE from orderList where orderId=?";
+    let values = [orderId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("removeOrderList func Unable to query. Error:", JSON.stringify(err, null, 2));
+        } else {
+            console.log("removeOrderList func Query Succeeded");
         }
     });
 }
@@ -1246,9 +1464,9 @@ router.saveOrder = function (order, shopInfo, next) {
 
         //3. encrypt phone
             let secretUserPhone = encryption(userInfo.phone, config.pPwd);
-            let command = "INSERT INTO orders(takitId,shopName,orderName,payMethod,amount,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,userMSG,deliveryAddress,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            let command = "INSERT INTO orders(takitId,shopName,orderName,payMethod,amount,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,userMSG,deliveryAddress,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType,deliveryFee, imp_uid,approval,card_info) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
-            let values = [order.takitId,order.shopName, order.orderName, order.paymethod, order.amount, order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList,order.userMSG, order.deliveryAddress, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType];
+            let values = [order.takitId,order.shopName, order.orderName, order.paymethod, order.amount, order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList,order.userMSG, order.deliveryAddress, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType,order.deliveryFee,order.imp_uid,order.approval,order.card_info];
             performQueryWithParam(command, values, function (err, orderResult) {
                 if (err) {
                     console.error("saveOrder func inser orders Unable to query. Error:", JSON.stringify(err, null, 2));
@@ -1261,38 +1479,16 @@ router.saveOrder = function (order, shopInfo, next) {
                         console.log("saveOrder func Query succeeded. " + JSON.stringify(orderResult));
                         // 3.orderList insert
                         //let command = "INSERT INTO orderList(orderId,menuNO,menuName,quantity,options,price,amount) values(?,?,?,?,?,?)";
-                        let orderList = JSON.parse(order.orderList);
-						
+                        let orderList;
+                        console.log("orderList...."+order.orderList);
+                        if(typeof order.orderList === 'string'){
+                            orderList = JSON.parse(order.orderList);
+					    }else{
+                            orderList = order.orderList;
+                        }
 						let i=0;
-						console.log(orderList.menus[i]);
-                        router.insertOrderList(orderResult.info.insertId,i,orderList,next);						
-						/*
-                        let i=0;
-                        async.whilst(function(){return i<orderList.menus.length;
-                        },function(callback){
-                            console.log("menus length:" + orderList.menus.length+" i:"+i);
-                            let menu = orderList.menus[i];
-                            let values = [orderResult.info.insertId, menu.menuNO, menu.menuName, menu.quantity, JSON.stringify(menu.options),
-                                         (orderList.menus.length > 1) ? menu.discountAmount : menu.price];
-                    
-                            performQueryWithParam(command, values, function (err, result) {
-                                if (err) {
-                                    console.error("saveOrder func insert orderList Unable to query. Error:", JSON.stringify(err, null, 2));
-                                    callback(err);
-                                } else {
-                                    console.log("saveOrder func insert orderList Query Succeeded");
-                                    callback(null,"success");
-                                    //i++;
-                                }
-                            });
-							i++;
-                        },function(err,result){
-                            err 
-                            ? next(err) 
-                            : next(null,orderResult.info.insertId);
-                        })*/
-
-						        
+                        
+                        router.insertOrderList(userInfo.userId,orderResult.info.insertId,i,orderList,next);						
                     }
                 }
             });
@@ -1328,45 +1524,68 @@ router.getOrder = function (orderId, next) {
 
 
 //user가 주문내역 검색할 때,
-// router.getOrdersUser = function (userId, takitId, lastOrderId, limit, next) {
-//     console.log("takitId:" + takitId);
-//     var command;
-//     var values;
+router.getOrdersUserDefault = function (params, next) {
+     console.log("getOrdersUserDefault:"+JSON.stringify(params));
 
-//     if (lastOrderId == -1) {
-//         command = "SELECT *FROM orders WHERE userId=? AND takitId=? AND orderId > ?  ORDER BY orderId DESC LIMIT " + limit;
+     var userId=params.userId;
+     var lastOrderId=params.lastOrderId;
+     var limit=params.limit;
 
-//     } else {
-//         command = "SELECT *FROM orders WHERE userId=? AND takitId=? AND orderId < ?  ORDER BY orderId DESC LIMIT " + limit;
-//     }
+     console.log("lastOrderId:" + lastOrderId+" limit:"+limit);
+     var command;
+     var values;
 
-//     values = [userId, takitId, lastOrderId];
+     if(params.keyword){
+        if (lastOrderId == -1) {
+         command = "SELECT *FROM orders WHERE userId=? AND orderId > ? AND takitId LIKE _utf8 \"%"+params.keyword+"%\" ORDER BY orderId DESC LIMIT " + limit;
 
-//     //해당 user와 shop에 맞는 orders 검색	
-//     performQueryWithParam(command, values, function (err, result) {
-//         if (err) {
-//             console.error("getOrdersUser func Unable to query. Error:", JSON.stringify(err, null, 2));
-//             next(err);
-//         } else {
-//             console.dir("[getOrdersUser func Get MenuInfo]:" + result.info.numRows);
-//             if (result.info.numRows == 0) {
-//                 next(null, result.info.numRows);
-//             } else {
-//                 console.log("getOrdersUser func Query succeeded. " + JSON.stringify(result.info));
+       } else {
+         command = "SELECT *FROM orders WHERE userId=? AND orderId < ? AND takitId LIKE _utf8 \"%"+params.keyword+"%\" ORDER BY orderId DESC LIMIT " + limit;
+       }
+       values = [userId, lastOrderId];            
 
-//                 var orders = [];
+     }else if( params.hasOwnProperty('startLocalTime') && params.hasOwnProperty('endLocalTime')){
+       if (lastOrderId == -1) {
+         command = "SELECT *FROM orders WHERE userId=? AND orderId > ?  AND localOrderedTime>=? AND localOrderedTime<=? ORDER BY orderId DESC LIMIT " + limit;
 
-//                 result.forEach(function (order) {
-//                     decryptObj(order);
-//                     orders.push(order);
-//                 });
+       } else {
+         command = "SELECT *FROM orders WHERE userId=? AND orderId < ?  AND localOrderedTime>=? AND localOrderedTime<=? ORDER BY orderId DESC LIMIT " + limit;
+       }
+       values = [userId, lastOrderId,params.startLocalTime, params.endLocalTime];
+     }else{
+       if (lastOrderId == -1) {
+         command = "SELECT *FROM orders WHERE userId=? AND orderId > ?  ORDER BY orderId DESC LIMIT " + limit;
 
-//                 next(null, orders);
-//             }
-//         }
-//     })
+       } else {
+         command = "SELECT *FROM orders WHERE userId=? AND orderId < ?  ORDER BY orderId DESC LIMIT " + limit;
+       }
+       values = [userId, lastOrderId];
+     }
+     //해당 user와 shop에 맞는 orders 검색	
+     performQueryWithParam(command, values, function (err, result) {
+         if (err) {
+             console.error("getOrdersUser func Unable to query. Error:", JSON.stringify(err, null, 2));
+             next(err);
+         } else {
+             console.dir("[getOrdersUser func Get MenuInfo]:" + result.info.numRows);
+             if (result.info.numRows == 0) {
+                 next(null, result.info.numRows);
+             } else {
+                 console.log("getOrdersUser func Query succeeded. " + JSON.stringify(result.info));
 
-// }
+                 var orders = [];
+
+                 result.forEach(function (order) {
+                     decryptObj(order);
+                     orders.push(order);
+                 });
+
+                 next(null, orders);
+             }
+         }
+     })
+ }
+
 
 router.getOrdersUser = function (body, next) {
     console.log("takitId:" + JSON.stringify(body));
@@ -1593,7 +1812,7 @@ router.updateOrderStatus = function (orderId, oldStatus, nextStatus, timeName, t
     //현재 db에 저장된 주문상태,   새로 update할 주문상태
     //timeName is checkedTime, completeTime, canceledTime ...
 
-    var command = "SELECT orderStatus FROM orders WHERE orderId=?";  //orderStatus와 oldStatus 같은지 비교하기 위해 조회함. 
+    var command = "SELECT orderStatus FROM orders WHERE orderId=?";  //orderStatus와 oldStatus 같은지 비교하기 위해 조회함===> 잘못됨. 수정필요함 ㅜㅜ  
     var values = [orderId];
 
     performQueryWithParam(command, values, function (err, result) {
@@ -1621,11 +1840,12 @@ router.updateOrderStatus = function (orderId, oldStatus, nextStatus, timeName, t
                     if (nextStatus === 'cancelled') {
                         values.cancelReason = cancelReason;
                         values.localCancelledTime = op.getTimezoneLocalTime(timezone, timeValue);
+                        console.log("!!!! localCancelledTime:"+values.localCancelledTime);
                     }
                 } else {
                     next("incorrect old orderStatus");
+                    return;
                 }
-
 
                 performQueryWithParam(command, values, function (err, result) {
                     if (err) {
@@ -1637,6 +1857,9 @@ router.updateOrderStatus = function (orderId, oldStatus, nextStatus, timeName, t
                             next("can't update orders");
                         } else {
                             console.log("updateOrderStatus func Query succeeded. " + JSON.stringify(result[0]));
+                            if(nextStatus ==='cancelled'){
+                                removeOrderList(orderId);
+                            }
                             next(null, "success");
                         }
                     }
@@ -1775,8 +1998,6 @@ router.getPeriodStatsMenu = function (takitId, startTime, endTime, next) {
 
 
 //////////////cash /////////////////
-
-
 router.validCashId=(cashId,next)=>{
     let command = "SELECT *FROM cash WHERE cashId=?";
     let values=[cashId];
@@ -1795,8 +2016,6 @@ router.validCashId=(cashId,next)=>{
         }
     });
 }
-
-
 
 
 router.updateBalanceCash = function (cashId, amount, balance, next) {
@@ -1867,11 +2086,44 @@ router.getCashList = function (cashId, lastTuno, limit, next) {
 
     let command;
     if (lastTuno == -1) {
-        command = "SELECT takitId,orderName,cashList.* FROM cashList LEFT JOIN orders ON cashList.orderId=orders.orderId  WHERE cashId =? AND cashTuno > ? AND transactionType!='wrong' ORDER BY cashTuno DESC LIMIT " + limit;
+        command = "SELECT takitId,orderName,cashList.* FROM cashList LEFT JOIN orders ON cashList.orderId=orders.orderId  WHERE cashId =? AND cashTuno > ? AND transactionType!='wrong' ORDER BY transactionTime DESC LIMIT " + limit;
     } else {
-        command = "SELECT takitId,orderName,cashList.* FROM cashList LEFT JOIN orders ON cashList.orderId=orders.orderId WHERE cashId =? AND cashTuno < ? AND transactionType!='wrong' ORDER BY cashTuno DESC LIMIT " + limit;
+        command = "SELECT takitId,orderName,cashList.* FROM cashList LEFT JOIN orders ON cashList.orderId=orders.orderId WHERE cashId =? AND cashTuno < ? AND transactionType!='wrong' ORDER BY transactionTime DESC LIMIT " + limit;
     }
     let values = [cashId, lastTuno];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log("getCashList function Error:" + JSON.stringify(err));
+            next(err);
+        } else {
+            console.log("result:" + JSON.stringify(result));
+            if (result.info.numRows === '0') {
+                next(null, "0");
+            } else {
+                console.log("getCashList find cashList");
+                delete result.info;
+                for (let i = 0; i < result.length; i++) {
+                    if (result[i].account !== null) {
+                        decryptObj(result[i]);
+                    }
+                }
+                next(null, result);
+            }
+        }
+    });
+}
+
+router.getCashListWithPeriod = function (cashId, lastTuno,start,end, limit, next) {
+    console.log("mariaDB.getCashListWithPeriod start!!");
+
+    let command;
+    if (lastTuno == -1) {
+        command = "SELECT takitId,orderName,cashList.* FROM cashList LEFT JOIN orders ON cashList.orderId=orders.orderId  WHERE cashId =? AND cashTuno > ? AND transactionTime>=? AND transactionTime<=? AND transactionType!='wrong' ORDER BY transactionTime DESC LIMIT " + limit;
+    } else {
+        command = "SELECT takitId,orderName,cashList.* FROM cashList LEFT JOIN orders ON cashList.orderId=orders.orderId WHERE cashId =? AND cashTuno < ? AND transactionTime>=? AND transactionTime<=? AND transactionType!='wrong' ORDER BY transactionTime DESC LIMIT " + limit;
+    }
+    let values = [cashId, lastTuno,start,end];
 
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
@@ -2105,6 +2357,24 @@ router.updateConfirmCount = function (cashId, confirmCount, next) {
 router.updateSalesShop = function (takitId, amount, next) {
     console.log("updateShopSales start");
     let command = "UPDATE shopInfo SET sales=sales+?,balance=balance+? WHERE takitId=?";
+    let values = [amount, amount, takitId];
+
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log("updateSalesShop function Error:" + JSON.stringify(err));
+            next(err);
+        } else {
+            console.log("updateSalesShop result:" + JSON.stringify(result));
+            next(null, "success");
+        }
+    });
+}
+
+
+router.updateCardSalesShop = function (takitId, amount, next) {
+    console.log("updateShopSales start");
+    let command = "UPDATE shopInfo SET sales=sales+?,cardBalance=balance+? WHERE takitId=?";
     let values = [amount, amount, takitId];
 
 
@@ -2686,8 +2956,10 @@ router.selectFavoriteShops=(userId,next)=>{
             if(result.info.numRows==='0'){
                 next(null,[]);
             }else{
-                delete result.info;
-                next(null,result);
+                let shops=[];
+                for(var i=0;i<result.info.numRows && i<4;i++)
+                       shops.push(result[i]);
+                next(null,shops);
             }
         }
     });
@@ -2716,7 +2988,7 @@ router.selectOneMenu=(body,next)=>{
 
     performQueryWithParam(command,body,(err,result)=>{
         if(err){
-            console.log("selectFavoriteShops susccess:" + JSON.stringify(err));
+            console.log("selectOneMenu err:" + JSON.stringify(err));
             next(err);
         }else{
             if(result.info.numRows==='0'){
@@ -2725,6 +2997,24 @@ router.selectOneMenu=(body,next)=>{
                 delete result.info;
                 next(null,result[0]);
             }
+        }
+    });
+}
+
+router.searchShop = function(keyword,next){ //Please change this code later...with limit
+    let command;
+    command = "SELECT takitId from shopInfo where takitId LIKE _utf8 \"%"+keyword+"%\"";
+
+    performQuery(command,(err,result)=>{
+        if(err){
+            console.log(":" + JSON.stringify(err));
+            next(err);
+        }else{
+                let shops=[];
+                for(var i=0;i<4 && i<result.info.numRows;i++)
+                    shops.push(result[i]);
+                console.log("shops:"+JSON.stringify(shops));
+                next(null,shops);
         }
     });
 }
@@ -2760,5 +3050,329 @@ router.selectTakitId = (body, next) =>{
     });
 }
 
+/*
+let info={customer_uid:req.body.customer_uid,name:cardInfo.response.card_name,mask_no:cardInfo.response.card_number};
+mariaDB.addPayInfo(uid,info,function(err,result){
+*/
+router.addPayInfo=function(id,info,next){
+    var command = "select payInfo from userInfo where userId="+ id;
+    console.log("command:" + command);
+    performQuery(command, function (err, result) {
+        console.log("addPayInfo performQuery");
+        if (err) {
+            console.log(JSON.stringify(err));
+            next(err);
+        }else{
+            if (result.info.numRows === "0") {
+                next("user doesn't exist");
+            }else{
+                console.log("result[0]:" + JSON.stringify(result[0]));
+                let payInfo=[];
+                if(result[0].payInfo!=null)
+                    payInfo=JSON.parse(result[0].payInfo);
+                payInfo.push({customer_uid:info.customer_uid,info:{name:info.name,mask_no:info.mask_no}});
+                console.log("payInfo:"+JSON.stringify(payInfo));
+                command = "UPDATE userInfo set payInfo =? where userId=?";
+                let values=[JSON.stringify(payInfo),id]; 
+                  
+                performQueryWithParam(command, values, function (err, result) {
+                    if (err) {
+                        console.log("performQueryWithParam error");
+                        next("mariaDB error");
+                    } else {
+                        console.log("result:"+JSON.stringify(result));
+                        next(null,JSON.stringify(payInfo));
+                    }
+              });
+            }
+        }
+    });
+}
 
+router.removePayInfo=function(id,customer_uid,next){
+    var command = "select payInfo from userInfo where userId=\"" + id + "\";";
+    console.log("command:" + command);
+    performQuery(command, function (err, result) {
+        if (err) {
+            console.log(JSON.stringify(err));
+            next(err);
+        }else{
+            if (result.info.numRows === "0") {
+                next("user doesn't exist");
+            }else{
+                console.log("result[0]:" + JSON.stringify(result[0]));
+                let payInfo=[];
+                if(result[0].payInfo==null){
+                    next("payInfo doesn't exist");
+                }else{ 
+                    payInfo=JSON.parse(result[0].payInfo);
+                    let index=-1;
+                    for(var i=0;i<payInfo.length;i++)
+                        if(payInfo[i].customer_uid==customer_uid)
+                           index=i; 
+                    if(index==-1){
+                        next("payInfo doesn have "+customer_uid);
+                    }else{
+                        payInfo.splice(index,1);
+ 
+                        console.log("payInfo:"+JSON.stringify(payInfo));
+                        command = "UPDATE userInfo set payInfo =? where userId=?";
+                        let values=[JSON.stringify(payInfo),id];
+
+                        performQueryWithParam(command, values, function (err, result) {
+                           if(err){
+                               console.log("performQueryWithParam error");
+                               next("mariaDB error");
+                           }else {
+                               console.log("result:"+JSON.stringify(result));
+                               next(null,JSON.stringify(payInfo));
+                           }
+                        });
+                    }
+                }
+            }
+        }   
+    });
+}
+
+router.validPayInfo=function(userId,customer_uid,next){
+    var command = "select payInfo from userInfo where userId=\"" + userId + "\";";
+    console.log("command:" + command);
+    performQuery(command, function (err, result) {
+        if (err) {
+            console.log(JSON.stringify(err));
+            next(err);
+        }else{
+            if (result.info.numRows === "0") {
+                next("user doesn't exist");
+            }else{
+                console.log("result[0]:" + JSON.stringify(result[0]));
+                let payInfo=[];
+                if(result[0].payInfo==null){
+                    next("wrong payInfo");
+                }else{
+                    payInfo=JSON.parse(result[0].payInfo);
+                    let index=-1;
+                    for(var i=0;i<payInfo.length;i++){
+                        console.log("(payInfo[i].customer_uid:"+(payInfo[i].customer_uid)); 
+                        console.log("customer_uid:"+customer_uid);
+                        if(payInfo[i].customer_uid==customer_uid)
+                           index=i;
+                    }
+                    if(index==-1){
+                        next("wrong payInfo");
+                    }else{
+                        console.log("info:"+payInfo[index].info);
+                        next(null,payInfo[index].info);
+                    }
+                } 
+            } 
+        }
+    });
+};
+
+router.checkShopUserWithEmailAndPassword = function (email, password, next) {
+    let secretEmail = encryption(email, config.ePwd);
+
+    let command = "SELECT userId,password,salt FROM shopUserInfo where email=?";
+    let values = [secretEmail];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            //console.log("[existUser]:"+result.info.numRows);
+            if (result.info.numRows === "0") {
+                next("invalidId");
+            } else {
+                console.log(result);
+                let userInfo = result[0];
+                let secretPassword = crypto.createHash('sha256').update(password + userInfo.salt).digest('hex');
+
+                if (secretPassword === userInfo.password) {
+                    console.log("password success!!");
+                    decryptObj(userInfo);
+                    next(null, userInfo);
+                } else {
+                    next("passwordFail");
+                }
+            }
+        }
+    });
+}
+
+router.saveReview=function(orderId,starRate,review,callback){
+    let command = "UPDATE orders SET review=?,starRate=? WHERE orderId=?";
+    let values = [review, starRate, orderId];
+    
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            callback(err);
+        } else {
+                console.log(result);
+                callback(null,result);
+        }
+    });
+}
+
+router.updateShopRating=function(takitId,starRate,next){
+    console.log("starRate:"+starRate);
+    let command = "UPDATE shopInfo SET starRating=starRating+?,starCount=starCount+1 WHERE takitId=?";
+    let values = [starRate, takitId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+                console.log(result);
+                next(null,result);
+        }
+    });
+}
+
+function checkIfAMenuSoldOut(menu,callback){
+    let command = "SELECT soldout FROM menus where menuNO=? AND menuName=?";
+    let values = [menu.menuNO, menu.menuName];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            callback(err);
+        } else {
+                console.log("soldout:"+result[0].soldout);
+                if (result[0].soldout=='0') { // 판매중
+                    callback(null, "sale");
+                } else {
+                    callback("soldout");
+                }
+        }
+    });
+}
+
+router.checkIfMenuSoldOut=function(menus,next){
+    async.each(menus,checkIfAMenuSoldOut,function(err,result){
+              if(err){
+                  next("soldout"); 
+              }else{
+                  next(null,"sale");   
+              }
+    });
+}
+
+router.getFavoriteMenu=function(userId,next){
+    //let command = "select menuNO, menuName, COUNT(*) from orderList GROUP BY menuNO,menuName order by count(*) desc where userId=?";
+    let command ="select orderList.takitId,orderList.menuNO,orderList.menuName,menus.price,menus.imagePath, count(*) as count  from orderList LEFT JOIN menus ON orderList.menuNO=menus.menuNO AND orderList.menuName=menus.menuName where userId=? GROUP BY orderList.menuNO,orderList.menuName order by count desc" 
+
+    let values = [userId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            callback(err);
+        } else {
+                let menus=[];
+                for(var i=0;i<4 && i<result.info.numRows;i++)
+                    menus.push(result[i]); 
+                console.log("menus:"+JSON.stringify(menus));
+                next(null, menus);
+        }
+    });
+}
+
+router.configureMenuSoldOut=function(menu,next){
+    console.log("configureMenuSoldOut:"+JSON.stringify(menu));
+    let soldout=menu.soldout?1:0;
+
+    let values = [soldout,menu.menuNO,menu.menuName];
+    let command="UPDATE menus SET soldout=? where menuNO=? and menuName=?";
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            callback(err);
+        } else {
+                next(null, menu.soldout);
+        }
+    });
+}
+////////////////////////////////SoldOut -begin ////////////////////////////////////////////
+//  매일 00:00에 soldout flag를 false로 reset한다
+//  성공한다면 shopInfo table에 soldoutDate설정값을 저장한다.
+//  향후 상점 open시점에 맞추어 변경이 필요하다.
+//////////////////////////////////////////////////////////////
+function allSoldOutDate(next) {
+    let command="select takitId ,soldoutDate from shopInfo;";
+    console.log("command:" + command);
+    performQuery(command, function (err, result) {
+        if (err) {
+            console.log("allSoldOutDate Error:" + JSON.stringify(err));
+            next(JSON.stringify(err));
+        } else {
+            if (result == undefined) {
+                next([]);
+            } else {
+                let shops=[];
+                 result.forEach(element => {
+                    let shop={};
+                    shop.takitId       =element.takitId;
+                    shop.soldoutDate   =element.soldoutDate;
+                    shops.push(shop);
+                });
+                next(null, shops);
+            }
+        }
+    });
+}
+
+function configureSoldout(){
+  allSoldOutDate(function(err,shops){
+    let now= new Date();
+    let todayStr = now.getYear()+'-'+now.getMonth()+'-'+now.getDate();
+    //console.log("todayStr:"+todayStr);
+    //console.log("result:"+JSON.stringify(shops));
+    for(var i=0;i<shops.length;i++){
+        if(shops[i].soldoutDate==null || shops[i].soldoutDate!=todayStr){
+            let takitId=shops[i].takitId;
+            let command="UPDATE menus SET soldout=false where menuNO LIKE  _utf8\'" + takitId + "%\';";
+              performQuery(command, function (err, result) {
+              if (err) {
+                  console.log("allSoldOutDate Error:" + JSON.stringify(err));
+              } else {
+                  //console.log("result:" + JSON.stringify(result));
+                  if (result == undefined) {
+                      console.log(result[i].takitId+"doesn't have menu yet");
+                  } else {
+                      //console.dir("result:" + result.info.numRows);
+                  }
+                  // update soldoutDate at shopInfo table 
+                  let command="UPDATE shopInfo SET soldoutDate=\'"+todayStr+"\' where takitId=?";   
+                  let values= [takitId];
+                  performQueryWithParam(command, values, function (err, result) {
+                      if(err){
+                          console.log("fail to update soldoutDate in shopInfo");
+                      }else{
+                          console.log("update soldoutDate is done");
+                      }                       
+                  });
+              }
+         });
+        }
+    }
+  });
+}
+
+configureSoldout();
+let d = new Date();
+let msSinceMidnight = d.getTime() - d.setHours(0,0,0,0);
+let nextTimeout = 24*60*60*1000- msSinceMidnight;
+console.log("nextTimeout:"+nextTimeout);
+setTimeout(function(){ 
+             configureSoldout();
+             setInterval(configureSoldout,24*60*60*1000); // 24 hours later 
+}, nextTimeout);
+////////////////////////////////SoldOut -end////////////////////////////////////////////
 module.exports = router;
+

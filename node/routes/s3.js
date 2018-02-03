@@ -62,7 +62,17 @@ router.uploadMenuImage = (req,res)=>{
 }
 */
 router.uploadS3=function(data,next){
-	let s3obj = new AWS.S3({params: {Bucket: data.bucket, Key: data.fileName}});
+    console.log("data.bucket:"+data.bucket);
+   
+    var keyName=data.fileName;
+    if(data.fileName.includes("?")){   //remove ? from keyName
+        var substrs=keyName.split("?");
+        keyName=substrs[0]+substrs[1];
+    }
+    console.log("keyName:"+keyName);
+
+	let s3obj = new AWS.S3({params: {Bucket: data.bucket, Key: keyName}}); //Key: data.fileName}});
+
 	console.log(data.fileName);
 	fs.readFile('./uploads/'+data.fileName,(err,file)=>{
 		if(err){
@@ -77,9 +87,9 @@ router.uploadS3=function(data,next){
 		  		if(err){
 			  		console.log("Error uploading data: ", err);
               		next(err);
-		  		}else{ // save it into dynamoDB if param has takitId
+		  		}else{ 
 			  		console.log("s3 upload successfully");
-              		next();
+                    next(null,keyName);
 		  		}
 	  		});
 		}

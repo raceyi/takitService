@@ -70,6 +70,7 @@ router.checkCashInfo = function (req, res) {
 }
 
 router.validCashId = (req,res)=>{
+    console.log("validCashId "+JSON.stringify(req.body));
     mariaDB.validCashId(req.body.cashId.toUpperCase(),(err,result)=>{
         if (err) {
             console.log(err);
@@ -658,7 +659,7 @@ router.payCash = function (cashId, amount,orderId, next) {
 
 //////// 주문 취소로 cash로 환불 //////
 
-router.cancelCash = function (cashId, amount, next) {
+router.cancelCash = function (cashId,orderId,amount, next) {
 	console.log("cancel cash start");
 	let balance;
     async.waterfall([function(callback){
@@ -678,6 +679,7 @@ router.cancelCash = function (cashId, amount, next) {
         cashList.transactionTime = new Date().toISOString();
         cashList.confirm = 1;
         cashList.nowBalance = balance;
+        cashList.orderId=orderId;
         mariaDB.insertCashList(cashList, callback);
     }], function (err, result) {
         if (err) {
@@ -694,6 +696,8 @@ router.cancelCash = function (cashId, amount, next) {
 ///////////환불 API////////////
 
 router.registRefundAccount = function (req, res) {
+    console.log("body:"+JSON.stringify(req.body));
+
     async.waterfall([function (callback) {
         if (req.body.bankCode === NHCode) { //농협일때
             router.InquireDepositorAccountNumber(req.body.account, callback);
@@ -986,7 +990,9 @@ router.getBalanceCash = function (req, res) {
 
 // 캐쉬 사용내역 조회
 router.getCashList = function (req, res) {
-    mariaDB.getCashList(req.body.cashId.toUpperCase(), req.body.lastTuno, req.body.limit, function (err, cashList) {
+     console.log("getCashList:"+JSON.stringify(req.body));
+    if(req.body.hasOwnProperty('startGMTTime') && req.body.hasOwnProperty('endGMTTime')){
+      mariaDB.getCashListWithPeriod(req.body.cashId.toUpperCase(), req.body.lastTuno,req.body.startGMTTime,req.body.endGMTTime,req.body.limit, function (err, cashList) {
         if (err) {
             let response = new index.FailResponse(err);
             response.setVersion(config.MIGRATION, req.version);
@@ -997,7 +1003,21 @@ router.getCashList = function (req, res) {
             response.cashList = cashList;
             res.send(JSON.stringify(response));
         }
-    });
+      });
+    }else{
+      mariaDB.getCashList(req.body.cashId.toUpperCase(), req.body.lastTuno, req.body.limit, function (err, cashList) {
+        if (err) {
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION, req.version);
+            res.send(JSON.stringify(response));
+        } else {
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION, req.version);
+            response.cashList = cashList;
+            res.send(JSON.stringify(response));
+        }
+      });
+    }
 };
 
 
@@ -1019,5 +1039,18 @@ router.branchNameAutoComplete = function (req, res) {
 };
 
 
-
+router.resetCashConfirmCount = function (req,res){
+    console.log("resetCashConfirmCount:"+JSON.stringify(req.body));
+    mariaDB.updateConfirmCount(req.body.cashId,0,function(err,result){
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
 module.exports = router;

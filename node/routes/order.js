@@ -9,6 +9,7 @@ let Scheduler = require('redis-scheduler');
 let mariaDB = require('./mariaDB');
 let noti = require('./notification');
 let cash = require('./cash');
+let card = require('./card');
 let config = require('../config');
 let index = require('./index');
 let op = require('./op');
@@ -29,28 +30,30 @@ function updateOrderStatus(order){
 	if(order.takeout == 2){
 		switch (order.orderStatus){
       		case 'paid' :
-         		title='[타킷] 주문 '+order.orderName; break;
+         		title='[웨이티] 주문 '+order.orderName; break;
       		case 'checked' :
-         		title='[타킷] 주문접수 '+order.orderName; break;
+         		title='[웨이티] 주문접수 '+order.orderName; break;
       		case 'completed' :
-         		title='[타킷] 배달출발 '+order.orderName; break;
+         		title='[웨이티] 배달출발 '+order.orderName; break;
       		case 'cancelled' :
-         		title='[타킷] 주문취소 '+order.orderName; break;
+         		title='[웨이티] 주문취소 '+order.orderName; break;
       		default :
-         		title = '[타킷]';
+         		title = '[웨이티]';
    			}
 	}else{
    		switch (order.orderStatus){
       		case 'paid' :
-         		title='[타킷] 주문 '+order.orderName; break;
+         		title='[웨이티] 주문 '+order.orderName; break;
       		case 'checked' :
-         		title='[타킷] 주문접수 '+order.orderName; break;
+         		title='[웨이티] 주문접수 '+order.orderName; break;
       		case 'completed' :
-         		title='[타킷] 주문준비완료 '+order.orderName; break;
+         		title='[웨이티] 주문준비완료 '+order.orderName; break;
       		case 'cancelled' :
-         		title='[타킷] 주문취소 '+order.orderName; break;
+         		title='[웨이티] 주문취소 '+order.orderName; break;
+            case 'pickup':
+                title='[웨이티]주문전달완료 '+order.orderName;break;
       		default :
-         		title = '[타킷]';
+         		title = '[웨이티]';
    		}
 	}
    return title;
@@ -78,6 +81,7 @@ function sendOrderMSGUser(order,userInfo,next){
       async.waterfall([function(callback){
          redisCli.incr("gcm",callback);
       },function(messageId,callback){
+         console.log("sendOrderMSGUser messageId:"+messageId);
          GCM.messageId = messageId;
          const SMS = {};
          SMS.title = GCM.title;
@@ -86,7 +90,7 @@ function sendOrderMSGUser(order,userInfo,next){
 			if(userInfo.pushId === null || userInfo.pushId === undefined){
          	noti.setRedisScheduleLMS(order.userId+"_gcm_user_"+messageId,order.userPhone,SMS,10000,callback);
 			}else{
-				noti.setRedisScheduleLMS(order.userId+"_gcm_user_"+messageId,order.userPhone,SMS,60000,callback);
+				noti.setRedisScheduleLMS(order.userId+"_gcm_user_"+messageId,order.userPhone,SMS,60000,callback); // humm... one minutes
 			}
       },function(result,callback){
          noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId], userInfo.platform,"takit",callback);
@@ -138,10 +142,13 @@ function sendOrderMSGShop(order, shopUserInfo,next){
       const SMS = {};
       SMS.title = GCM.title;
       SMS.content = "주문번호 "+order.orderNO+" 새로고침 버튼을 눌러주세요";
-	  if(order.takitId==="세종대@더큰도시락"){
-		console.log("더큰도시락order");
-		noti.sendSMS(SMS.title+" "+SMS.content,["01042588226"]); //set production mode
-	  }
+      ///////////////////////////////////////////////////////////////////////////////
+	  ///if(order.takitId==="세종대@더큰도시락"){
+	  //	console.log("더큰도시락order");
+	  //	noti.sendSMS(SMS.title+" "+SMS.content,["01042588226"]); //set production mode
+	  //}
+      //////////////////////////////////////////////////////////////////////////////
+      console.log("shopUserInfo.phone:"+shopUserInfo.phone);
       noti.setRedisSchedule(shopUserInfo.userId+"_gcm_shop_"+messageId,shopUserInfo.phone,SMS,callback);
    },function(result,callback){
 		let sound = "takit";
@@ -176,16 +183,10 @@ function sendOrderMSGShop(order, shopUserInfo,next){
 // }
 
 
-
-
-
-
 //{\"open\":[[10,8,8,8,8,8,10],[00,00,00,00,00,00,00]],\"close\": [[18,19,19,19,19,19,18],[40,40,40,40,40,40,40]]}
 
 //[\"10:00~18:40\",\"08:00~19:40\",\"08:00~19:40\",\"08:00~19:40\",\"08:00~19:40\",\"08:00~19:40\",\"10:00~18:40\"]
 //주문정보 저장
-
-
 
 router.saveOrder=function(req, res){
 	let order=req.body;
@@ -232,12 +233,6 @@ router.saveOrder=function(req, res){
         }else{
             callback("shop's business time is null");
         }
-
-        // if(shopInfo.business === "on"){	
-        //     mariaDB.getOrderNumber(shopInfo,callback);
-        // }else{
-        //     callback("shop's off");
-        // }
     },function(orderNO,callback){
         order.orderNO=orderNO;
         console.log("orderNO:"+orderNO);
@@ -251,16 +246,11 @@ router.saveOrder=function(req, res){
         },function(callback){
             cash.payCash(req.body.cashId,req.body.amount,orderId,callback);
         }],callback);
-
     },function(result,callback){
-        //async.parallel([function(callback){
-    //	mariaDB.updateSalesShop(req.body.takitId,req.body.amount,callback); //지불한 상점에 매출 더해줌.
-    //},function(callback){
         console.log("getShopPushId result:"+JSON.stringify(result));
         console.log(result[0]);
         console.log(result[1]);
         sendOrderMSGShop(result[0],result[1],callback); //result[0]:order, result[1] :shopUserInfo(shopPushId, userId, platform)
-    //}],callback);
     }],function(err,result){
         if(err){
 			console.log(err);
@@ -277,6 +267,188 @@ router.saveOrder=function(req, res){
         }
     });
 };
+
+//param:uid, order,orderedTime,paymethod,customer_uid
+function saveOrderEach(param,next){
+    console.log("param:"+JSON.stringify(param));
+    let order=param.order;
+
+    order.orderStatus="paid";
+
+    order.orderedTime    =param.orderedTime;
+    order.takeout        =param.takeout;
+    order.userId         =param.userId;
+    order.deliveryFee    =param.deliveryFee;
+    order.deliveryAddress=param.deliveryAddress;
+    order.customer_uid   =param.customer_uid;
+
+	let shopInfo;
+ 
+    async.waterfall([function(callback){
+      //check if menu is soldout
+      let menus=[];
+      order.orderList.menus.forEach(menu=>{
+           let menuInfo={menuNO:menu.menuNO,menuName:menu.menuName};
+           menus.push(menuInfo);
+      });
+      console.log("menus:"+JSON.stringify(menus));
+      mariaDB.checkIfMenuSoldOut(menus,callback);
+    },function(result,callback){
+        console.log("result of soldout"+result);
+        mariaDB.getShopInfo(order.takitId,callback);
+    },function(result,callback){
+        shopInfo = result;
+        
+        //console.log("shopInfo:"+JSON.stringify(shopInfo));
+        // humm please check it according to payment
+        let user_paymethod=order.paymethod;
+        let shop_paymethod=JSON.parse(shopInfo.paymethod);
+
+        console.log("shop_paymethod.cash:"+shop_paymethod.cash);
+        console.log("user_paymethod.card:"+user_paymethod.card);
+
+        if(param.payment=="cash" && shop_paymethod.cash!=user_paymethod.cash)
+            callback("paymethod is out of date");
+        else if(param.payment=="card" && shop_paymethod.card!=user_paymethod.card)
+            callback("paymethod is out of date");
+        else
+            callback(null, param.payment);        
+    },function(payment,callback){
+        order.paymethod=payment; // DB의 이름이 paymethod임
+        if(payment=="card"){
+            card.payCard(order.userId,order.amount,order.customer_uid,order.orderName,callback); 
+        }else{           
+            callback(null,"cash"); 
+        } 
+    },function(approval,callback){
+        if(typeof approval === 'object'){
+            order.imp_uid  = approval.imp_uid;
+            order.approval = approval.approval;
+            order.card_info= approval.card_info;
+            console.log("order_card_info:"+order.card_info);
+        }
+        console.log("order.orderedTime:"+order.orderedTime);
+
+        let UTCOrderTime=new Date(order.orderedTime);
+        let localOrderedTime  = op.getTimezoneLocalTime(shopInfo.timezone,UTCOrderTime);
+
+        order.localOrderedTime=localOrderedTime.toISOString();
+        order.localOrderedHour=localOrderedTime.getUTCHours();
+        order.localOrderedDay = localOrderedTime.getUTCDay();
+        order.localOrderedDate = localOrderedTime.toISOString().substring(0,10);
+
+        if(shopInfo.businessTime !== null){
+
+            let businessTime=op.computeBusinessTime(JSON.parse(shopInfo.businessTime),localOrderedTime.getUTCDay());
+
+            console.log(parseInt(businessTime.openHour));
+            console.log(typeof localOrderedTime.getUTCHours());
+            console.log(localOrderedTime.getUTCHours()+","+localOrderedTime.getUTCMinutes());
+            if(shopInfo.business === "on" && (businessTime.openHour < localOrderedTime.getUTCHours() ||
+                (businessTime.openHour === localOrderedTime.getUTCHours() && businessTime.openMin <= localOrderedTime.getUTCMinutes()))
+                && (businessTime.closeHour > localOrderedTime.getUTCHours() ||
+                (businessTime.closeHour === localOrderedTime.getUTCHours() && businessTime.closeMin > localOrderedTime.getUTCMinutes()))){
+                mariaDB.getOrderNumber(shopInfo,callback);
+            }else{
+                callback("shop's off"); 
+            }
+        }else{
+            callback("shop's business time is null");
+        }
+    },function(orderNO,callback){
+        order.orderNO=orderNO;
+        console.log("orderNO:"+orderNO);
+        order.orderList=JSON.stringify(order.orderList);
+        console.log("orderList......:"+JSON.stringify(order.orderList));
+        mariaDB.saveOrder(order,shopInfo,callback);
+    },function(orderId,callback){
+        console.log(orderId);
+        async.parallel([function(callback){
+            mariaDB.getOrder(orderId,callback);
+        },function(callback){
+            mariaDB.getShopPushIdWithEmail(order.takitId,callback);
+        },function(callback){
+            console.log("payment:["+param.payment+"]");
+            if(param.payment=="cash"){
+                console.log("call cash.payCash");
+                cash.payCash(param.cashId,order.amount,orderId,callback);
+            }else{
+                console.log("This must be card");
+                callback(null);
+            }
+        }],callback);
+    },function(result,callback){
+        console.log("getShopPushId result:"+JSON.stringify(result));
+        console.log(result[0]);
+        console.log(result[1]);
+        sendOrderMSGShop(result[0],result[1],callback); //result[0]:order, result[1] :shopUserInfo(shopPushId, userId, platform)
+    }],function(err,result){
+        if(err){
+            if(err!="card-approval"){ // other error like getOrder....
+                //Please cancel card approval.
+            }
+            console.log(err);
+            next(err);
+        }else{
+            //console.log("hum... result.order:"+JSON.stringify(result.order));
+            result.order.payment=param.payment;
+            let output={order:result.order,messageId:result.messageId};
+            next(null,output);
+        }
+    }); 
+}
+
+router.saveOrderCart=function(req, res){
+    let order=req.body;
+    console.log("req.body:"+JSON.stringify(req.body));
+    console.log("userId:"+req.session.uid);
+    let shops=[]; 
+    let orderList=JSON.parse(req.body.orderList);
+    orderList.forEach(element => {
+           let shop={};
+           shop.order       =element;
+           shop.userId      =req.session.uid;
+           shop.payment     =req.body.payment;
+           shop.orderedTime =req.body.orderedTime;
+           shop.orderStatus ="paid"; 
+           shop.takeout     =req.body.takeout;
+           shop.cashId      =req.body.cashId;
+           shop.deliveryFee    = req.body.deliveryFee;
+           shop.deliveryAddress= req.body.deliveryAddress;
+           if(req.body.payment=="card")
+               shop.customer_uid=req.body.customer_uid
+           shops.push(shop);
+    });
+
+    mariaDB.checkCashPwd(req.body.cashId.toUpperCase(),req.body.password,function(err,result){
+          if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+            return;
+          }
+          let items=shops;
+          console.log("shops.length:"+shops.length);
+          async.map(shops,saveOrderEach,function(err,eachResult){
+              if(err){
+                  console.log("error happens,"+err);
+                  let response = new index.FailResponse(err);
+                  response.setVersion(config.MIGRATION,req.version);
+                  res.send(JSON.stringify(response));
+              }else{
+                  console.log("eachResult:"+JSON.stringify(eachResult));
+                  let response = new index.SuccResponse();
+                  response.setVersion(config.MIGRATION,req.version);
+                  response.order = eachResult;
+                  console.log("save order result:"+JSON.stringify(eachResult));
+                  res.send(JSON.stringify(response));
+                  console.log("All done "+JSON.stringify(response));
+              }
+          }); 
+    });
+};
+
 
 router.getOrdersUser=function(req,res){
 	//1. period설정인지 아닌지 확인
@@ -299,6 +471,29 @@ router.getOrdersUser=function(req,res){
 		}    
 	});
 
+}
+
+router.getOrdersUserDefault=function(req,res){
+    //1. period설정인지 아닌지 확인
+    //2. userId에 해당하는 order검색
+    console.log("getOrdersUsers body:"+req.body)
+   
+    let body = req.body;
+    body.userId = req.session.uid
+    //userId, lastOrderId, limit
+    console.log("params:"+JSON.stringify(body));
+    mariaDB.getOrdersUserDefault(body,(err,orders)=>{
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            response.orders=orders;
+         res.send(JSON.stringify(response));
+        }
+    });
 }
 
 router.getOrdersShop=function(req,res){
@@ -375,6 +570,118 @@ router.checkOrder=function(req,res){ // previous status must be "paid".
 	});
 };
 
+//////////////////////////////////////////////////////////
+// kalen.lee-begin
+router.checkOrderWithEmail=function(req,res){ // previous status must be "paid".
+    //1. order정보 가져옴
+    //2. shopUser인지 확인
+    //3. orderStatus update
+    //4. send a massege
+
+    //check shop member
+    console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
+   let order={};
+    async.waterfall([function(callback){
+      // Please check if req.session.uid is a member or manager of shop
+        mariaDB.getShopUserInfoWithEmail(req.session.uid,callback); //shop의 member인지 체크
+    },function(result,callback){
+      //주문상태 update
+        mariaDB.updateOrderStatus(req.body.orderId,'paid','checked','checkedTime',
+        new Date(),req.body.cancelReason,null,callback);
+    },function(result,callback){
+        mariaDB.getOrder(req.body.orderId,callback);
+    },function(result,callback){
+      order = result;
+        mariaDB.getPushId(order.userId,callback);
+    },function(userInfo,callback){
+      console.log("shopUserInfo:"+userInfo);
+      userInfo.SMSNoti="on";
+      sendOrderMSGUser(order,userInfo,callback);
+   }],function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+        }
+    });
+};
+
+
+router.pickupOrderWithEmail=function(req,res){ // previous status must be "completed".
+    //2. shopUser인지 확인
+    //3. orderStatus update
+    //4. send a massege
+
+    //check shop member
+    console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
+   let order={};
+    async.waterfall([function(callback){
+      // Please check if req.session.uid is a member or manager of shop
+        mariaDB.getShopUserInfoWithEmail(req.session.uid,callback); //shop의 member인지 체크
+    },function(result,callback){
+      //주문상태 update
+        mariaDB.updateOrderStatus(req.body.orderId,'completed','pickup','pickupTime',
+        new Date(),null,null,callback);
+    },function(result,callback){
+        mariaDB.getOrder(req.body.orderId,callback);
+    },function(result,callback){
+      order = result;
+        mariaDB.getPushId(order.userId,callback);
+    },function(userInfo,callback){
+      console.log("shopUserInfo:"+userInfo);
+       userInfo.SMSNoti="off"
+       sendOrderMSGUser(order,userInfo,callback);
+   }],function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+        }
+    });
+};
+
+router.notifyOrder=function(req,res){
+    console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
+   let order={};
+    async.waterfall([function(callback){
+      // Please check if req.session.uid is a member or manager of shop
+        mariaDB.getShopUserInfoWithEmail(req.session.uid,callback); //shop의 member인지 체크
+    },function(result,callback){
+        mariaDB.getOrder(req.body.orderId,callback);
+    },function(result,callback){
+      order = result;
+        mariaDB.getPushId(order.userId,callback);
+    },function(userInfo,callback){
+      console.log("shopUserInfo:"+userInfo);
+      userInfo.SMSNoti="off";
+      sendOrderMSGUser(order,userInfo,callback);
+   }],function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+        }
+    });
+};
+
+// kalen.lee-end
+////////////////////////////////////////////////////////////
+
 router.completeOrder=function(req,res){//previous status must be "checked".
    //1. order정보 가져옴
    //2. shopUser인지 확인
@@ -419,6 +726,56 @@ router.completeOrder=function(req,res){//previous status must be "checked".
    });
 };
 
+////////////////////////////////////////////////////////////////////////////
+// kalen.lee -begin
+router.completeOrderWithEmail=function(req,res){//previous status must be "checked".
+   //1. order정보 가져옴
+   //2. shopUser인지 확인
+   //3. orderStatus update
+   //4. send a massege
+
+   //check shop member
+   console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
+
+   let order={};
+
+   async.waterfall([function(callback){
+      // Please check if req.session.uid is a member or manager of shop
+      mariaDB.getShopUserInfoWithEmail(req.session.uid,callback);
+   },function(result,callback){
+      //주문상태 update
+      mariaDB.updateOrderStatus(req.body.orderId,'checked','completed','completedTime',
+      new Date(),req.body.cancelReason,null,callback);
+   },function(result,callback){
+      //update된 상태user, shopUser에게  msg보내줌
+      mariaDB.getOrder(req.body.orderId,callback);
+   },function(result,callback){
+      order = result;
+        async.parallel([function(callback){
+            mariaDB.updateSalesShop(order.takitId,order.amount,callback);
+        },function(callback){
+        mariaDB.getPushId(order.userId,callback);
+        }],callback);
+   },function(result,callback){
+        let userInfo = result[1];
+        userInfo.SMSNoti="on";
+      sendOrderMSGUser(order,userInfo,callback);
+   }],function(err,result){
+      if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+      }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+      }
+   });
+};
+// kalen.lee -end 
+////////////////////////////////////////////////////////////////////////////
+
+
 
 //user가 취소할때
 router.cancelOrderUser=function(req,res){
@@ -442,7 +799,7 @@ router.cancelOrderUser=function(req,res){
        order = result;
        console.log("cancel order :"+order.amount);
        async.parallel([function(callback){
-          cash.cancelCash(req.body.cashId,parseInt(order.amount),callback); //cash로 다시 돌려줌
+          cash.cancelCash(req.body.cashId,req.body.orderId,parseInt(order.amount),callback); //cash로 다시 돌려줌
        },function(callback){
           mariaDB.updateSalesShop(order.takitId,-parseInt(order.amount),callback);
        },function(callback){
@@ -464,6 +821,58 @@ router.cancelOrderUser=function(req,res){
         res.send(JSON.stringify(response));
 		 }
 	});
+}
+
+
+router.cancelOrderUserCart=function(req,res){
+    console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
+
+    let order = {};
+
+    async.waterfall([function(callback){
+       //orderStatus가 paid 일 때만 주문 취소 가능 .. -> oldStatus = 'paid'로 지정
+       mariaDB.updateOrderStatus(req.body.orderId,'paid','cancelled','cancelledTime',
+         new Date(),req.body.cancelReason,"Asia/Seoul",callback);
+    },function(result,callback){
+       mariaDB.getOrder(req.body.orderId,callback);
+    },function(result,callback){
+       order = result;
+       console.log("cancel order :"+order.amount);
+       if(order.payMethod=='cash'){
+         async.parallel([function(callback){
+          cash.cancelCash(req.body.cashId,req.body.orderId,parseInt(order.amount),callback); //cash로 다시 돌려줌
+         },function(callback){
+          mariaDB.updateSalesShop(order.takitId,-parseInt(order.amount),callback);
+         },function(callback){
+          mariaDB.getShopPushIdWithEmail(order.takitId,callback);
+         }],callback);
+       }else{
+         async.parallel([function(callback){
+           card.cancelCard(order.imp_uid,callback);  // cancel이 안될경우 어떻게해야 할까? 문제상황을 저장해야만 한다. How? 
+         },function(callback){ 
+           mariaDB.updateCardSalesShop(order.takitId,-parseInt(order.amount),callback);
+         },function(callback){
+           mariaDB.getShopPushIdWithEmail(order.takitId,callback);
+         }],callback);
+       }
+    },function(result,callback){
+       //shop한테 noti 보내줌
+       sendOrderMSGShop(order,result[2],callback);
+    }],function(err,result){
+       if(err){
+          console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            response.reason=err;
+            res.send(JSON.stringify(response));
+       }else{
+          console.log(result);
+            let response = new index.SuccResponse();
+            response.order=order;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+         }
+    });
 }
 
 //shop취소
@@ -491,14 +900,13 @@ router.shopCancelOrder=function(req,res){
    },function(cashId,callback){
       console.log("cancel order :"+JSON.stringify(order));
       async.parallel([function(callback){
-         cash.cancelCash(cashId,parseInt(order.amount),callback); //cash로 다시 돌려줌
+         cash.cancelCash(cashId,req.body.orderId,parseInt(order.amount),callback); //cash로 다시 돌려줌
       },function(callback){
          mariaDB.updateSalesShop(order.takitId,-parseInt(order.amount),callback);
       },function(callback){
          mariaDB.getPushId(order.userId,callback);
       }],callback);
    },function(result,callback){
-      //shop한테 noti 보내줌
       sendOrderMSGUser(order,result[2],callback);
    }],function(err,result){
       if(err){
@@ -513,6 +921,141 @@ router.shopCancelOrder=function(req,res){
       }
    });
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// kalen.lee -begin
+//shop취소, 카드 취소, 캐쉬 취소 
+router.shopCancelOrderWithEmail=function(req,res){
+   //1. order정보 가져옴
+   //2. shopUser인지 확인
+   //3. orderStatus update
+   //4. send a massege
+
+   //check shop member
+   console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
+
+   let order={};
+
+   async.waterfall([function(callback){
+      mariaDB.getShopUserInfoWithEmail(req.session.uid,callback);
+   },function(result,callback){
+      mariaDB.updateOrderStatus(req.body.orderId,'','cancelled','cancelledTime',
+      new Date(),req.body.cancelReason,"Asia/Seoul" ,callback);
+   },function(result,callback){
+      mariaDB.getOrder(req.body.orderId,callback);
+   },function(result,callback){
+      order = result;
+      if(order.payMethod=="cash"){
+          mariaDB.getCashId(order.userId,callback);
+       }else if(order.payMethod=="card"){ 
+          callback(null,order.imp_uid); 
+       }else{
+          callback("invalid payMethod");
+       }
+   },function(cashId,callback){
+      console.log("cancel order :"+JSON.stringify(order));
+      async.parallel([function(callback){
+         if(order.payMethod=="cash"){
+             cash.cancelCash(cashId,req.body.orderId,parseInt(order.amount),callback); //cash로 다시 돌려줌
+         }else if(order.payMethod=="card"){
+             card.cancelCard(order.imp_uid,callback); // 카드 승인취소 
+         }else{
+             callback("invalid payMethod");
+         }
+      },function(callback){
+         if(order.payMethod=="cash"){
+             mariaDB.updateSalesShop(order.takitId,-parseInt(order.amount),callback);
+         }else if(order.payMethod=="card"){
+             mariaDB.updateCardSalesShop(order.takitId,-parseInt(order.amount),callback);
+         }else{
+             callback("invalid payMethod");
+         }
+      },function(callback){
+         mariaDB.getPushId(order.userId,callback);
+      }],callback);
+      
+   },function(result,callback){
+      //shop한테 noti 보내줌. user한테 보내줌?
+      result[2].SMSNoti="on";
+      sendOrderMSGUser(order,result[2],callback);
+   }],function(err,result){
+      if(err){
+         console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+      }else {
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+      }
+   });
+};
+
+/////////////////////////////////////////////////////////////////////////////
+// 고객 Review저장
+router.inputReview=function(req,res){
+   console.log("req.body:"+JSON.stringify(req.body));
+   let takitId=req.body.takitId;
+   let starRate=req.body.fiveStar;
+   console.log("takitId:"+takitId+" starRate:"+starRate);
+
+   async.waterfall([function(callback){
+      mariaDB.saveReview(req.body.orderId,starRate,req.body.review,callback);
+   },function(result,callback){
+      mariaDB.updateShopRating(takitId,starRate,callback);
+   }],function(err,result){
+      if(err){
+         console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+      }else {
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+      }
+   });     
+};
+
+
+
+router.getFavoriteMenu=function(req,res){
+    console.log("userId:"+req.session.uid);
+    mariaDB.getFavoriteMenu(req.session.uid,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.menus=result;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+};
+
+// kalen.lee -end
+////////////////////////////////////////////////////////////////////////////////
+router.configureSoldOut=function(req,res){
+    console.log("userId:"+req.session.uid);
+    mariaDB.configureMenuSoldOut(req.body,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.soldout=result;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
 
 router.getOldOrders=(req,res)=>{
     console.log("order.getOldOrders");
@@ -531,5 +1074,5 @@ router.getOldOrders=(req,res)=>{
       }
     });
 }
-	
+
 module.exports = router;

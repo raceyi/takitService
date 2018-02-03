@@ -107,7 +107,7 @@ router.sendLMS=function(data){
 
 router.setRedisSchedule = function(keyName,phone,SMS,next){
 	console.log("start setRedisSchedule:"+keyName);
-	scheduler.schedule({ key: keyName, expire: 30000, handler: function(){
+	scheduler.schedule({ key: keyName, expire: 30000, handler: function(){ // send SMS 30 seconds later
 		console.log("start SMS event"+SMS.content);
 			router.sendSMS(SMS.title+" "+SMS.content,[phone]);
 		}}, function(err){
