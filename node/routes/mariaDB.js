@@ -3011,7 +3011,7 @@ router.searchShop = function(keyword,next){ //Please change this code later...wi
             next(err);
         }else{
                 let shops=[];
-                for(var i=0;i<4 && i<result.info.numRows;i++)
+                for(var i=0;i<10 && i<result.info.numRows;i++)
                     shops.push(result[i]);
                 console.log("shops:"+JSON.stringify(shops));
                 next(null,shops);

@@ -181,13 +181,13 @@ router.loginWithEmail=function(req,res){
                  console.log(shopUserInfo);
                  response.shopUserInfo=shopUserInfo[0];
                  //여러개 shopList 하나로 합치기
-                 let myShopList=[];
-                 for(let i=0; i<shopUserInfo.length; i++){
-                    let shopList = JSON.parse(shopUserInfo[i].myShopList);
-                    myShopList[i]=shopList[0];
-
-                 }
-                 response.shopUserInfo.myShopList=JSON.stringify(myShopList);
+                 //let myShopList=[];
+                 //for(let i=0; i<shopUserInfo.length; i++){
+                 //   let shopList = JSON.parse(shopUserInfo[i].myShopList);
+                 //   myShopList[i]=shopList[0];
+                 //
+                 //}
+                 //response.shopUserInfo.myShopList=JSON.stringify(myShopList);
                  console.log(JSON.stringify(response));
                  res.send(JSON.stringify(response));
                 }
