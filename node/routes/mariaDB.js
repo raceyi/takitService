@@ -18,14 +18,15 @@ var mariaDBConfig = {
     password: config.mariaDB.password,      // Please input your password
     multiStatements: true,
     pingInactive: 300, //in seconds 
-    pingWaitRes: 60 //in seconds. time for waiting ping response 
+    pingWaitRes: 60, //in seconds. time for waiting ping response 
+    db:config.mariaDB.db // DB name, takit, takitTest
 }
 
 
 var c = new Client(mariaDBConfig);
 
 c.query('set names utf8;');
-c.query("use takit;");
+c.query("use "+mariaDBConfig.db+";");
 
 c.on('close', function () {
     console.log("DB close c.connected:" + c.connected);
@@ -82,7 +83,7 @@ function performQuery(command, handler) {
         c.on("ready", function () {
             console.log("mariadb ready");
             c.query('set names utf8;');
-            c.query("use takit;");
+            c.query("use "+mariaDBConfig.db+";");
             c.query(command, handler);
         });
     } else {
@@ -97,7 +98,7 @@ function performQueryWithParam(command, value, handler) {
         c.on("ready", function () {
             console.log("mariadb ready");
             c.query('set names utf8;');
-            c.query("use takit;");
+            c.query("use "+mariaDBConfig.db+";");
             c.query(command, value, handler);
         });
     } else {
@@ -3203,8 +3204,8 @@ router.checkShopUserWithEmailAndPassword = function (email, password, next) {
 }
 
 router.saveReview=function(orderId,starRate,review,callback){
-    let command = "UPDATE orders SET review=?,starRate=? WHERE orderId=?";
-    let values = [review, starRate, orderId];
+    let command = "UPDATE orders SET review=?,starRate=?,reviewTime=? WHERE orderId=?";
+    let values = [review, starRate, new Date().toISOString(),orderId];
     
     performQueryWithParam(command, values, function (err, result) {
         if (err) {

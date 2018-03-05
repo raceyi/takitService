@@ -8,7 +8,7 @@ const mariaDB = require('./mariaDB');
 
 function getAccessToken(next){
     console.log("getAccessToken");
-    var body=JSON.stringify({imp_key:"2450026139170595", imp_secret:"lAYlQrx3V67ZoJ9KFisHRqgIR4v0rd7MO68ExFHsLOsayCUeVnVNNcwFh1GIeNv2TDGrjoU5dnfLZaZV"});
+    var body=JSON.stringify({imp_key:config.imp_key, imp_secret:config.imp_secret});
     var options = {
        host: 'api.iamport.kr',
        port: 443,
