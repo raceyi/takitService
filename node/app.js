@@ -305,6 +305,7 @@ app.post('/shop/modifyMenu', shopUsers.modifyMenu);
 app.post('/shop/removeMenu',shopUsers.removeMenu);
 app.post('/shop/uploadMenuImage', shopUsers.uploadMenuImage);
 app.post('/shop/inputReview',order.inputReview);
+app.post('/shop/modifyPassword',shopUsers.modifyPassword);
 app.post('/configureSoldOut',order.configureSoldOut);
 
 app.post('/enterMenuDetail',users.enterMenuDetail);
