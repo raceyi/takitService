@@ -1037,6 +1037,23 @@ router.modifyShopInfo=function(req,res){
     });
 };
 
+router.modifyPassword=function(req,res){
+    mariaDB.checkShopUserWithEmailAndPassword(req.body.email, req.body.oldPassword, function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.Response("invalidId");
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            mariaDB.modifyShopUserWithEmailAndPassword(req.body.email, req.body.newPassword, function(err,result){ 
+                let response = new index.SuccResponse();
+                response.setVersion(config.MIGRATION,req.version);
+                res.send(JSON.stringify(response));
+            });
+        } 
+    });
+};
+
 let storage =   multer.diskStorage({
       destination: function (req, file, callback) {
         callback(null, './uploads');

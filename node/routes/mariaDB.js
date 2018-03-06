@@ -3174,6 +3174,7 @@ router.validPayInfo=function(userId,customer_uid,next){
 
 router.checkShopUserWithEmailAndPassword = function (email, password, next) {
     let secretEmail = encryption(email, config.ePwd);
+    console.log("email:"+email+"secretEmail:"+secretEmail);
 
     let command = "SELECT userId,password,salt FROM shopUserInfo where email=?";
     let values = [secretEmail];
@@ -3190,7 +3191,7 @@ router.checkShopUserWithEmailAndPassword = function (email, password, next) {
                 console.log(result);
                 let userInfo = result[0];
                 let secretPassword = crypto.createHash('sha256').update(password + userInfo.salt).digest('hex');
-
+                console.log("!!!!!secretPassword:"+secretPassword+ " salt:"+userInfo.salt);
                 if (secretPassword === userInfo.password) {
                     console.log("password success!!");
                     decryptObj(userInfo);
@@ -3199,6 +3200,27 @@ router.checkShopUserWithEmailAndPassword = function (email, password, next) {
                     next("passwordFail");
                 }
             }
+        }
+    });
+}
+
+router.modifyShopUserWithEmailAndPassword = function (email, password, next) {
+    let secretEmail = encryption(email, config.ePwd);
+    console.log("password:"+password+"email:"+email+"secretEmail:"+secretEmail);
+
+    let salt = crypto.randomBytes(16).toString('hex');
+    let secretPassword = crypto.createHash('sha256').update(password + salt).digest('hex');
+
+    let command = "UPDATE shopUserInfo SET password=?,salt=? where email=?";
+    let values = [secretPassword,salt,secretEmail];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log(result);
+            next(null,result);
         }
     });
 }
