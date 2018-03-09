@@ -513,6 +513,7 @@ router.checkCashUserself = function (req, res) {
         for(let i=0; i<cashLists.length; i++){
             cashList.cashTuno = cashLists[i].cashTuno;
             cashList.bankName = cashLists[i].bankName;
+            cashList.depositTime= cashLists[i].depositTime;
             cashUserselfGCM(pushId,platform,cashList);
         }
         
@@ -570,24 +571,24 @@ router.addCash = function (req, res) {
         }, function (callback) {
             mariaDB.getBalanceCash(req.body.cashId.toUpperCase(), callback)
         }], callback);
-    }, function (result, callback) {
+    }, function (result, callback) { // kalen: cashId 중복 확인이 가능함으로 수정함 
         let preCashList = result[0];
         preBalance = result[1];
 
-        if (preCashList.confirm === '0') {
-            mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), parseInt(req.body.amount), preBalance, callback);
-        } else {
-            callback("already checked cash");
+        if (preCashList.confirm != '0') {
+             callback("already checked cash");
+        }else{
+            const cashList = {};
+            cashList.cashId = req.body.cashId.toUpperCase();
+            cashList.cashTuno = req.body.cashTuno;
+            cashList.transactionTime = new Date().toISOString();
+            cashList.transactionType = "deposit";
+            cashList.confirm = 1;
+            cashList.nowBalance = parseInt(preBalance) + parseInt(req.body.amount);
+            mariaDB.confirmCashList(cashList, callback);
         }
     }, function (result, callback) {
-        const cashList = {};
-        cashList.cashId = req.body.cashId.toUpperCase();
-        cashList.cashTuno = req.body.cashTuno;
-        cashList.transactionTime = new Date().toISOString();
-        cashList.transactionType = "deposit";
-        cashList.confirm = 1;
-        cashList.nowBalance = parseInt(preBalance) + parseInt(req.body.amount);
-        mariaDB.updateCashList(cashList, callback);
+            mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), parseInt(req.body.amount), preBalance, callback);
     }], function (err, result) {
         if (err) {
             console.log(err);

@@ -2164,6 +2164,22 @@ router.updateCashList = function (cashList, next) {
     });
 }
 
+router.confirmCashList = function (cashList, next) {
+    console.log("mariaDB.updateCashList start!!");
+
+    let command = "UPDATE cashList SET cashId=:cashId,transactionType=:transactionType, transactionTime=:transactionTime, confirm=:confirm, nowBalance=:nowBalance WHERE cashTuno=:cashTuno and confirm=0";
+
+    performQueryWithParam(command, cashList, function (err, result) {
+        if (err) {
+            console.log("updateCashList function Error:" + JSON.stringify(err));
+            next(err);
+        } else {
+            console.log("result:" + JSON.stringify(result));
+            next(null, "success");
+        }
+    });
+}
+
 router.updateTransactionType = function (cashTuno, type, next) {
     console.log("mariaDB.updateTransactionType start!!");
     let command = "UPDATE cashList SET transactionType=? where cashTuno=?";
