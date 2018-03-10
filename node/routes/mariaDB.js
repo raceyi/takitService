@@ -2175,7 +2175,10 @@ router.confirmCashList = function (cashList, next) {
             next(err);
         } else {
             console.log("result:" + JSON.stringify(result));
-            next(null, "success");
+            if(result.info.affectedRows==1)
+                next(null, "success");
+            else // humm.... confirm is not 0?
+                next("already checked cash");
         }
     });
 }
