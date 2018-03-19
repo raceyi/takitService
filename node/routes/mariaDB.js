@@ -202,13 +202,13 @@ function recommendShopInfo(shops,next) {
 
           console.log("...command:"+command);
           performQueryWithParam(command, values, function (err, result) {
-          	if (err) {
+            if (err) {
                 console.log("performQueryWithParam error");
                 next(err);
-          	} else {
-                let shops=[];
+            } else {
+                let shopsResult=[];
                 console.log("result:"+JSON.stringify(result));
-                result.forEach(element => { 
+                result.forEach(element => {
                     let shop={};
                     shop.starRating    =element.starRating;
                     shop.starCount     =element.starCount;
@@ -217,10 +217,17 @@ function recommendShopInfo(shops,next) {
                     shop.imagePath     =element.imagePath;
                     shop.paymethod     =element.paymethod;
                     shop.deliveryArea  =element.deliveryArea;
-                    shops.push(shop); 
-                }); 
-                next(null,shops);    
-          	} 
+                    shopsResult.push(shop);
+                });
+                let sortedShops=[];
+                for(var i=0;i<shops.length;i++){
+                    for(var j=0;j<shopsResult.length;j++){
+                        if(shops[i]==shopsResult[j].takitId)
+                            sortedShops.splice(i,0,shopsResult[j]);
+                    }
+                }
+                next(null,sortedShops);
+            }
           });
 }
 

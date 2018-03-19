@@ -28,9 +28,21 @@ router.createCashId = function (req, res) {
                 response.setVersion(config.MIGRATION, req.version);
                 res.send(JSON.stringify(response));
             } else {
+                /*
                 let response = new index.SuccResponse();
                 response.setVersion(config.MIGRATION, req.version);
                 res.send(JSON.stringify(response));
+                */
+                //Add cash by 1000won for promottion temporarily
+                mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), 1000,0, function(err,result){
+                    if(err){
+                        console.log("error give 1000won promotaion for "+ req.body.cashId.toUpperCase());
+                    }
+                    let response = new index.SuccResponse();
+                    response.setVersion(config.MIGRATION, req.version);
+                    res.send(JSON.stringify(response));
+                });
+
             }
         }
     });
@@ -588,7 +600,7 @@ router.addCash = function (req, res) {
             mariaDB.confirmCashList(cashList, callback);
         }
     }, function (result, callback) {
-            mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), parseInt(req.body.amount), preBalance, callback);
+                mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), parseInt(req.body.amount), preBalance, callback);
     }], function (err, result) {
         if (err) {
             console.log(err);
