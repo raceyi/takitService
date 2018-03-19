@@ -33,16 +33,24 @@ router.createCashId = function (req, res) {
                 response.setVersion(config.MIGRATION, req.version);
                 res.send(JSON.stringify(response));
                 */
-                //Add cash by 1000won for promottion temporarily
-                mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), 1000,0, function(err,result){
-                    if(err){
-                        console.log("error give 1000won promotaion for "+ req.body.cashId.toUpperCase());
-                    }
-                    let response = new index.SuccResponse();
-                    response.setVersion(config.MIGRATION, req.version);
-                    res.send(JSON.stringify(response));
-                });
 
+                mariaDB.checkUnregistedUser(req.session.uid,function(err,result){
+                    if(err=="unregisteredUser"){ //Already registered user
+                        let response = new index.SuccResponse();
+                        response.setVersion(config.MIGRATION, req.version);
+                        res.send(JSON.stringify(response));
+                    }else{
+                         //Add cash by 1000won for promottion temporarily
+                         mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), 1000,0, function(err,result){
+                             if(err){
+                               console.log("error give 1000won promotaion for "+ req.body.cashId.toUpperCase());
+                             }
+                             let response = new index.SuccResponse();
+                             response.setVersion(config.MIGRATION, req.version);
+                             res.send(JSON.stringify(response));
+                         });
+                    }
+                });
             }
         }
     });

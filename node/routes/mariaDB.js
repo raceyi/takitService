@@ -392,21 +392,67 @@ router.getUserInfo = function (userId, next) {
     });
 }
 
-router.deleteUserInfo = function (userId, next) {
-    console.log("userId:" + userId);
-
-    var command = "DELETE FROM userInfo where userId=?"; //userInfo에 shopList 넣기
-    var values = [userId];
-
+router.insertUnregisteredUser = function (referenceId) {
+    var command = 'INSERT IGNORE INTO unregistered (referenceId) VALUES (?)';
+    var values = [referenceId]; 
+    
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
-            console.log("deleteUserInfo function err:" + err);
-            next(err);
+            console.log(err);
         } else {
-            console.log("deleteUserInfo function Query succeeded" + JSON.stringify(result));
-            next(null);
+            console.log("insertUnregisteredUser func result" + JSON.stringify(result));
         }
     });
+}
+
+router.checkUnregistedUser = function(uid,next){
+    router.getUserInfo(uid, function (err, userInfo) {
+        if(err) next(err); //Can it happen?
+        else{ 
+            let command = "SELECT *FROM unregistered WHERE referenceId=?";
+            let values = [userInfo.referenceId];
+
+            performQueryWithParam(command, values, function (err, result) {
+                if (err) {
+                    console.log(err);
+                    next(err);
+                } else {
+                    if (result.info.numRows === "0") {
+                        next(null); //New user comes
+                    }else{
+                        console.log("unregistered user");
+                        next("unregisteredUser");
+                    }
+                }
+            });
+        }
+    });
+}
+
+
+router.deleteUserInfo = function (userId, next) {
+    console.log("userId:" + userId);
+    // get user info from DB and then save referenceId into unregistered table
+    router.getUserInfo(userId, function (err, userInfo) {
+        if(err){
+             next(err);
+        }else{
+                         
+            var command = "DELETE FROM userInfo where userId=?"; 
+            var values = [userId];
+
+            performQueryWithParam(command, values, function (err, result) {
+                if (err) {
+                    console.log("deleteUserInfo function err:" + err);
+                    next(err);
+                } else {
+                    router.insertUnregisteredUser(userInfo.referenceId);
+                    console.log("deleteUserInfo function Query succeeded" + JSON.stringify(result));
+                    next(null);
+                }
+            });
+        }
+    }); 
 }
 
 router.updateUserInfo = function (userInfo, next) {
