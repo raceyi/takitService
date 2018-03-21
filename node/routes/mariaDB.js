@@ -1933,7 +1933,7 @@ router.getSales = function (takitId, startTime, next) {
     //select sum(amount) from orders where takitId = "세종대@더큰도시락" and orderedTime < "2016-12-28";
     console.log("takitId:" + takitId);
 
-    let command = "SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND orderStatus='completed' AND orderedTime > ?";
+    let command = "SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND (orderStatus='completed' OR orderStatus='pickup')AND orderedTime > ?";
     let values = [takitId, startTime];
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
@@ -1966,7 +1966,7 @@ router.getSalesPeriod = function (takitId, startTime, endTime, next) {
         let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
         let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
 
-        let command = "SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND orderStatus='completed' AND orderedTime BETWEEN ? AND ?" //startTime과 endTime 위치 중요!!
+        let command = "SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND (orderStatus='completed' OR orderStatus='pickup' )AND orderedTime BETWEEN ? AND ?" //startTime과 endTime 위치 중요!!
         let values = [takitId, lcStartTime.toISOString(), lcEndTime.toISOString()];
         performQueryWithParam(command, values, callback);
     }],(err,result)=>{
@@ -1990,7 +1990,7 @@ router.getStatsMenu = function (takitId, startTime, next) {
     //select menuName, SUM(quantity) FROM orderList where menuNO LIKE \'"+takitId+"%\'GROUP BY menuName";
     console.log("getStatsMenu comes");
 
-    let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE orderStatus='completed' AND menuNO LIKE '" + takitId + "%' AND orderedTime > ? GROUP BY menuName"
+    let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE (orderStatus='completed' OR orderStatus='pickup') AND menuNO LIKE '" + takitId + "%' AND orderedTime > ? GROUP BY menuName"
     let values = [startTime];
 
     performQueryWithParam(command, values, function (err, result) {
