@@ -331,7 +331,7 @@ router.insertUser = function (userInfo, next) {
     var command = 'INSERT IGNORE INTO userInfo (referenceId,password,salt,name,email,countryCode,phone,sex,age,lastLoginTime, receiptIssue,receiptId,receiptType,deviceUuid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
     var values = [secretReferenceId, secretPassword, salt, userInfo.name, 
                     secretEmail, userInfo.countryCode, secretPhone, 
-                    userInfo.userSex,userInfo.userAge,new Date().toISOString(), 
+                    userInfo.sex,userInfo.birthYear,new Date().toISOString(), 
                     userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType, userInfo.uuid];
 
     performQueryWithParam(command, values, function (err, result) {
