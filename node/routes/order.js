@@ -76,7 +76,8 @@ function sendOrderMSGUser(order,userInfo,next){
    GCM.custom = JSON.stringify(order);	
 
    //noti 받는 사람
-   if(userInfo.SMSNoti==="on"){
+   //if(userInfo.SMSNoti==="on"){
+   if(order.orderStatus!="checked"){    // 주문접수일 경우 sms를 전달하지 않는다.완료와 취소는 sms를 전달한다.
 		console.log("SMSNoti on!!!!");
       async.waterfall([function(callback){
          redisCli.incr("gcm",callback);
@@ -105,7 +106,7 @@ function sendOrderMSGUser(order,userInfo,next){
             next(null,response);
          }
       });
-   }else{ //noti받지 않는 사람
+   }else{ // 주문 접수 일경우 
 		console.log("SMSNoti off!!!!");
       noti.sendGCM(config.SERVER_API_KEY,GCM,[userInfo.pushId], userInfo.platform,"takit", function(err,result){
          if(err){
@@ -143,10 +144,11 @@ function sendOrderMSGShop(order, shopUserInfo,next){
       SMS.title = GCM.title;
       SMS.content = "주문번호 "+order.orderNO+" 새로고침 버튼을 눌러주세요";
       ///////////////////////////////////////////////////////////////////////////////
-	  ///if(order.takitId==="세종대@더큰도시락"){
-	  //	console.log("더큰도시락order");
-	  //	noti.sendSMS(SMS.title+" "+SMS.content,["01042588226"]); //set production mode
-	  //}
+	  if(!order.takitId.startsWith("TEST")){
+	  	noti.sendSMS(SMS.title+" "+SMS.content,[config.SMS.SENDER]); //set production mode
+	  }else{
+        console.log("takitId startsWith TEST. Do not send william sms");
+      }
       //////////////////////////////////////////////////////////////////////////////
       console.log("shopUserInfo.phone:"+shopUserInfo.phone);
       noti.setRedisSchedule(shopUserInfo.userId+"_gcm_shop_"+messageId,shopUserInfo.phone,SMS,callback);
