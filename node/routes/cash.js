@@ -470,6 +470,7 @@ router.checkCashUserself = function (req, res) {
     let cashList = {};
     let pushId;
     let platform;
+    let output=[];
 
     async.waterfall([function (callback) {
         mariaDB.getCashInfoAndPushId(req.body.cashId.toUpperCase(), callback);
@@ -528,18 +529,16 @@ router.checkCashUserself = function (req, res) {
     }, function (cashLists, callback) {
         //cashList 여러개 검색될 수 있으므로 여러개에 대해 보냄
         //let cashLists = result;
-		
-        
+
         for(let i=0; i<cashLists.length; i++){
             cashList.cashTuno = cashLists[i].cashTuno;
             cashList.bankName = cashLists[i].bankName;
             cashList.depositTime= cashLists[i].depositTime;
-            cashUserselfGCM(pushId,platform,cashList);
-        }
-        
-			
-        //callback(null,"correct depositer");
+            cashUserselfGCM(pushId,platform,cashList);  //==> iOS 앱승인 이후에 삭제한다.
 
+            output.push(cashList); // push전송대신 응답으로 전달한다.
+        }
+        //callback(null,"correct depositer");
         mariaDB.updateConfirmCount(req.body.cashId, 0, callback);
     }], function (err, result) {
         if (err) {
@@ -554,6 +553,7 @@ router.checkCashUserself = function (req, res) {
             } else {
                 let response = new index.SuccResponse();
                 response.setVersion(config.MIGRATION, req.version);
+                response.cashlist=output;
                 res.send(JSON.stringify(response));
             }
         }

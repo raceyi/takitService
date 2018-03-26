@@ -350,7 +350,21 @@ function saveOrderEach(param,next){
                 (businessTime.closeHour === localOrderedTime.getUTCHours() && businessTime.closeMin > localOrderedTime.getUTCMinutes()))){
                 mariaDB.getOrderNumber(shopInfo,callback);
             }else{
-                callback("shop's off"); 
+                let businessTimeString="";
+                    businessTimeString+=(businessTime.openHour >9 ? businessTime.openHour:"0"+businessTime.openHour);
+                    //console.log(" "+businessTimeString);
+                    businessTimeString+=":";
+                    //console.log(" "+businessTimeString);
+                    businessTimeString+=(businessTime.openMin>9?businessTime.openMin:"0"+businessTime.openMin);
+                    //console.log(" "+businessTimeString);
+					businessTimeString+="-";
+                    businessTimeString+=(businessTime.closeHour >9 ? businessTime.closeHour:"0"+businessTime.closeHour);
+                    //console.log(" "+businessTimeString);
+                    businessTimeString+=":";
+                    //console.log(" "+businessTimeString);
+                    businessTimeString+=(businessTime.closeMin>9?businessTime.closeMin:"0"+businessTime.closeMin);
+                    //console.log(" "+businessTimeString);
+                callback("shop's off ("+businessTimeString+")"); 
             }
         }else{
             callback("shop's business time is null");
