@@ -10,6 +10,9 @@ let index = require('./index');
 let config = require('../config');
 let op = require('./op');
 
+var AsyncLock = require('async-lock');
+var lock = new AsyncLock();
+
 let router = express.Router();
 let redisCli = redis.createClient();
 let scheduler = new Scheduler();
@@ -584,32 +587,47 @@ router.removeWrongCashList = function (req, res) {
 
 //user가 확인버튼 눌렀을 때
 router.addCash = function (req, res) {
-    let preBalance;
-    async.waterfall([function (callback) {
-        async.parallel([function (callback) { //cashId를 잘 못 입력하는 경우가 있으므로 JOIN 사용 불가.
-            mariaDB.getCashListWithTuno(req.body.cashTuno, callback);
-        }, function (callback) {
-            mariaDB.getBalanceCash(req.body.cashId.toUpperCase(), callback)
-        }], callback);
-    }, function (result, callback) { // kalen: cashId 중복 확인이 가능함으로 수정함 
-        let preCashList = result[0];
-        preBalance = result[1];
+    console.log("req.body:"+JSON.stringify(req.body));
 
-        if (preCashList.confirm != '0') {
-             callback("already checked cash");
-        }else{
-            const cashList = {};
-            cashList.cashId = req.body.cashId.toUpperCase();
-            cashList.cashTuno = req.body.cashTuno;
-            cashList.transactionTime = new Date().toISOString();
-            cashList.transactionType = "deposit";
-            cashList.confirm = 1;
-            cashList.nowBalance = parseInt(preBalance) + parseInt(req.body.amount);
-            mariaDB.confirmCashList(cashList, callback);
-        }
-    }, function (result, callback) {
-                mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), parseInt(req.body.amount), preBalance, callback);
-    }], function (err, result) {
+    lock.acquire(req.body.cashId.toUpperCase(), function(callback) {
+       let preBalance,preCashList;
+       mariaDB.getCashListWithTuno(req.body.cashTuno,function(err,result){
+            if(err){
+                 callback(err);
+            }
+            console.log("preCashList:"+JSON.stringify(result));
+            preCashList=result;
+            mariaDB.getBalanceCash(req.body.cashId.toUpperCase(), function(err,result){
+                if(err){
+                    callback(err);
+                }     
+                preBalance=result;
+                if (preCashList.confirm != '0') {
+                    callback("already checked cash");
+                }else{
+                    const cashList = {};
+                    cashList.cashId = req.body.cashId.toUpperCase();
+                    cashList.cashTuno = req.body.cashTuno;
+                    cashList.transactionTime = new Date().toISOString();
+                    cashList.transactionType = "deposit";
+                    cashList.confirm = 1;
+                    cashList.nowBalance = parseInt(preBalance) + parseInt(req.body.amount);
+                    mariaDB.confirmCashList(cashList, function(err,result){
+                        if(err){
+                            callback(err);
+                        }else{
+                           mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), parseInt(req.body.amount), preBalance, function(err,result){
+								if(err)
+									callback(err);
+								else
+									callback(null);
+							}); 
+                        } 
+                    });
+                 }
+            });
+       });
+    }, function(err, result) {
         if (err) {
             console.log(err);
             let response = new index.FailResponse(err);
@@ -790,45 +808,63 @@ router.refundCash = function (req, res) {
     let cashList = {};
     let cashInfo = {};
     cashList.fee = 0;
+
     async.waterfall([function (callback) {
-        mariaDB.getCashInfo(req.body.cashId.toUpperCase(), callback);
-    }, function (result, callback) {
-        cashInfo = result;
-        console.log("cashInfo:" + cashInfo);
-        console.log("req.body:" + JSON.stringify(req.body));
-        if (cashInfo.refundCount >= 4 && req.body.bankCode === NHCode) {
-            console.log("환불 4회 초과 입니다. NH");
-            cashList.fee = 150;
-        } else if (cashInfo.refundCount >= 4 && req.body.bankCode !== NHCode) {
-            console.log("환불 4회 초과 입니다. other")
-            cashList.fee = 400;
-        }
-
-        console.log("fee:" + cashList.fee);
-        if (parseInt(cashInfo.balance) >= parseInt(req.body.withdrawalAmount) + cashList.fee) { //환불받으려는 금액보다 잔액이 많아야 환불 가능
-            if (req.body.bankCode === NHCode) { //농협계좌로 환불할 때
-                router.ReceivedTransferAccountNumber(req.body.account, req.body.withdrawalAmount, callback);
-            } else {
-                router.ReceivedTransferOtherBank(req.body.bankCode, req.body.account, req.body.withdrawalAmount, callback);
+      lock.acquire(req.body.cashId.toUpperCase(), function (done) {
+        mariaDB.getCashInfo(req.body.cashId.toUpperCase(), function(err,result){
+            if(err) done(err);
+            cashInfo = result;
+            console.log("cashInfo:" + cashInfo);
+            console.log("req.body:" + JSON.stringify(req.body));
+            if (cashInfo.refundCount >= 4 && req.body.bankCode === NHCode) {
+                console.log("환불 4회 초과 입니다. NH");
+                cashList.fee = 150;
+            } else if (cashInfo.refundCount >= 4 && req.body.bankCode !== NHCode) {
+                console.log("환불 4회 초과 입니다. other")
+                cashList.fee = 400;
             }
-        } else {
-            callback("check your balance");
-        }
+            console.log("fee:" + cashList.fee);
+            if (parseInt(cashInfo.balance) >= parseInt(req.body.withdrawalAmount) + cashList.fee) { //환불받으려는 금액보다 잔액이 많아야 환불 가능
+                if (req.body.bankCode === NHCode) { //농협계좌로 환불할 때
+                    router.ReceivedTransferAccountNumber(req.body.account, req.body.withdrawalAmount, 
+                     function(err,result){ 
+                        if(err) done(err); 
+                            mariaDB.updateRefundCashInfo(req.body.cashId.toUpperCase(), -parseInt(req.body.withdrawalAmount) - cashList.fee, cashInfo.balance, 
+                               function(err,result){
+                                    done(err,result);
+                               });
+                        });
+                } else {
+                    router.ReceivedTransferOtherBank(req.body.bankCode, req.body.account, req.body.withdrawalAmount, 
+                     function(err,result){
+                        if(err) done(err);
+                            mariaDB.updateRefundCashInfo(req.body.cashId.toUpperCase(), -parseInt(req.body.withdrawalAmount) - cashList.fee, cashInfo.balance,
+                               function(err,result){ 
+                                    done(err,result);
+                               });
+                     });
+                }
+            } else {
+                done("check your balance");
+            }
+         });
+       },function (err, result) {
+               callback(err,result);
+        });
     }, function (result, callback) {
-        async.parallel([function (callback) {
-            mariaDB.updateRefundCashInfo(req.body.cashId.toUpperCase(), -parseInt(req.body.withdrawalAmount) - cashList.fee, cashInfo.balance, callback)
-        }, function (callback) {
-            cashList.cashId = req.body.cashId.toUpperCase();
-            cashList.transactionType = "refund";
-            cashList.amount = req.body.withdrawalAmount;
-            cashList.transactionTime = new Date().toISOString();
-            cashList.bankName = req.body.bankName;
-            cashList.account = req.body.account;
-            cashList.nowBalance = parseInt(cashInfo.balance) - parseInt(req.body.withdrawalAmount) - cashList.fee;
-            result.confirm = 1;
+            mariaDB.updateRefundCashInfo(req.body.cashId.toUpperCase(), -parseInt(req.body.withdrawalAmount) - cashList.fee, cashInfo.balance, function(err,next){
+                if(err) callback(err); 
+                cashList.cashId = req.body.cashId.toUpperCase();
+                cashList.transactionType = "refund";
+                cashList.amount = req.body.withdrawalAmount;
+                cashList.transactionTime = new Date().toISOString();
+                cashList.bankName = req.body.bankName;
+                cashList.account = req.body.account;
+                cashList.nowBalance = parseInt(cashInfo.balance) - parseInt(req.body.withdrawalAmount) - cashList.fee;
+                result.confirm = 1;
 
-            mariaDB.insertCashList(cashList, callback);
-        }], callback)
+                mariaDB.insertCashList(cashList, callback);
+            })
     }], function (err, result) {
         if (err) {
             console.log(err);
@@ -1075,3 +1111,4 @@ router.resetCashConfirmCount = function (req,res){
     });
 }
 module.exports = router;
+

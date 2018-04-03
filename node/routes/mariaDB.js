@@ -2283,7 +2283,7 @@ router.getDepositedCash = function (cashList, next) {
 	let command = "SELECT * FROM cashList WHERE transactionType='deposit' and confirm=0 and cashId =:depositMemo and bankCode=:bankCode "
                     +"and amount=:amount and depositTime like '"+cashList.depositTime.substring(0,13)+"%'";
 
-	if(cashList.bankCode <='-1'){
+	if(cashList.bankCode =='-1' || cashList.bankCode=='-2'){
         command = "SELECT * FROM cashList WHERE transactionType='deposit' and confirm=0 and cashId =:depositMemo "
                     +"and amount=:amount and depositTime like '"+cashList.depositTime.substring(0,13)+"%'";
     }
