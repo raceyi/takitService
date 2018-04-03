@@ -537,11 +537,9 @@ router.checkCashUserself = function (req, res) {
             cashList.cashTuno = cashLists[i].cashTuno;
             cashList.bankName = cashLists[i].bankName;
             cashList.depositTime= cashLists[i].depositTime;
-            cashUserselfGCM(pushId,platform,cashList);  //==> iOS 앱승인 이후에 삭제한다.
 
             output.push(cashList); // push전송대신 응답으로 전달한다.
         }
-        //callback(null,"correct depositer");
         mariaDB.updateConfirmCount(req.body.cashId, 0, callback);
     }], function (err, result) {
         if (err) {
@@ -562,8 +560,6 @@ router.checkCashUserself = function (req, res) {
         }
     });
 }
-
-
 
 //user가 잘못된 캐쉬 목록 들어와서 삭제했을 때
 router.removeWrongCashList = function (req, res) {
