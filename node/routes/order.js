@@ -13,6 +13,7 @@ let card = require('./card');
 let config = require('../config');
 let index = require('./index');
 let op = require('./op');
+let socket = require('./socket');
 
 let router = express.Router();
 let redisCli = redis.createClient(); 
@@ -128,6 +129,9 @@ function sendOrderMSGShop(order, shopUserInfo,next){
    const GCM = {};
    GCM.title = updateOrderStatus(order);
    GCM.content = "주문번호 "+order.orderNO+" 주문내역:"+order.orderName;
+
+   //setup Timer to call  socket after 2 seconds
+   setTimeout(function(){ socket.notifySocket(order);}, 2000);
 
    if(order.hasOwnProperty('cancelReason') && order.cancelReason!==null && order.cancelReason !== ""){
       GCM.content += '취소사유:'+JSON.stringify(order.cancelReason);
