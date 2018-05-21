@@ -10,6 +10,9 @@ let index = require('./index');
 let op = require('./op');
 const fs=require('fs');
 
+var AsyncLock = require('async-lock');
+var lock = new AsyncLock();
+
 let router = express.Router();
 
 var mariaDBConfig = {
@@ -2426,22 +2429,41 @@ router.updateConfirmCount = function (cashId, confirmCount, next) {
 }
 
 
+checkShopBalance=function(takitId,amount,config){
+   return new Promise((resolve,reject)=>{    
+       let command="SELECT sales,balance from shopInfo WHERE takitId=?";
+       let values=[takitId];
+       performQueryWithParam(command, values, function (err, result) {
+            console.log("shop:"+takitId+" amount:"+amount+" "+config+"shop-balance:"+result[0].balance);
+            resolve();
+       })
+   });
+}
+
 //shop-cash
 router.updateSalesShop = function (takitId, amount, next) {
+ checkShopBalance(takitId,amount,"before").then(()=>{
     console.log("updateShopSales start");
+
     let command = "UPDATE shopInfo SET sales=sales+?,balance=balance+? WHERE takitId=?";
     let values = [amount, amount, takitId];
 
-
-    performQueryWithParam(command, values, function (err, result) {
+    lock.acquire(takitId, function (done) {
+      performQueryWithParam(command, values, function (err, result) {
         if (err) {
             console.log("updateSalesShop function Error:" + JSON.stringify(err));
             next(err);
+            done(err); 
         } else {
             console.log("updateSalesShop result:" + JSON.stringify(result));
-            next(null, "success");
+            checkShopBalance(takitId,amount,"after").then(()=>{
+                 next(null,"success");
+                 done(null,"success"); 
+            });
         }
+      });
     });
+ });
 }
 
 
@@ -2450,16 +2472,19 @@ router.updateCardSalesShop = function (takitId, amount, next) {
     let command = "UPDATE shopInfo SET sales=sales+?,cardBalance=balance+? WHERE takitId=?";
     let values = [amount, amount, takitId];
 
-
+  lock.acquire(takitId, function (done) {
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
             console.log("updateSalesShop function Error:" + JSON.stringify(err));
             next(err);
+            done(err);
         } else {
             console.log("updateSalesShop result:" + JSON.stringify(result));
             next(null, "success");
+            done(null, "success");
         }
     });
+  });
 }
 
 router.updateWithdrawalShop = function (takitId, amount, balance, next) {
@@ -3469,5 +3494,13 @@ setTimeout(function(){
              setInterval(configureSoldout,24*60*60*1000); // 24 hours later 
 }, nextTimeout);
 ////////////////////////////////SoldOut -end////////////////////////////////////////////
+
+/*
+let takitId='세종대@더큰도시락';
+router.updateSalesShop(takitId, 1000,function(err, result){
+   console.log('result:'+JSON.stringify(result));
+})
+*/
+
 module.exports = router;
 
