@@ -20,7 +20,6 @@ let scheduler = new Scheduler();
 const NHCode = "011";
 
 router.createCashId = function (req, res) {
-    //
     console.log("createCashId function start!!!");
     mariaDB.insertCashId(req.session.uid, req.body.cashId.toUpperCase(), req.body.password, function (err, result) {
         if (err) {
@@ -31,15 +30,21 @@ router.createCashId = function (req, res) {
                 response.setVersion(config.MIGRATION, req.version);
                 res.send(JSON.stringify(response));
             } else {
-                /*
-                let response = new index.SuccResponse();
-                response.setVersion(config.MIGRATION, req.version);
-                res.send(JSON.stringify(response));
-                */
-
                 mariaDB.checkUnregistedUser(req.session.uid,function(err,result){
                     if(err=="unregisteredUser"){ //Already registered user
+                        let couponList=result;
+                        console.log("couponList!!!"+couponList);
+                        //save couponList from unregistered into userInfo.
+                        if(couponList!=null){
+                             mariaDB.saveCouponList(req.session.uid,couponList,function(err){ 
+                             //기존 쿠폰을 다시 사용하지 못하도록한다.
+                             if(err){
+                                 console.log("fail to save couponlist into userInfo "+JSON.stringify(err));
+                             }     
+                           }); 
+                        }
                         let response = new index.SuccResponse();
+                        response.cashBalance=0;
                         response.setVersion(config.MIGRATION, req.version);
                         res.send(JSON.stringify(response));
                     }else{
@@ -48,7 +53,9 @@ router.createCashId = function (req, res) {
                              if(err){
                                console.log("error give 1000won promotaion for "+ req.body.cashId.toUpperCase());
                              }
+                             //1000원 입금을 고객에게 알리자. 
                              let response = new index.SuccResponse();
+                             response.cashBalance=1000;                        
                              response.setVersion(config.MIGRATION, req.version);
                              res.send(JSON.stringify(response));
                          });
@@ -805,6 +812,16 @@ router.refundCash = function (req, res) {
     let cashInfo = {};
     cashList.fee = 0;
 
+ mariaDB.checkDeposit(req.body.cashId.toUpperCase(),function(err,exist){
+    if(err){
+        let response = new index.FailResponse(err);
+        response.setVersion(config.MIGRATION, req.version);
+        res.send(JSON.stringify(response));
+    }else if(!exist){ //지급된 캐쉬는 환불이 불가능합니다.
+        let response = new index.FailResponse("no deposit");
+        response.setVersion(config.MIGRATION, req.version);
+        res.send(JSON.stringify(response));
+    }else{
     async.waterfall([function (callback) {
       lock.acquire(req.body.cashId.toUpperCase(), function (done) {
         mariaDB.getCashInfo(req.body.cashId.toUpperCase(), function(err,result){
@@ -874,7 +891,8 @@ router.refundCash = function (req, res) {
             res.send(JSON.stringify(response));
         }
     });
-
+    }
+  });
 }
 
 
@@ -1106,5 +1124,41 @@ router.resetCashConfirmCount = function (req,res){
         }
     });
 }
+
+router.updateCashWithCoupon=function(cashId,couponName,amount,next){
+    lock.acquire(cashId.toUpperCase(), function(callback) {
+        //addCash    
+        mariaDB.updateBalanceCashWithCoupon(cashId.toUpperCase(), amount,function(err,result){
+            console.log("result:!!!!"+result); 
+            let balance=result;
+            if(err){
+                console.log("error give promotion for "+ cashId.toUpperCase());
+                callback(err); 
+            }else{
+                    let cashList = {};
+
+                    cashList.cashId = cashId.toUpperCase();
+                    cashList.transactionType = "coupon";
+                    cashList.amount = amount;
+                    cashList.couponName=couponName;
+                    cashList.nowBalance= balance;
+                    cashList.transactionTime = new Date().toISOString();
+                    console.log("!!!!insert cashList "+JSON.stringify(cashList));
+                    mariaDB.insertCashList(cashList, function(err,result){
+                        callback(err);
+                    });
+            }
+        });
+   }, function(err, ret) {
+        if(err){
+            console.log(JSON.stringify(err)) // output: error
+            next(err);
+        }else{
+            console.log("updateCashWithCoupon success");
+            next(null);
+        }
+   });
+};
+
 module.exports = router;
 

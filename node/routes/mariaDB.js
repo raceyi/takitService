@@ -160,6 +160,23 @@ function decryptObj(obj) {
     }
 }
 
+router.checkDeposit=function(cashId,next){
+   var command = "select * from cashList where cashId=? and transactionType=\'deposit\'"; 
+   var values=[cashId];
+   performQueryWithParam(command, values, function (err, result) {
+        console.log("c.query success");
+        if (err) {
+            next(err);
+        } else {
+            console.dir("[checkDeposit]:" + result.info.numRows);
+            if (result.info.numRows === "0") {
+                next(null,false);
+            } else {
+                next(null,true);
+            }
+        }
+    });
+}
 
 router.existUserEmail = function (email, next) {
     var secretEmail = encryption(email, config.ePwd);
@@ -395,9 +412,9 @@ router.getUserInfo = function (userId, next) {
     });
 }
 
-router.insertUnregisteredUser = function (referenceId) {
-    var command = 'INSERT IGNORE INTO unregistered (referenceId) VALUES (?)';
-    var values = [referenceId]; 
+router.insertUnregisteredUser = function (referenceId,couponList) {
+    var command = 'INSERT IGNORE INTO unregistered (referenceId,couponList) VALUES (?,?)';
+    var values = [referenceId,couponList]; 
     
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
@@ -412,7 +429,7 @@ router.checkUnregistedUser = function(uid,next){
     router.getUserInfo(uid, function (err, userInfo) {
         if(err) next(err); //Can it happen?
         else{ 
-            let command = "SELECT *FROM unregistered WHERE referenceId=?";
+            let command = "SELECT * FROM unregistered WHERE referenceId=?";
             let values = [userInfo.referenceId];
 
             performQueryWithParam(command, values, function (err, result) {
@@ -424,7 +441,8 @@ router.checkUnregistedUser = function(uid,next){
                         next(null); //New user comes
                     }else{
                         console.log("unregistered user");
-                        next("unregisteredUser");
+                        console.log("result[0]:"+result[0].couponList);
+                        next("unregisteredUser",result[0].couponList);
                     }
                 }
             });
@@ -449,7 +467,7 @@ router.deleteUserInfo = function (userId, next) {
                     console.log("deleteUserInfo function err:" + err);
                     next(err);
                 } else {
-                    router.insertUnregisteredUser(userInfo.referenceId);
+                    router.insertUnregisteredUser(userInfo.referenceId,userInfo.couponList);
                     console.log("deleteUserInfo function Query succeeded" + JSON.stringify(result));
                     next(null);
                 }
@@ -643,6 +661,37 @@ router.getOnlyShopUserInfo = function (userId, next) {
         }
     });
 }
+
+router.saveCouponList=function(userId,couponList,next){
+    let command = "UPDATE userInfo set couponList=? where userId=?";
+    let values = [couponList, userId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("saveCouponList function result" + JSON.stringify(result));
+            next(null);
+        }
+    });  
+}
+
+router.getCouponList=function(userId,next){
+    let command ="SELECT couponList FROM userInfo WHERE userId=?";
+
+    let values = [userId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("getCouponList function result" + JSON.stringify(result));
+            next(null,result[0].couponList);
+        }
+    });
+}  
 
 //userId+takitId 로 한명의 shopUser만 검색
 router.updateShopRefId = function (userId, referenceId, next) {
@@ -2095,6 +2144,33 @@ router.updateBalanceCash = function (cashId, amount, balance, next) {
     });
 };
 
+router.updateBalanceCashWithCoupon = function (cashId, amount, next) {
+
+    let command = "UPDATE cash SET balance=balance+? WHERE cashId =?";
+    let values = [amount, cashId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log("updateBalanceCash function err:" + JSON.stringify(err));
+            next(err);
+        } else {
+            console.log("updateBalanceCash:" + JSON.stringify(result));
+            if (amount !== 0 && result.info.affectedRows === "0") {
+                next("fail to update BalanceCash");
+            } else {
+                router.getBalanceCash(cashId,function(err,result){
+                    if(err){
+                        next("balance query error");
+                    }else{
+                        console.log("!!!!!balance:"+result);
+                        next(null,result);
+                    }
+                });         
+            }
+        }
+    });
+};
+
 
 router.getBalanceCash = function (cashId, next) {
 
@@ -2123,8 +2199,8 @@ router.insertCashList = function (cashList, next) {
         cashList.account = encryption(cashList.account, config.aPwd);
     }
 
-    let command = "INSERT INTO cashList(cashId,transactionType,amount,fee,nowBalance,transactionTime,orderId,depositTime, bankCode,bankName ,account,confirm)" +
-        "VALUES(:cashId,:transactionType,:amount,:fee, :nowBalance,:transactionTime,:orderId,:depositTime,:bankCode,:bankName, :account,:confirm)";
+    let command = "INSERT INTO cashList(cashId,transactionType,amount,fee,nowBalance,transactionTime,orderId,depositTime, bankCode,bankName ,account,confirm,couponName)" +
+        "VALUES(:cashId,:transactionType,:amount,:fee, :nowBalance,:transactionTime,:orderId,:depositTime,:bankCode,:bankName, :account,:confirm,:couponName)";
 
     performQueryWithParam(command, cashList, function (err, result) {
         if (err) {
@@ -2136,7 +2212,6 @@ router.insertCashList = function (cashList, next) {
         }
     });
 }
-
 
 router.getCashList = function (cashId, lastTuno, limit, next) {
     console.log("mariaDB.getCashList start!!");

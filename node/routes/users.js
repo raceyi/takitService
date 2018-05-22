@@ -16,6 +16,8 @@ const redisCli = redis.createClient();
 const router = express.Router();
 const fs=require('fs');
 
+let cash = require('./cash'); //Any problem?
+
 var FACEBOOK_APP_ID;
 var FACEBOOK_APP_SECRET;
 var FACEBOOK_APP_TOKEN;
@@ -1020,6 +1022,65 @@ router.enterMenuDetail=(req,res)=>{
         }
     });
 }
+
+
+var issuedCoupons=[{name:"캐시충전",amount:3000}];
+router.registerUserCoupon=function(req,res){
+   mariaDB.getCouponList(req.session.uid, function(err,couponList){
+       if(err){
+       }else{
+           let coupons=[];
+           if(couponList!=null){
+                console.log("couponList is not null");
+                coupons=JSON.parse(couponList);
+                let i;
+                for(i=0;i<coupons.length;i++){
+                    if(coupons[i].name==req.body.couponName){
+                        break;
+                    }
+                } 
+                if(i<coupons.length){
+                        let response = new index.FailResponse("AlreadyRegistered");
+                        response.setVersion(config.MIGRATION,req.version);
+                        res.send(JSON.stringify(response));
+                        return;
+                }
+           }
+           console.log("look for coupon amount");
+           // 쿠폰 가격 검색
+           let amount;
+           issuedCoupons.forEach(coupon=>{
+               if(coupon.name==req.body.couponName){
+                   amount=coupon.amount;
+               }
+           });
+           if(!amount){
+                        let response = new index.FailResponse("InvalidCoupon");
+                        response.setVersion(config.MIGRATION,req.version);
+                        res.send(JSON.stringify(response));
+                        return; //Is it okay?
+           }
+           cash.updateCashWithCoupon(req.body.cashId,req.body.couponName,amount,function(err,result){
+               if(err){
+                   let response = new index.FailResponse(err);
+                   response.setVersion(config.MIGRATION,req.version);
+                   res.send(JSON.stringify(response)); 
+                   return;
+               }
+               coupons.push({name:req.body.couponName,amount:amount}); 
+               mariaDB.saveCouponList(req.session.uid,JSON.stringify(coupons),function(err,result){
+                   if(err){
+                         //humm...  사용자는 coupon을 다시 사용가능하지만 어쩔수없다.        
+                   }
+                   let response = new index.SuccResponse();
+                   response.setVersion(config.MIGRATION,req.version);
+                   res.send(JSON.stringify(response));                   
+               }); 
+           }); 
+       }
+   });
+}
+
 
 /*
 router.resetCashConfirmCount = function (req,res){
