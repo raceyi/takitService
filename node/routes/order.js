@@ -287,7 +287,9 @@ function saveOrderEach(param,next){
     order.deliveryFee    =param.deliveryFee;
     order.deliveryAddress=param.deliveryAddress;
     order.customer_uid   =param.customer_uid;
+    order.total          =param.total;
 
+    console.log("!!!!!!order.total:"+param.total);
 	let shopInfo;
  
     async.waterfall([function(callback){
@@ -322,7 +324,7 @@ function saveOrderEach(param,next){
     },function(payment,callback){
         order.paymethod=payment; // DB의 이름이 paymethod임
         if(payment=="card"){
-            card.payCard(order.userId,order.amount,order.customer_uid,order.orderName,callback); 
+            card.payCard(order.userId,order.total,order.customer_uid,order.orderName,callback); 
         }else{           
             callback(null,"cash"); 
         } 
@@ -391,7 +393,7 @@ function saveOrderEach(param,next){
             console.log("payment:["+param.payment+"]");
             if(param.payment=="cash"){
                 console.log("call cash.payCash");
-                cash.payCash(param.cashId,order.amount,orderId,callback);
+                cash.payCash(param.cashId,order.total,orderId,callback);
             }else{
                 console.log("This must be card");
                 callback(null);
@@ -424,7 +426,7 @@ router.saveOrderCart=function(req, res){
     console.log("userId:"+req.session.uid);
     let shops=[]; 
     let orderList=JSON.parse(req.body.orderList);
-    orderList.forEach(element => {
+    orderList.forEach(element => { // 잘못된 코드이다 ㅜㅜ 나중에 수정이 필요하다. 
            let shop={};
            shop.order       =element;
            shop.userId      =req.session.uid;
@@ -434,6 +436,8 @@ router.saveOrderCart=function(req, res){
            shop.takeout     =req.body.takeout;
            shop.cashId      =req.body.cashId;
            shop.deliveryFee    = req.body.deliveryFee;
+           shop.total          =req.body.total;
+           console.log("!!!!!total:"+shop.total); // hum....
            shop.deliveryAddress= req.body.deliveryAddress;
            if(req.body.payment=="card")
                shop.customer_uid=req.body.customer_uid
@@ -726,7 +730,7 @@ router.completeOrder=function(req,res){//previous status must be "checked".
    },function(result,callback){
       order = result;
 		async.parallel([function(callback){
-			mariaDB.updateSalesShop(order.takitId,order.amount,callback);
+			mariaDB.updateSalesShop(order.takitId,order.total,callback);
 		},function(callback){
       	mariaDB.getPushId(order.userId,callback);
 		}],callback);
@@ -772,7 +776,7 @@ router.completeOrderWithEmail=function(req,res){//previous status must be "check
    },function(result,callback){
       order = result;
         async.parallel([function(callback){
-            mariaDB.updateSalesShop(order.takitId,order.amount,callback);
+            mariaDB.updateSalesShop(order.takitId,order.total,callback);
         },function(callback){
         mariaDB.getPushId(order.userId,callback);
         }],callback);
@@ -817,11 +821,11 @@ router.cancelOrderUser=function(req,res){
        mariaDB.getOrder(req.body.orderId,callback);
     },function(result,callback){
        order = result;
-       console.log("cancel order :"+order.amount);
+       console.log("cancel order :"+order.total);
        async.parallel([function(callback){
-          cash.cancelCash(req.body.cashId,req.body.orderId,parseInt(order.amount),callback); //cash로 다시 돌려줌
+          cash.cancelCash(req.body.cashId,req.body.orderId,parseInt(order.total),callback); //cash로 다시 돌려줌
        },function(callback){
-          mariaDB.updateSalesShop(order.takitId,-parseInt(order.amount),callback);
+          mariaDB.updateSalesShop(order.takitId,-parseInt(order.total),callback);
        },function(callback){
           mariaDB.getShopPushId(order.takitId,callback);
        }],callback);
@@ -857,12 +861,12 @@ router.cancelOrderUserCart=function(req,res){
        mariaDB.getOrder(req.body.orderId,callback);
     },function(result,callback){
        order = result;
-       console.log("cancel order :"+order.amount);
+       console.log("cancel order :"+order.total);
        if(order.payMethod=='cash'){
          async.parallel([function(callback){
-          cash.cancelCash(req.body.cashId,req.body.orderId,parseInt(order.amount),callback); //cash로 다시 돌려줌
+          cash.cancelCash(req.body.cashId,req.body.orderId,parseInt(order.total),callback); //cash로 다시 돌려줌
          },function(callback){
-          mariaDB.updateSalesShop(order.takitId,-parseInt(order.amount),callback);
+          mariaDB.updateSalesShop(order.takitId,-parseInt(order.total),callback);
          },function(callback){
           mariaDB.getShopPushIdWithEmail(order.takitId,callback);
          }],callback);
@@ -870,7 +874,7 @@ router.cancelOrderUserCart=function(req,res){
          async.parallel([function(callback){
            card.cancelCard(order.imp_uid,callback);  // cancel이 안될경우 어떻게해야 할까? 문제상황을 저장해야만 한다. How? 
          },function(callback){ 
-           mariaDB.updateCardSalesShop(order.takitId,-parseInt(order.amount),callback);
+           mariaDB.updateCardSalesShop(order.takitId,-parseInt(order.total),callback);
          },function(callback){
            mariaDB.getShopPushIdWithEmail(order.takitId,callback);
          }],callback);
@@ -920,9 +924,9 @@ router.shopCancelOrder=function(req,res){
    },function(cashId,callback){
       console.log("cancel order :"+JSON.stringify(order));
       async.parallel([function(callback){
-         cash.cancelCash(cashId,req.body.orderId,parseInt(order.amount),callback); //cash로 다시 돌려줌
+         cash.cancelCash(cashId,req.body.orderId,parseInt(order.total),callback); //cash로 다시 돌려줌
       },function(callback){
-         mariaDB.updateSalesShop(order.takitId,-parseInt(order.amount),callback);
+         mariaDB.updateSalesShop(order.takitId,-parseInt(order.total),callback);
       },function(callback){
          mariaDB.getPushId(order.userId,callback);
       }],callback);
@@ -976,7 +980,7 @@ router.shopCancelOrderWithEmail=function(req,res){
       console.log("cancel order :"+JSON.stringify(order));
       async.parallel([function(callback){
          if(order.payMethod=="cash"){
-             cash.cancelCash(cashId,req.body.orderId,parseInt(order.amount),callback); //cash로 다시 돌려줌
+             cash.cancelCash(cashId,req.body.orderId,parseInt(order.total),callback); //cash로 다시 돌려줌
          }else if(order.payMethod=="card"){
              card.cancelCard(order.imp_uid,callback); // 카드 승인취소 
          }else{
@@ -984,9 +988,9 @@ router.shopCancelOrderWithEmail=function(req,res){
          }
       },function(callback){
          if(order.payMethod=="cash"){
-             mariaDB.updateSalesShop(order.takitId,-parseInt(order.amount),callback);
+             mariaDB.updateSalesShop(order.takitId,-parseInt(order.total),callback);
          }else if(order.payMethod=="card"){
-             mariaDB.updateCardSalesShop(order.takitId,-parseInt(order.amount),callback);
+             mariaDB.updateCardSalesShop(order.takitId,-parseInt(order.total),callback);
          }else{
              callback("invalid payMethod");
          }
