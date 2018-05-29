@@ -436,7 +436,12 @@ router.saveOrderCart=function(req, res){
            shop.takeout     =req.body.takeout;
            shop.cashId      =req.body.cashId;
            shop.deliveryFee    = req.body.deliveryFee;
-           shop.total          =req.body.total;
+           if(req.body.total){
+               shop.total =req.body.total;
+           }else{
+               console.log("!!!!total is not comming!!!!");
+               shop.total=req.body.amount;
+           }
            console.log("!!!!!total:"+shop.total); // hum....
            shop.deliveryAddress= req.body.deliveryAddress;
            if(req.body.payment=="card")
@@ -825,7 +830,7 @@ router.cancelOrderUser=function(req,res){
        async.parallel([function(callback){
           cash.cancelCash(req.body.cashId,req.body.orderId,parseInt(order.total),callback); //cash로 다시 돌려줌
        },function(callback){
-          mariaDB.updateSalesShop(order.takitId,-parseInt(order.total),callback);
+          mariaDB.updateSalesShop(order.takitId,0,callback);
        },function(callback){
           mariaDB.getShopPushId(order.takitId,callback);
        }],callback);
@@ -866,7 +871,7 @@ router.cancelOrderUserCart=function(req,res){
          async.parallel([function(callback){
           cash.cancelCash(req.body.cashId,req.body.orderId,parseInt(order.total),callback); //cash로 다시 돌려줌
          },function(callback){
-          mariaDB.updateSalesShop(order.takitId,-parseInt(order.total),callback);
+          mariaDB.updateSalesShop(order.takitId,0,callback);
          },function(callback){
           mariaDB.getShopPushIdWithEmail(order.takitId,callback);
          }],callback);
@@ -907,7 +912,7 @@ router.shopCancelOrder=function(req,res){
    //4. send a massege
 
    //check shop member
-   console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
+   console.log("shopCancelOrder-req.body.orderId:"+JSON.stringify(req.body.orderId));
 
    let order={};
 
@@ -926,7 +931,11 @@ router.shopCancelOrder=function(req,res){
       async.parallel([function(callback){
          cash.cancelCash(cashId,req.body.orderId,parseInt(order.total),callback); //cash로 다시 돌려줌
       },function(callback){
-         mariaDB.updateSalesShop(order.takitId,-parseInt(order.total),callback);
+         console.log("----order.checkedTime:"+order.checkedTime); 
+         if(order.completedTime==null)
+             mariaDB.updateSalesShop(order.takitId,0,callback);
+         else
+             mariaDB.updateSalesShop(order.takitId,-parseInt(order.total),callback);
       },function(callback){
          mariaDB.getPushId(order.userId,callback);
       }],callback);
@@ -988,7 +997,10 @@ router.shopCancelOrderWithEmail=function(req,res){
          }
       },function(callback){
          if(order.payMethod=="cash"){
-             mariaDB.updateSalesShop(order.takitId,-parseInt(order.total),callback);
+             if(order.completedTime==null)
+                 mariaDB.updateSalesShop(order.takitId,0,callback);
+             else
+                 mariaDB.updateSalesShop(order.takitId,-parseInt(order.total),callback);
          }else if(order.payMethod=="card"){
              mariaDB.updateCardSalesShop(order.takitId,-parseInt(order.total),callback);
          }else{
