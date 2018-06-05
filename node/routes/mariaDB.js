@@ -2365,7 +2365,10 @@ router.getDepositedCash = function (cashList, next) {
         command = "SELECT * FROM cashList WHERE transactionType='deposit' and confirm=0 and cashId =:depositMemo "
                     +"and amount=:amount and depositTime like '"+cashList.depositTime.substring(0,13)+"%'";
     }
-	
+    if(cashList.bankCode=='011'){ // 농협의 경우 012,011 모두 들어온다 
+         command = "SELECT * FROM cashList WHERE transactionType='deposit' and confirm=0 and cashId =:depositMemo and (bankCode='011' or bankCode='012') "
+                    +"and amount=:amount and depositTime like '"+cashList.depositTime.substring(0,13)+"%'";
+    }	
     // let tomorrowTime = new Date(cashList.depositTime.getTime()+86400000).toISOString();
     // let yesterDayTime = new Date(cashList.depositTime.getTime()-86400000).toISOString(); //86400000 24시간 만큼의 milliseconds
     // console.log(tomorrowTime);
