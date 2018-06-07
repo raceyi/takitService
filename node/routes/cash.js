@@ -660,6 +660,9 @@ function pad(n, length) {
 // user가 캐쉬로 주문하여 캐쉬 빠짐
 router.payCash = function (cashId, amount,orderId, next) {
     let balance;
+
+  lock.acquire(cashId.toUpperCase(), function(done) {
+ 
     async.waterfall([function (callback) {
         mariaDB.getBalanceCash(cashId.toUpperCase(), callback);
     }, function (result, callback) {
@@ -685,17 +688,21 @@ router.payCash = function (cashId, amount,orderId, next) {
     }], function (err, result) {
         if (err) {
             console.log(err);
-            next(err);
+            done(err);
         } else {
             console.log("payCash success:" + JSON.stringify(result));
-            next(null, "success");
+            done(null, "success");
         }
     });
+   },function(err, result) {
+        if (err) {
+            next(err);
+        } else {
+            next(null,"success"); 
+        }
+    });
+
 };
-
-
-
-
 
 
 
@@ -704,6 +711,8 @@ router.payCash = function (cashId, amount,orderId, next) {
 router.cancelCash = function (cashId,orderId,amount, next) {
 	console.log("cancel cash start");
 	let balance;
+
+  lock.acquire(cashId.toUpperCase(), function(done) {
     async.waterfall([function(callback){
         mariaDB.getBalanceCash(cashId,callback);
     },function(result,callback){
@@ -726,9 +735,17 @@ router.cancelCash = function (cashId,orderId,amount, next) {
     }], function (err, result) {
         if (err) {
             console.log(err);
-            next(err);
+            done(err);
         } else {
             console.log("addCash success:" + JSON.stringify(result));
+            done(null, "success");
+        }
+    });},function (err, result) {
+        if (err) {
+            //console.log(err);
+            next(err);
+        } else {
+            //console.log("addCash success:" + JSON.stringify(result));
             next(null, "success");
         }
     });
