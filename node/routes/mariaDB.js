@@ -2085,7 +2085,7 @@ router.getPeriodStatsMenu = function (takitId, startTime, endTime, next) {
         let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
         let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
 
-        let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE menuNO LIKE'" + takitId + "%' AND orderStatus='completed' AND orderedTime BETWEEN ? AND ? GROUP BY menuName";
+        let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE menuNO LIKE'" + takitId + "%' AND (orderStatus='completed' OR orderStatus='pickup') AND orderedTime BETWEEN ? AND ? GROUP BY menuName";
         let values = [lcStartTime.toISOString(), lcEndTime.toISOString()];
 
         performQueryWithParam(command, values,callback);
