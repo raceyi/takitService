@@ -1918,17 +1918,20 @@ router.updateOrderStatus = function (orderId, oldStatus, nextStatus, timeName, t
     //현재 db에 저장된 주문상태,   새로 update할 주문상태
     //timeName is checkedTime, completeTime, canceledTime ...
 
+     //임시로 lock함수를 사용하여 해결함. 
+  lock.acquire(orderId, function(done) {
+  
     var command = "SELECT orderStatus FROM orders WHERE orderId=?";  //orderStatus와 oldStatus 같은지 비교하기 위해 조회함===> 잘못됨. 수정필요함 ㅜㅜ  
     var values = [orderId];
 
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
             console.error("updateOrderStatus func  Unable to query. Error:", JSON.stringify(err, null, 2));
-            ext(err);
+            done(err);
         } else {
             console.dir("[updateOrderStatus func]:" + result.info.numRows);
             if (result.info.numRows == 0) {
-                next("not exist order");
+                done("not exist order");
             } else {
                 console.log("updateOrderStatus func Query succeeded. " + JSON.stringify(result));
 
@@ -1949,24 +1952,24 @@ router.updateOrderStatus = function (orderId, oldStatus, nextStatus, timeName, t
                         console.log("!!!! localCancelledTime:"+values.localCancelledTime);
                     }
                 } else {
-                    next("incorrect old orderStatus");
+                    done("incorrect old orderStatus");
                     return;
                 }
 
                 performQueryWithParam(command, values, function (err, result) {
                     if (err) {
                         console.error("updateOrderStatus func Unable to query. Error:", JSON.stringify(err, null, 2));
-                        next(err);
+                        done(err);
                     } else {
                         console.dir("[updateOrderStatus func Get MenuInfo]:" + result.info.affectedRows);
                         if (result.info.affectedRows == 0) {
-                            next("can't update orders");
+                            done("can't update orders");
                         } else {
                             console.log("updateOrderStatus func Query succeeded. " + JSON.stringify(result[0]));
                             if(nextStatus ==='cancelled'){
                                 removeOrderList(orderId);
                             }
-                            next(null, "success");
+                            done(null, "success");
                         }
                     }
                 });
@@ -1974,6 +1977,12 @@ router.updateOrderStatus = function (orderId, oldStatus, nextStatus, timeName, t
 
         }
 
+    });},function(err, result) {
+        if (err) {
+            next(err);
+        } else {
+            next(null,"success"); 
+        }
     });
 
 };
