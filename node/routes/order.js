@@ -76,6 +76,8 @@ function sendOrderMSGUser(order,userInfo,next){
    GCM.GCMType = "order";
    GCM.custom = JSON.stringify(order);	
 
+   //업주에게도 전달함. socket으로 연결된 업주가 있을수 있음
+   socket.notifySocket(order); 
    //noti 받는 사람
    //if(userInfo.SMSNoti==="on"){
    if(order.orderStatus!="checked"){    // 주문접수일 경우 sms를 전달하지 않는다.완료와 취소는 sms를 전달한다.
