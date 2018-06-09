@@ -22,6 +22,8 @@ var FACEBOOK_APP_ID;
 var FACEBOOK_APP_SECRET;
 var FACEBOOK_APP_TOKEN;
 
+let notice="충전힌트가 웨이티아이디로 이름이 변경됩니다. 충전방식은 기존과 동일합니다.";
+
 const maxShopAtATime=30; // Please test it later. This value should equal to the maxSaveShop in client side
 
 /* GET users listing. */
@@ -211,6 +213,8 @@ router.facebookLogin = function(req, res){
 		 let response = new index.SuccResponse();
 		 response.setVersion(config.MIGRATION,req.version);
 		 response.userInfo=userInfo;
+         if(notice)
+             response.notice=notice;
          response.userInfo.recommendShops=mariaDB.getRecommendShops();
          res.send(JSON.stringify(response));
       }
@@ -252,6 +256,8 @@ router.kakaoLogin=function(req,res){//referenceId 확인해서 로그인.
          delete userInfo.countryCode
 			let response = new index.SuccResponse();
 			response.setVersion(config.MIGRATION,req.version);
+            if(notice)
+                response.notice=notice;
 			response.userInfo=userInfo;
             response.userInfo.recommendShops=mariaDB.getRecommendShops(); 
 			console.log(JSON.stringify(response));
@@ -300,6 +306,8 @@ router.emailLogin=function(req,res){
 			response.setVersion(config.MIGRATION,req.version);
 			response.userInfo=userInfo;		
             response.userInfo.recommendShops=mariaDB.getRecommendShops(); 
+            if(notice)
+                response.notice=notice;
             console.log(JSON.stringify(userInfo));
             //console.log(JSON.stringify(response.recommendShops));
          res.send(JSON.stringify(response));
