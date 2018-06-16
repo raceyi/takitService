@@ -55,97 +55,6 @@ function checkFacebookToken(appToken,token,next){
      });
 }
 
-router.facebookLogin= function(req,res){
-
-   //1. facebook의 token 확인
-   /*checkFacebookToken(FACEBOOK_SHOP_APP_TOKEN,req.body.token,function(err){
-   	if(err){
-			res.statusCode=err.statusCode;//401
-      	// please send error reason if access token is invalid or if user not found.
-      	res.send(JSON.stringify(err.body));
-		}else{
-	*/	
-			console.log(JSON.stringify(req.body));
-      	//2. shopUser로 등록 돼 있는지 확인
-         //3. 최종 login
-      	mariaDB.existShopUser(req.body.referenceId,function(err,shopUserInfo){
-         	console.log("existUser function result:");
-            console.log(shopUserInfo);
-
-            if(err){
-					let response = new index.Response("invalidId");
-					response.setVersion(config.MIGRATION,req.version);
-         		res.send(JSON.stringify(response));
-            }else{
-               console.log("[facebookLogin]shopUserInfo:"+JSON.stringify(shopUserInfo));
-               let response = new index.SuccResponse();
-					response.setVersion(config.MIGRATION,req.version);
-               // save user id in session
-               req.session.uid=shopUserInfo[0].userId;
-               console.log("facebooklogin-id:"+shopUserInfo[0].userId);
-
-               for(let i=0; i<shopUserInfo.length; i++){
-               	console.log("i..."+i);
-                	delete shopUserInfo[i].userId;
-						delete shopUserInfo[i].password;
-						delete shopUserInfo[i].salt;
-						delete shopUserInfo[i].shopPushId;
-            	}
-               response.shopUserInfo=shopUserInfo[0];
-               let myShopList=[];
-               for(let i=0;i<shopUserInfo.length;i++){
-                	let shopList=JSON.parse(shopUserInfo[i].myShopList);
-                  myShopList.push(shopList[0]);
-					}
-               response.shopUserInfo.myShopList=JSON.stringify(myShopList);
-               console.log("facebook login response:"+JSON.stringify(response));
-               res.send(JSON.stringify(response));
-         	}
-
-      	});
-	//	}
-	//});
-}
-
-router.kakaoLogin=function(req,res){
-	console.log("kakaoLogin request"+JSON.stringify(req.body));
-
-   mariaDB.existShopUser(req.body.referenceId,function(err,shopUserInfo){
-   	if(err){
-      	console.log(err);
-			let response = new index.Response("invalidId");
-			response.setVersion(config.MIGRATION,req.version);
-			res.send(JSON.stringify(response));
-      }else{
-			req.session.uid = shopUserInfo[0].userId;
-			//body.shopUserInfo={};
-			let response = new index.SuccResponse();
-			response.setVersion(config.MIGRATION,req.version);
-			//delete secret info
-			for(let i=0; i<shopUserInfo.length; i++){
-				delete shopUserInfo[i].userId;
-				delete shopUserInfo[i].password;
-				delete shopUserInfo[i].salt;
-				delete shopUserInfo[i].shopPushId;
-			}
-			
-			response.shopUserInfo=shopUserInfo[0];
-
-			//여러개 shopList 하나로 합치기
-			let myShopList=[];
-			for(let i=0; i<shopUserInfo.length; i++){
-				let shopList = JSON.parse(shopUserInfo[i].myShopList);
-				myShopList[i]=shopList[0];
-				
-			}
-			response.shopUserInfo.myShopList=JSON.stringify(myShopList);	
-			console.log(JSON.stringify(response));
-      	res.send(JSON.stringify(response));
-
-      }
-	});
-}
-
 router.loginWithEmail=function(req,res){
     console.log("loginWithEmail");
     mariaDB.checkShopUserWithEmailAndPassword(req.body.email, req.body.password, function(err,result){
@@ -245,69 +154,6 @@ router.emailLogin=function(req,res){
 			});
 		}
 	});
-}
-
-
-//처음 로그인일 때 facebook, kakao가 진짜 자기인지 모르기 때문에 한번 더 패스워드 확인
-
-router.secretLogin=function(req,res){	
-	console.log("enter secretLogin");	
-
-	//1. facebook 가입인지 확인
-	//2. facebook 가입이면 token 확인
-
-    console.log('secretLogin facebook or kakaotalk');
-    let shopUserInfos
-    async.waterfall([(callback)=>{
-        mariaDB.existUserEmail(req.body.email,callback); 
-    },(result,callback)=>{
-        mariaDB.getShopUserInfo(userInfo.userId,callback);
-    },(result,callback)=>{
-        shopUserInfos = result
-        let secretPassword = crypto.createHash('sha256').update(req.body.password+shopUserInfos[0].salt).digest('hex');
-
-        if(secretPassword === shopUserInfos[0].password){
-            console.log("password success!!");
-            mariaDB.updateShopRefId(userInfo.userId,req.body.referenceId,callback);
-        }else{
-            callback("password fail");
-        }
-    }],(err,result)=>{
-        if(err){
-            console.log(err);
-            let response = new index.FailResponse(err);
-            response.setVersion(config.MIGRATION,req.version);
-            res.send(JSON.stringify(response));
-        }else{
-        
-            console.log(result);
-            req.session.uid = shopUserInfos[0].userId;
-                
-            let response = new index.SuccResponse();
-            response.setVersion(config.MIGRATION,req.version);
-
-            //delete secret info
-            for(let i=0; i<shopUserInfos.length; i++){
-                delete shopUserInfos[i].userId;
-                delete shopUserInfos[i].password;
-                delete shopUserInfos[i].salt;
-                delete shopUserInfos[i].shopPushId;
-            }
-
-            response.shopUserInfo=shopUserInfos[0];
-            response.shopUserInfo.referenceId = req.body.referenceId;
-
-                //여러개 shopList 하나로 합치기
-            let myShopList=[];
-            for(let i=0; i<shopUserInfos.length; i++){
-                let shopList = JSON.parse(shopUserInfos[i].myShopList);
-                myShopList[i]=shopList[0];
-            }
-            response.shopUserInfo.myShopList=JSON.stringify(myShopList);
-            console.log(JSON.stringify(response));
-            res.send(JSON.stringify(response));
-        }
-    });
 }
 
 
@@ -488,7 +334,7 @@ router.refreshInfo=function(req,res){
 	console.log("enter refreshInfo shop");
 
 	async.parallel([function(callback){
-		mariaDB.getShopUserInfo(req.session.uid,callback); //GCMNoti정보 받아오기 위해
+		mariaDB.getShopUserInfoWithEmail(req.session.uid,callback); //GCMNoti정보 받아오기 위해
 	},function(callback){
 		mariaDB.getShopInfo(req.body.takitId, callback); //shop on/off 받아오기 위해
 	}],function(err,result){

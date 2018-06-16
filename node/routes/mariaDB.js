@@ -1792,7 +1792,7 @@ router.getOrdersShop = function (takitId, option, lastOrderId, limit, next) {
                         decryptObj(order);
                         orders.push(order);
                     });
-
+                    console.log("orders:"+JSON.stringify(orders));
                     next(null, orders);
                 }
             }
@@ -3581,13 +3581,6 @@ setTimeout(function(){
              setInterval(configureSoldout,24*60*60*1000); // 24 hours later 
 }, nextTimeout);
 ////////////////////////////////SoldOut -end////////////////////////////////////////////
-
-/*
-let takitId='세종대@더큰도시락';
-router.updateSalesShop(takitId, 1000,function(err, result){
-   console.log('result:'+JSON.stringify(result));
-})
-*/
 
 module.exports = router;
 

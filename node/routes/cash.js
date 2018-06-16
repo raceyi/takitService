@@ -667,14 +667,12 @@ router.payCash = function (cashId, amount,orderId, next) {
         mariaDB.getBalanceCash(cashId.toUpperCase(), callback);
     }, function (result, callback) {
         balance = result;
-
-        async.parallel([function (callback) {
-            if (balance >= amount) { //갖고 있는 캐쉬가 구매하려는 상품의 가격보다 같거나 많으면 구매할 수 있음
-                mariaDB.updateBalanceCash(cashId.toUpperCase(), -parseInt(amount), balance, callback); //지불할 캐쉬만큼 update
-            } else {
-                callback("check your balance");
-            }
-        }, function (callback) {
+        if (balance >= amount) { //갖고 있는 캐쉬가 구매하려는 상품의 가격보다 같거나 많으면 구매할 수 있음
+            mariaDB.updateBalanceCash(cashId.toUpperCase(), -parseInt(amount), balance, callback); //지불할 캐쉬만큼 update
+        }else{
+            callback("check your balance");
+        } 
+    }, function (result,callback) {
             const cashList = {};
             cashList.cashId = cashId;
             cashList.transactionType = "payment";
@@ -684,7 +682,6 @@ router.payCash = function (cashId, amount,orderId, next) {
             cashList.nowBalance = balance - amount;
             cashList.orderId = orderId;
             mariaDB.insertCashList(cashList, callback);
-        }], callback);
     }], function (err, result) {
         if (err) {
             console.log(err);
@@ -701,7 +698,6 @@ router.payCash = function (cashId, amount,orderId, next) {
             next(null,"success"); 
         }
     });
-
 };
 
 
