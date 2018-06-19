@@ -196,86 +196,6 @@ function sendOrderMSGShop(order, shopUserInfo,next){
 //[\"10:00~18:40\",\"08:00~19:40\",\"08:00~19:40\",\"08:00~19:40\",\"08:00~19:40\",\"08:00~19:40\",\"10:00~18:40\"]
 //주문정보 저장
 
-router.saveOrder=function(req, res){
-	let order=req.body;
-	console.log("req.body:"+JSON.stringify(req.body));
-	console.log("userId:"+req.session.uid);
-	order.userId=req.session.uid;
-	order.orderStatus="paid";
-	order.orderedTime = req.body.orderedTime;
-
-	let shopInfo;
-
-	async.waterfall([function(callback){
-        mariaDB.checkCashPwd(req.body.cashId.toUpperCase(),req.body.password,callback);
-    },function(result,callback){
-	    mariaDB.getShopInfo(req.body.takitId,callback);
-	},function(result,callback){
-        shopInfo = result;
-        console.log("shopInfo:"+JSON.stringify(shopInfo));
-        
-        let UTCOrderTime=new Date(order.orderedTime);
-        let localOrderedTime  = op.getTimezoneLocalTime(shopInfo.timezone,UTCOrderTime);
-        
-        order.localOrderedTime=localOrderedTime.toISOString();
-        order.localOrderedHour=localOrderedTime.getUTCHours();
-        order.localOrderedDay = localOrderedTime.getUTCDay();
-        order.localOrderedDate = localOrderedTime.toISOString().substring(0,10);
-
-
-		if(shopInfo.businessTime !== null){
-
-            let businessTime=op.computeBusinessTime(JSON.parse(shopInfo.businessTime),localOrderedTime.getUTCDay());
-
-			console.log(parseInt(businessTime.openHour));
-			console.log(typeof localOrderedTime.getUTCHours());
-			console.log(localOrderedTime.getUTCHours()+","+localOrderedTime.getUTCMinutes());
-            if(shopInfo.business === "on" && (businessTime.openHour < localOrderedTime.getUTCHours() ||  
-                (businessTime.openHour === localOrderedTime.getUTCHours() && businessTime.openMin <= localOrderedTime.getUTCMinutes())) 
-                && (businessTime.closeHour > localOrderedTime.getUTCHours() ||
-                (businessTime.closeHour === localOrderedTime.getUTCHours() && businessTime.closeMin > localOrderedTime.getUTCMinutes()))){
-                mariaDB.getOrderNumber(shopInfo,callback);
-            }else{
-                callback("shop's off");
-            }
-        }else{
-            callback("shop's business time is null");
-        }
-    },function(orderNO,callback){
-        order.orderNO=orderNO;
-        console.log("orderNO:"+orderNO);
-        mariaDB.saveOrder(order,shopInfo,callback);
-    },function(orderId,callback){
-        console.log(orderId);
-        async.parallel([function(callback){
-            mariaDB.getOrder(orderId,callback);
-        },function(callback){
-            mariaDB.getShopPushId(req.body.takitId,callback);
-        },function(callback){
-            cash.payCash(req.body.cashId,req.body.amount,orderId,callback);
-        }],callback);
-    },function(result,callback){
-        console.log("getShopPushId result:"+JSON.stringify(result));
-        console.log(result[0]);
-        console.log(result[1]);
-        sendOrderMSGShop(result[0],result[1],callback); //result[0]:order, result[1] :shopUserInfo(shopPushId, userId, platform)
-    }],function(err,result){
-        if(err){
-			console.log(err);
-            let response = new index.FailResponse(err);
-            response.setVersion(config.MIGRATION,req.version);
-            res.send(JSON.stringify(response));
-        }else{
-            let response = new index.SuccResponse();
-            response.setVersion(config.MIGRATION,req.version);
-            response.order = result.order;
-            response.messageId = result.messageId;
-            console.log("save order result:"+JSON.stringify(result));
-            res.send(JSON.stringify(response));
-        }
-    });
-};
-
 //param:uid, order,orderedTime,paymethod,customer_uid
 function saveOrderEach(param,next){
     console.log("param:"+JSON.stringify(param));
@@ -360,7 +280,11 @@ function saveOrderEach(param,next){
                 (businessTime.closeHour === localOrderedTime.getUTCHours() && businessTime.closeMin > localOrderedTime.getUTCMinutes()))){
                 mariaDB.getOrderNumber(shopInfo,callback);
             }else{
-                let businessTimeString="";
+                console.log("!!!!shopInfo.business:"+shopInfo.business);
+                if(shopInfo.business !="on"){
+                    callback("shop's closed");
+                }else{
+                    let businessTimeString="";
                     businessTimeString+=(businessTime.openHour >9 ? businessTime.openHour:"0"+businessTime.openHour);
                     //console.log(" "+businessTimeString);
                     businessTimeString+=":";
@@ -374,7 +298,8 @@ function saveOrderEach(param,next){
                     //console.log(" "+businessTimeString);
                     businessTimeString+=(businessTime.closeMin>9?businessTime.closeMin:"0"+businessTime.closeMin);
                     //console.log(" "+businessTimeString);
-                callback("shop's off ("+businessTimeString+")"); 
+                    callback("shop's off ("+businessTimeString+")"); 
+                }
             }
         }else{
             callback("shop's business time is null");
@@ -422,12 +347,33 @@ function saveOrderEach(param,next){
     }); 
 }
 
+checkTimeConstraint=function(orderList){
+    console.log("checkTimeConstraint:"+JSON.stringify(orderList));
+    for(let j=0;j<orderList.length;j++){
+      if(orderList[j].timeConstraints !=undefined && orderList[j].timeConstraints!=null){
+        for(let i=0;i<orderList[j].timeConstraints.length;i++){
+            if(!checkOneTimeConstraint(orderList[j].timeConstraints[i]))
+                return false;
+        }
+      }
+    }
+    return true;
+}
+
 router.saveOrderCart=function(req, res){
     let order=req.body;
     console.log("req.body:"+JSON.stringify(req.body));
     console.log("userId:"+req.session.uid);
     let shops=[]; 
     let orderList=JSON.parse(req.body.orderList);
+
+    // timeconstraint 조사
+    if(!checkTimeConstraint(orderList)){
+        let response = new index.FailResponse("menuWithTimeConstraint");
+        response.setVersion(config.MIGRATION,req.version);
+        res.send(JSON.stringify(response));
+        return;
+    }
     orderList.forEach(element => { // 잘못된 코드이다 ㅜㅜ 나중에 수정이 필요하다. 
            let shop={};
            shop.order       =element;
