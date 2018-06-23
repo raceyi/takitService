@@ -3469,6 +3469,35 @@ router.checkIfMenuSoldOut=function(menus,next){
     });
 }
 
+getFavoriteMenusInfo=function(menus,next){
+    if(menus.length==0){
+        next(null,[]);
+    }else{
+        let command="SELECT * from menus WHERE (menuNO=? AND menuName=?) ";
+        let values=[menus[0].menuNO,menus[0].menuName];
+        
+        for(var i=1;i<4 && i<menus.length;i++){
+           command+="OR (menuNO=? AND menuName=?)"; 
+           values.push(menus[i].menuNO);
+           values.push(menus[i].menuName);
+        } 
+        performQueryWithParam(command, values, function (err, result) {
+            if(err){
+                next(err);
+            }else{
+                console.log("result:"+JSON.stringify(result));
+                menuInfos=[];
+                for(var j=0;j<4 && j<result.length;j++){
+                    menuInfos.push(result[j]);
+                    let index=menuInfos[j].menuNO.indexOf(';');
+                    menuInfos[j].takitId=menuInfos[j].menuNO.substr(0,index);
+                }
+                next(null,menuInfos);
+            }
+        })
+    }
+}
+
 router.getFavoriteMenu=function(userId,next){
     //let command = "select menuNO, menuName, COUNT(*) from orderList GROUP BY menuNO,menuName order by count(*) desc where userId=?";
     let command ="select orderList.takitId,orderList.menuNO,orderList.menuName,menus.price,menus.imagePath, count(*) as count  from orderList LEFT JOIN menus ON orderList.menuNO=menus.menuNO AND orderList.menuName=menus.menuName where userId=? GROUP BY orderList.menuNO,orderList.menuName order by count desc" 
@@ -3484,7 +3513,13 @@ router.getFavoriteMenu=function(userId,next){
                 for(var i=0;i<4 && i<result.info.numRows;i++)
                     menus.push(result[i]); 
                 console.log("menus:"+JSON.stringify(menus));
-                next(null, menus);
+                getFavoriteMenusInfo(menus,function(err,menuInfos){
+                   console.log("!!!!menuInfos:"+JSON.stringify(menuInfos));
+                   if(err)
+                       next(err);
+                   else
+                       next(null,menuInfos);
+                });
         }
     });
 }
