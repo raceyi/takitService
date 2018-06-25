@@ -347,6 +347,39 @@ function saveOrderEach(param,next){
     }); 
 }
 
+checkOneTimeConstraint=function(timeConstraint){
+        var currTime = new Date();
+        let currLocalTime=currTime.getMinutes()+ currTime.getHours()*60;
+
+        if(timeConstraint){
+                if(timeConstraint.from && (!timeConstraint.to || timeConstraint.to==null)){
+                        //current time in seconds is more than or equal to
+                        if(currLocalTime<timeConstraint.fromMins)
+                            return false;
+                }else if((!timeConstraint.from || timeConstraint.from==null) && timeConstraint.to){
+                        //current time is less then or equal to
+                        console.log("currLocalTime:"+currLocalTime+"timeConstraint.ToMins:"+timeConstraint.toMins);
+                        if(currLocalTime>timeConstraint.toMins){
+                            return false;
+                        }
+                }else if(timeConstraint.from && timeConstraint.from!=null
+                        && timeConstraint.to!=null && timeConstraint.to){
+                    if(timeConstraint.condition=='XOR'){
+                        //current time is more than or equal to from OR
+                        //    current time is less than or equal to to
+                        if(timeConstraint.fromMins<currLocalTime ||currLocalTime<timeConstraint.toMins)
+                            return false;
+                    }else if(timeConstraint.condition=='AND'){
+                        //    current time is more than or equal to from AND
+                        //    current time is less than or equal to to
+                         if(timeConstraint.fromMins>currLocalTime ||currLocalTime>timeConstraint.toMins)
+                            return false;
+                    }
+                }
+        }
+        return true;
+}
+
 checkTimeConstraint=function(orderList){
     console.log("checkTimeConstraint:"+JSON.stringify(orderList));
     for(let j=0;j<orderList.length;j++){
@@ -368,12 +401,14 @@ router.saveOrderCart=function(req, res){
     let orderList=JSON.parse(req.body.orderList);
 
     // timeconstraint 조사
+/*
     if(!checkTimeConstraint(orderList)){
         let response = new index.FailResponse("menuWithTimeConstraint");
         response.setVersion(config.MIGRATION,req.version);
         res.send(JSON.stringify(response));
         return;
     }
+*/
     orderList.forEach(element => { // 잘못된 코드이다 ㅜㅜ 나중에 수정이 필요하다. 
            let shop={};
            shop.order       =element;
@@ -1007,6 +1042,7 @@ router.inputReview=function(req,res){
 router.getFavoriteMenu=function(req,res){
     console.log("userId:"+req.session.uid);
     mariaDB.getFavoriteMenu(req.session.uid,function(err,result){
+        console.log("!!!!getFavoriteMenu:"+JSON.stringify(result));
         if(err){
             console.log(err);
             let response = new index.FailResponse(err);
@@ -1014,6 +1050,7 @@ router.getFavoriteMenu=function(req,res){
             res.send(JSON.stringify(response));
         }else{
             let response = new index.SuccResponse();
+            console.log("getFavoriteMenu:"+JSON.stringify(result));
             response.menus=result;
             response.setVersion(config.MIGRATION,req.version);
             res.send(JSON.stringify(response));
@@ -1057,6 +1094,23 @@ router.getOldOrders=(req,res)=>{
             res.send(JSON.stringify(response));
       }
     });
+}
+
+router.pollRecentOrder =function(req,res){
+    console.log("order.pollRecentOrder");
+    mariaDB.pollRecentOrder(req.body.orderNO,req.body.takitId,req.body.time,function(err,more){
+       if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+      }else {
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            response.more=more;
+            res.send(JSON.stringify(response));
+      }
+    })
 }
 
 module.exports = router;

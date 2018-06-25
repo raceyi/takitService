@@ -1763,6 +1763,30 @@ router.getLocalTimeWithOption = function (option, timezone) {
     return queryStartTime;
 }
 
+router.pollRecentOrder = function(orderNO,takitId,time,next){
+    var command = "SELECT * FROM orders WHERE takitId=? AND orderedTime > ? ";
+    var values = [takitId, time]; 
+    
+    performQueryWithParam(command, values, function (err, result) {
+            if (err) {
+                console.error("queryOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
+                next(err);
+            } else {
+                console.dir("[queryOrders func Get MenuInfo]:" + result.info.numRows);
+                if (result.info.numRows == 0) {
+                    next(null,false);
+                } else {
+                    for(var i=0;i<result.info.numRows;i++){
+                        if(result[i].orderNO>orderNO){
+                            console.log("poll found new order!!!");
+                            next(null,true);
+                            break;
+                        }
+                    }
+                }
+            }
+    }); 
+}
 
 //shop에서 주문내역 검색할 때
 router.getOrdersShop = function (takitId, option, lastOrderId, limit, next) {
