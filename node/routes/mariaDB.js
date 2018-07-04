@@ -3515,6 +3515,7 @@ getFavoriteMenusInfo=function(menus,next){
                     menuInfos.push(result[j]);
                     let index=menuInfos[j].menuNO.indexOf(';');
                     menuInfos[j].takitId=menuInfos[j].menuNO.substr(0,index);
+                    menuInfos[j].count=menus[j].count; //2018.07.04 
                 }
                 next(null,menuInfos);
             }
