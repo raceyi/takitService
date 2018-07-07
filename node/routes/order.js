@@ -338,7 +338,7 @@ function saveOrderEach(param,next){
                    callback(err); //payCash의 에러를 전달한다. 
                });
            }else 
-               callback(null,err); 
+               callback(null,result); 
           });
     },function(result,callback){
         console.log("getShopPushId result:"+JSON.stringify(result));
