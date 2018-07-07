@@ -213,6 +213,7 @@ function saveOrderEach(param,next){
 
     console.log("!!!!!!order.total:"+param.total);
 	let shopInfo;
+    let newOrderId;
  
     async.waterfall([function(callback){
       //check if menu is soldout
@@ -251,6 +252,8 @@ function saveOrderEach(param,next){
             callback(null,"cash"); 
         } 
     },function(approval,callback){
+        console.log("approval is ..."+JSON.stringify(approval));
+
         if(typeof approval === 'object'){
             order.imp_uid  = approval.imp_uid;
             order.approval = approval.approval;
@@ -312,6 +315,7 @@ function saveOrderEach(param,next){
         mariaDB.saveOrder(order,shopInfo,callback);
     },function(orderId,callback){
         console.log(orderId);
+        newOrderId=orderId;
         async.parallel([function(callback){
             mariaDB.getOrder(orderId,callback);
         },function(callback){
@@ -325,7 +329,17 @@ function saveOrderEach(param,next){
                 console.log("This must be card");
                 callback(null);
             }
-        }],callback);
+        }],function(err,result){
+           console.log("payCash result-err:"+JSON.stringify(err));
+           if(err){
+               //주문상태를 cancel로 만든이후에 error를 리턴한다. workaround로 근본적으로 saveOrder가발생하지 못하도록 해야 한다. 
+               mariaDB.updateOrderStatus(newOrderId,'paid','cancelled','cancelledTime',
+                                         new Date(),'결제 실패',"Asia/Seoul",function(error,result){
+                   callback(err); //payCash의 에러를 전달한다. 
+               });
+           }else 
+               callback(null,err); 
+          });
     },function(result,callback){
         console.log("getShopPushId result:"+JSON.stringify(result));
         console.log(result[0]);
@@ -333,6 +347,7 @@ function saveOrderEach(param,next){
         sendOrderMSGShop(result[0],result[1],callback); //result[0]:order, result[1] :shopUserInfo(shopPushId, userId, platform)
     }],function(err,result){
         if(err){
+            console.log("err comes:"+err);
             if(err!="card-approval"){ // other error like getOrder....
                 //Please cancel card approval.
             }
