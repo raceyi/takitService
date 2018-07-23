@@ -662,6 +662,67 @@ router.getOnlyShopUserInfo = function (userId, next) {
     });
 }
 
+router.saveCashBillKey=function(orderId,cashBillKey,next){
+    console.log("saveCashBill orderId:"+orderId);
+    let command = "UPDATE orders set cashBillKey=? where orderId=?";
+    let values = [cashBillKey, orderId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("saveCashBillKey function result" + JSON.stringify(result));
+            next(null);
+        }
+    });
+}
+
+router.saveCancelCashBillKey=function(orderId,cancelCashBillKey,next){
+    let command = "UPDATE orders set cancelCashBillKey=? where orderId=?";
+    let values = [cancelCashBillKey, orderId];
+    
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("saveCancelCashBillKey function result" + JSON.stringify(result));
+            next(null);
+        }
+    });
+}
+
+router.getRevokeRegistOrders=function(next){
+    let date=new Date(Date.now()-24*60*60*1000*3); //3 days ago;
+    let month= (date.getMonth()+1)<10?"0"+(date.getMonth()+1):date.getMonth()+1;
+    let day  = date.getDate()<10? "0"+date.getDate():date.getDate();
+    let timeString=date.getFullYear()+'-'+month+'-'+day;
+    console.log("timeString:"+timeString);
+    let command ="SELECT orders.cashBillKey,shopInfo.businessNumber,orders.orderId FROM orders LEFT JOIN shopInfo ON orders.takitId = shopInfo.takitId WHERE \
+                  orders.orderStatus='cancelled' AND orders.cashBillKey IS NOT NULL AND orders.cancelCashBillKey IS NULL AND orders.orderedTime >?";
+    let values = [timeString];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("getRevokeRegistOrders function result" + JSON.stringify(result));
+            let orders=[];
+            result.forEach(order=>{
+                let info={cashBillKey:order.cashBillKey,corpNum:order.businessNumber,orderId:order.orderId};
+                orders.push(info);
+            })
+            next(null,orders);
+        }
+    });
+}
+
+router.getRevokeRegistOrders(function(err,orders){
+    console.log("getRevokeRegistOrders-orders:"+JSON.stringify(orders));
+})
+
 router.saveCouponList=function(userId,couponList,next){
     let command = "UPDATE userInfo set couponList=? where userId=?";
     let values = [couponList, userId];

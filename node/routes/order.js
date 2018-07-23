@@ -14,14 +14,11 @@ let config = require('../config');
 let index = require('./index');
 let op = require('./op');
 let socket = require('./socket');
+let cashBill =require('./cashBill');
 
 let router = express.Router();
 let redisCli = redis.createClient(); 
 let scheduler = new Scheduler();
-
-
-let a = new index.SuccResponse();
-console.log(a);
 
 function updateOrderStatus(order){
    let title;
@@ -163,7 +160,7 @@ function sendOrderMSGShop(order, shopUserInfo,next){
 		if(order.orderStatus === "cancelled"){
 			sound = "cancelorder";
 		}
-      noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform,sound,callback);
+      noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform,sound,callback); 
    }],function(err,result){
       if(err){
          console.log(err);
@@ -706,55 +703,6 @@ router.notifyOrder=function(req,res){
     });
 };
 
-// kalen.lee-end
-////////////////////////////////////////////////////////////
-
-router.completeOrder=function(req,res){//previous status must be "checked".
-   //1. order정보 가져옴
-   //2. shopUser인지 확인
-   //3. orderStatus update
-   //4. send a massege
-
-   //check shop member
-   console.log("req.body.orderId:"+JSON.stringify(req.body.orderId));
-
-   let order={};
-
-   async.waterfall([function(callback){
-      // Please check if req.session.uid is a member or manager of shop
-      mariaDB.getShopUserInfo(req.session.uid,callback);
-   },function(result,callback){
-      //주문상태 update
-      mariaDB.updateOrderStatus(req.body.orderId,'checked','completed','completedTime',
-      new Date(),req.body.cancelReason,null,callback);
-   },function(result,callback){
-      //update된 상태user, shopUser에게  msg보내줌
-      mariaDB.getOrder(req.body.orderId,callback);
-   },function(result,callback){
-      order = result;
-		async.parallel([function(callback){
-			mariaDB.updateSalesShop(order.takitId,order.total,callback);
-		},function(callback){
-      	mariaDB.getPushId(order.userId,callback);
-		}],callback);
-   },function(result,callback){
-		let userInfo = result[1];
-      sendOrderMSGUser(order,userInfo,callback);
-   }],function(err,result){
-      if(err){
-			let response = new index.FailResponse(err);
-			response.setVersion(config.MIGRATION,req.version);
-         res.send(JSON.stringify(response));
-      }else{
-			let response = new index.SuccResponse();
-			response.setVersion(config.MIGRATION,req.version);
-         res.send(JSON.stringify(response));
-      }
-   });
-};
-
-////////////////////////////////////////////////////////////////////////////
-// kalen.lee -begin
 router.completeOrderWithEmail=function(req,res){//previous status must be "checked".
    //1. order정보 가져옴
    //2. shopUser인지 확인
@@ -795,7 +743,33 @@ router.completeOrderWithEmail=function(req,res){//previous status must be "check
       }else{
             let response = new index.SuccResponse();
             response.setVersion(config.MIGRATION,req.version);
-         res.send(JSON.stringify(response));
+            res.send(JSON.stringify(response));
+            //현금영수증을 발행한다.
+            mariaDB.getShopInfo(order.takitId,function(err,shopInfo){
+                if(err){
+                    console.log("fail to getShopInfo:"+JSON.stringify(err));
+                    console.log("fail to issue cashBill");
+                }else{ 
+                    mariaDB.getUserInfo(order.userId,function(err,userInfo){
+                        if(order.receiptType==null || !order.receiptId) //발급하지 않음.
+                            return;
+                        let issueInfo={corpNum:shopInfo.businessNumber,
+                            takitId:order.takitId,
+                            address:shopInfo.address,
+                            owner:shopInfo.owner,
+                            userId:order.userId,
+                            userName:order.userName,
+                            receiptId:order.receiptId,
+                            total:order.amount, // 배달비 제외한 금액
+                            email:userInfo.email,
+                            receiptType:order.receiptType,
+                            orderId:order.orderId,
+                            orderNO:order.orderNO,
+                            orderName:order.orderName};
+                        cashBill.registIssue(issueInfo);  
+                   });
+                }
+            });
       }
    });
 };
@@ -902,57 +876,6 @@ router.cancelOrderUserCart=function(req,res){
     });
 }
 
-//shop취소
-router.shopCancelOrder=function(req,res){
-   //1. order정보 가져옴
-   //2. shopUser인지 확인
-   //3. orderStatus update
-   //4. send a massege
-
-   //check shop member
-   console.log("shopCancelOrder-req.body.orderId:"+JSON.stringify(req.body.orderId));
-
-   let order={};
-
-   async.waterfall([function(callback){
-      mariaDB.getShopUserInfo(req.session.uid,callback);
-   },function(result,callback){
-      mariaDB.updateOrderStatus(req.body.orderId,'','cancelled','cancelledTime',
-      new Date(),req.body.cancelReason,"Asia/Seoul" ,callback);
-   },function(result,callback){
-      mariaDB.getOrder(req.body.orderId,callback);
-   },function(result,callback){
-      order = result;
-      mariaDB.getCashId(order.userId,callback);
-   },function(cashId,callback){
-      console.log("cancel order :"+JSON.stringify(order));
-      async.parallel([function(callback){
-         cash.cancelCash(cashId,req.body.orderId,parseInt(order.total),callback); //cash로 다시 돌려줌
-      },function(callback){
-         console.log("----order.checkedTime:"+order.checkedTime); 
-         if(order.completedTime==null)
-             mariaDB.updateSalesShop(order.takitId,0,callback);
-         else
-             mariaDB.updateSalesShop(order.takitId,-parseInt(order.total),callback);
-      },function(callback){
-         mariaDB.getPushId(order.userId,callback);
-      }],callback);
-   },function(result,callback){
-      sendOrderMSGUser(order,result[2],callback);
-   }],function(err,result){
-      if(err){
-         console.log(err);
-			let response = new index.FailResponse(err);
-			response.setVersion(config.MIGRATION,req.version);
-         res.send(JSON.stringify(response));
-      }else {
-			let response = new index.SuccResponse();
-			response.setVersion(config.MIGRATION,req.version);
-         res.send(JSON.stringify(response));
-      }
-   });
-};
-
 ////////////////////////////////////////////////////////////////////////////////
 // kalen.lee -begin
 //shop취소, 카드 취소, 캐쉬 취소 
@@ -1021,7 +944,15 @@ router.shopCancelOrderWithEmail=function(req,res){
       }else {
             let response = new index.SuccResponse();
             response.setVersion(config.MIGRATION,req.version);
-         res.send(JSON.stringify(response));
+            res.send(JSON.stringify(response));
+            console.log("!!! check cashBill!!!  "+order.cashBillKey);
+            if(order.cashBillKey!=null){
+                mariaDB.getShopInfo(order.takitId,function(err,shopInfo){
+                    let info={corpNum:shopInfo.businessNumber, cashBillKey:order.cashBillKey, orderId:order.orderId};
+                    console.log("call cashBill.cancelIssue");
+                    cashBill.cancelIssue(info);
+                });
+            }
       }
    });
 };
