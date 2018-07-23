@@ -751,7 +751,10 @@ router.completeOrderWithEmail=function(req,res){//previous status must be "check
                     console.log("fail to issue cashBill");
                 }else{ 
                     mariaDB.getUserInfo(order.userId,function(err,userInfo){
-                        if(order.receiptType==null || !order.receiptId) //발급하지 않음.
+                        console.log("check-registIssue: order.receiptType:"+order.receiptType);
+                        console.log("order.receiptId:"+order.receiptId);
+                        console.log("shopInfo.businessNumber:"+shopInfo.businessNumber);
+                        if(order.receiptType==null || order.receiptId==null ||shopInfo.businessNumber==null) //발급하지 않음.
                             return;
                         let issueInfo={corpNum:shopInfo.businessNumber,
                             takitId:order.takitId,
