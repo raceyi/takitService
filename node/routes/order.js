@@ -198,6 +198,9 @@ function saveOrderEach(param,next){
     console.log("param:"+JSON.stringify(param));
     let order=param.order;
 
+     console.log("!!!param.order:!!!!"+JSON.stringify(order));
+     console.log("!!!order.paymethod:!!!!"+JSON.stringify(order.paymethod));
+
     order.orderStatus="paid";
 
     order.orderedTime    =param.orderedTime;
@@ -216,7 +219,7 @@ function saveOrderEach(param,next){
       //check if menu is soldout
       let menus=[];
       order.orderList.menus.forEach(menu=>{
-           let menuInfo={menuNO:menu.menuNO,menuName:menu.menuName};
+           let menuInfo=menu ;//{menuNO:menu.menuNO,menuName:menu.menuName};
            menus.push(menuInfo);
       });
       console.log("menus:"+JSON.stringify(menus));
@@ -233,10 +236,14 @@ function saveOrderEach(param,next){
         let shop_paymethod=JSON.parse(shopInfo.paymethod);
 
         console.log("shop_paymethod.cash:"+shop_paymethod.cash);
-        console.log("user_paymethod.card:"+user_paymethod.card);
-
+        console.log("user_paymethod:"+order.paymethod);
+        console.log("user_paymethod.cash:"+order.paymethod.cash);
+        //재주문시 user_paymethod가 string으로 들어올수 있음. Why?
+        if(typeof user_paymethod ==="string")
+            user_paymethod=JSON.parse(user_paymethod);
+        // 상점의 discount rate과 결제 방법을 확인함 
         if(param.payment=="cash" && shop_paymethod.cash!=user_paymethod.cash)
-            callback("paymethod is out of date");
+            callback("paymethod is out of date user_paymethod.cash:"+order.paymethod);
         else if(param.payment=="card" && shop_paymethod.card!=user_paymethod.card)
             callback("paymethod is out of date");
         else
@@ -392,19 +399,6 @@ checkOneTimeConstraint=function(timeConstraint){
         return true;
 }
 
-checkTimeConstraint=function(orderList){
-    console.log("checkTimeConstraint:"+JSON.stringify(orderList));
-    for(let j=0;j<orderList.length;j++){
-      if(orderList[j].timeConstraints !=undefined && orderList[j].timeConstraints!=null){
-        for(let i=0;i<orderList[j].timeConstraints.length;i++){
-            if(!checkOneTimeConstraint(orderList[j].timeConstraints[i]))
-                return false;
-        }
-      }
-    }
-    return true;
-}
-
 router.saveOrderCart=function(req, res){
     let order=req.body;
     console.log("req.body:"+JSON.stringify(req.body));
@@ -413,14 +407,6 @@ router.saveOrderCart=function(req, res){
     let orderList=JSON.parse(req.body.orderList);
 
     // timeconstraint 조사
-/*
-    if(!checkTimeConstraint(orderList)){
-        let response = new index.FailResponse("menuWithTimeConstraint");
-        response.setVersion(config.MIGRATION,req.version);
-        res.send(JSON.stringify(response));
-        return;
-    }
-*/
     orderList.forEach(element => { // 잘못된 코드이다 ㅜㅜ 나중에 수정이 필요하다. 
            let shop={};
            shop.order       =element;
@@ -520,11 +506,14 @@ router.getOrdersUserDefault=function(req,res){
     });
 }
 
+/*
 router.getOrdersShop=function(req,res){
 	console.log("getOrders:"+JSON.stringify(req.body));
 	
 	if(req.body.option === "period"){
-		mariaDB.getPeriodOrdersShop(req.body.takitId,req.body.startTime,req.body.endTime,req.body.lastOrderId,req.body.limit,function(err,orders){
+		mariaDB.getPeriodOrdersShop(req.body.takitId,req.body.startTime,req.body.endTime,
+                                    req.body.lastOrderId,req.body.limit,
+                                    function(err,orders){
 			if(err){
 				console.log(err);
 				let response = new index.FailResponse(err);
@@ -538,7 +527,10 @@ router.getOrdersShop=function(req,res){
 			}
 		});
 	}else{			
-		mariaDB.getOrdersShop(req.body.takitId,req.body.option,req.body.lastOrderId,req.body.limit,function(err,orders){
+		mariaDB.getOrdersShop(req.body.takitId,req.body.option,
+                              req.body.lastOrderId,req.body.limit,
+                              req.body.lastKioskOrderId,
+                              function(err,orders){
 			if(err){
 				console.log(err);
 				let response = new index.FailResponse(err);
@@ -554,7 +546,55 @@ router.getOrdersShop=function(req,res){
 		
 	}
 };
+*/
 
+router.getOrdersShop=function(req,res){
+    console.log("getOrders:"+JSON.stringify(req.body));
+   
+    if(req.body.option === "period"){
+        mariaDB.getPeriodOrdersShop(req.body.takitId,req.body.startTime,req.body.endTime,
+                                    req.body.lastOrderId,req.body.limit,
+                                    function(err,orders){
+            if(err){
+                console.log(err);
+                let response = new index.FailResponse(err);
+                response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+            }else{
+                let response = new index.SuccResponse();
+                response.setVersion(config.MIGRATION,req.version);
+            response.orders=orders;
+                res.send(JSON.stringify(response));
+            }
+        });
+    }else{
+        mariaDB.getOrdersShop(req.body.takitId,req.body.option,
+                              req.body.lastOrderId,req.body.limit,
+                              function(err,orders){
+            if(err){
+                console.log(err);
+                let response = new index.FailResponse(err);
+                response.setVersion(config.MIGRATION,req.version);
+                res.send(JSON.stringify(response));
+            }else{
+                let resultOrders=orders;
+                mariaDB.getKioskOrdersShop(req.body.takitId,req.body.option,req.body.lastKioskOrderId,req.body.limit,
+                      function(err,kioskOrders){
+                          let response = new index.SuccResponse();
+                          response.setVersion(config.MIGRATION,req.version);
+                          if(kioskOrders && kioskOrders.length>0){
+                              kioskOrders.forEach(order=>{
+                                  order.type='kiosk';
+                                  resultOrders.push(order);
+                              }) 
+                          }
+                          response.orders=resultOrders;
+                          res.send(JSON.stringify(response));
+                      });
+            }
+        });
+    }
+};
 
 router.checkOrder=function(req,res){ // previous status must be "paid".
 	//1. order정보 가져옴
@@ -1047,6 +1087,7 @@ router.getOldOrders=(req,res)=>{
 
 router.pollRecentOrder =function(req,res){
     console.log("order.pollRecentOrder");
+
     mariaDB.pollRecentOrder(req.body.orderNO,req.body.takitId,req.body.time,function(err,more){
        if(err){
             console.log(err);
@@ -1054,10 +1095,26 @@ router.pollRecentOrder =function(req,res){
             response.setVersion(config.MIGRATION,req.version);
             res.send(JSON.stringify(response));
       }else {
-            let response = new index.SuccResponse();
-            response.setVersion(config.MIGRATION,req.version);
-            response.more=more;
-            res.send(JSON.stringify(response));
+            if(more){
+                let response = new index.SuccResponse();
+                response.setVersion(config.MIGRATION,req.version);
+                response.more=more;
+                res.send(JSON.stringify(response));
+            }else{
+                mariaDB.pollRecentOrder(req.body.orderNO,req.body.takitId,req.body.time,function(err,more){
+                   if(err){
+                       console.log(err);
+                       let response = new index.FailResponse(err);
+                       response.setVersion(config.MIGRATION,req.version);
+                       res.send(JSON.stringify(response));
+                   }else {
+                       let response = new index.SuccResponse();
+                       response.setVersion(config.MIGRATION,req.version);
+                       response.more=more;
+                       res.send(JSON.stringify(response));
+                   }
+                });
+           }
       }
     })
 }

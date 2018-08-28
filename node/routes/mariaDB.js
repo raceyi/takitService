@@ -237,6 +237,7 @@ function recommendShopInfo(shops,next) {
                     shop.imagePath     =element.imagePath;
                     shop.paymethod     =element.paymethod;
                     shop.deliveryArea  =element.deliveryArea;
+                    shop.ready         =element.ready;
                     shopsResult.push(shop);
                 });
                 let sortedShops=[];
@@ -1519,7 +1520,7 @@ function increaseOrderNumber(takitId, orderNumberCounterTime, next) {
 
 
 router.getOrderNumber = function (shopInfo, next) {
-    
+  lock.acquire(shopInfo.takitId, function (done) {
     //orderNumberCounter = 오늘 주문수 계속 카운트.
     //orderNumberCounterTime = 가장 마지막으로 주문받은 시간 저장. => 오늘의 가장 첫 주문 확인 시에 필요.
 
@@ -1556,12 +1557,16 @@ router.getOrderNumber = function (shopInfo, next) {
             if (err) {
                 console.log("getOrderNumber func set orderNumberCounter with condition " + err);
                 next(err);
+                done(err);
             } else {
                 console.dir("[getOrderNumber func update orderNumberCounter]:" + result.info.numRows);
-                (result.info.affectedRows === '0') 
-                ? next("can't update shopInfo") 
-                : next(null, 1);
-                
+                if(result.info.affectedRows === '0'){
+                    next("can't update shopInfo");
+                    done("can't update shopInfo");
+                }else{
+                    next(null, 1);
+                    done(null,1);
+                } 
             }
         });// end update orderNumberCounterTime
    
@@ -1572,11 +1577,16 @@ router.getOrderNumber = function (shopInfo, next) {
 
     } else { //같은 날의 주문일 경우 or shop's first order
         increaseOrderNumber(shopInfo.takitId,shopInfo.orderNumberCounterTime, function (err,result) {
-            err 
-            ? next(err) 
-            : next(null,parseInt(shopInfo.orderNumberCounter)+1);
+            if(err){
+                next(err);
+                done(err);
+            }else{
+                next(null,parseInt(shopInfo.orderNumberCounter)+1);
+                done(null,"success");
+            }
         });
     }
+  });
 };
 
 router.insertOrderList=(userId,orderId,i,orderList,next)=>{
@@ -1631,9 +1641,9 @@ router.saveOrder = function (order, shopInfo, next) {
 
         //3. encrypt phone
             let secretUserPhone = encryption(userInfo.phone, config.pPwd);
-            let command = "INSERT INTO orders(takitId,shopName,orderName,payMethod,amount,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,userMSG,deliveryAddress,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType,deliveryFee, imp_uid,approval,card_info,total) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-
-            let values = [order.takitId,order.shopName, order.orderName, order.paymethod, order.amount, order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList,order.userMSG, order.deliveryAddress, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType,order.deliveryFee,order.imp_uid,order.approval,order.card_info,order.total];
+            let command = "INSERT INTO orders(takitId,shopName,orderName,payMethod,amount,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,userMSG,deliveryAddress,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType,deliveryFee, imp_uid,approval,card_info,total,payInfo) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+      //payInfo는 주문시 상점의 할인결제옵션임. payMethod와 다름.재주문을 위해 저장함. 
+            let values = [order.takitId,order.shopName, order.orderName, order.paymethod, order.amount, order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList,order.userMSG, order.deliveryAddress, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType,order.deliveryFee,order.imp_uid,order.approval,order.card_info,order.total,order.payInfo];
             performQueryWithParam(command, values, function (err, orderResult) {
                 if (err) {
                     console.error("saveOrder func inser orders Unable to query. Error:", JSON.stringify(err, null, 2));
@@ -1849,6 +1859,89 @@ router.pollRecentOrder = function(orderNO,takitId,time,next){
     }); 
 }
 
+router.pollKioskRecentOrder = function(orderNO,takitId,time,next){
+    var command = "SELECT * FROM kiosk WHERE takitId=? AND orderedTime > ? ";
+    var values = [takitId, time];
+   
+    performQueryWithParam(command, values, function (err, result) {
+            if (err) {
+                console.error("queryOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
+                next(err);
+            } else {
+                console.dir("[queryOrders func Get MenuInfo]:" + result.info.numRows);
+                if (result.info.numRows == 0) {
+                    next(null,false);
+                } else {
+                    for(var i=0;i<result.info.numRows;i++){
+                        if(result[i].orderNO>orderNO){
+                            console.log("poll found new order!!!");
+                            next(null,true);
+                            break;
+                        }
+                    }
+                }
+            }
+    });
+}
+
+router.getKioskOrdersShop=function(takitId, option, lastOrderId, limit, next) {
+    console.log("takitId:" + takitId);
+    function queryOrders(startTime) {
+        if (lastOrderId == -1) {
+
+            var command = "SELECT *FROM kiosk WHERE takitId=? AND orderedTime > ? AND orderId > ?  ORDER BY orderId DESC LIMIT " + limit;
+        } else {
+            var command = "SELECT *FROM kiosk WHERE takitId=? AND orderedTime > ? AND orderId < ?  ORDER BY orderId DESC LIMIT " + limit;
+        }
+        var values = [takitId, startTime, lastOrderId];
+        performQueryWithParam(command, values, function (err, result) {
+            if (err) {
+                console.error("queryOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
+                next(err);
+            } else {
+                console.dir("[queryOrders func Get MenuInfo]:" + result.info.numRows);
+                if (result.info.numRows == 0) {
+                    next("not exist orders");
+                } else {
+                    console.log("queryOrders func Query succeeded. " + JSON.stringify(result.info));
+
+                    var orders = [];
+                    result.forEach(function (order) {
+                        decryptObj(order);
+                        orders.push(order);
+                    });
+                    console.log("kiosk-orders:"+JSON.stringify(orders));
+                    next(null, orders);
+                }
+            }
+        });
+    } //end queryOrders
+
+
+    var command = "SELECT *FROM shopInfo WHERE takitId=?";
+    var values = [takitId];
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("getOrdersShop func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.dir("[getOrdersShop func Get shopInfo]:" + result.info.numRows);
+            if (result.info.numRows == 0) {
+                next("not exist shop");
+            } else {
+                console.log("getOrdersShop func Query succeeded. " + JSON.stringify(result));
+                console.log("timezone:" + result[0].timezone);
+
+                let queryStartTime = router.getLocalTimeWithOption(option, result[0].timezone);
+
+                console.log("queryStartTime:" + queryStartTime);
+                queryOrders(queryStartTime);
+            }
+        }
+    });
+}
+
+
 //shop에서 주문내역 검색할 때
 router.getOrdersShop = function (takitId, option, lastOrderId, limit, next) {
     console.log("takitId:" + takitId);
@@ -1883,7 +1976,6 @@ router.getOrdersShop = function (takitId, option, lastOrderId, limit, next) {
             }
         });
     } //end queryOrders
-
 
     var command = "SELECT *FROM shopInfo WHERE takitId=?";
     var values = [takitId];
@@ -1958,7 +2050,6 @@ router.getPeriodOrdersShop = function (takitId, startTime, endTime, lastOrderId,
         }
     });
 };
-
 
 
 //order's noti mode 에서 필요한 order를 가져옴.
@@ -3525,20 +3616,98 @@ router.updateShopRating=function(takitId,starRate,next){
     });
 }
 
-function checkIfAMenuSoldOut(menu,callback){
-    let command = "SELECT soldout FROM menus where menuNO=? AND menuName=?";
+
+checkMenuTimeConstraint=function(timeConstraint){
+        var currTime = new Date();
+        let currLocalTime=currTime.getMinutes()+ currTime.getHours()*60; //seoul time(KST) 
+     
+        if(timeConstraint){
+                console.log("check timeConstraint "+currLocalTime);       
+                if(timeConstraint.from && (!timeConstraint.to || timeConstraint.to==null)){
+                        //current time in seconds is more than or equal to
+                        if(currLocalTime<timeConstraint.fromMins)
+                            return false;
+                }else if((!timeConstraint.from || timeConstraint.from==null) && timeConstraint.to){
+                        //current time is less then or equal to
+                        console.log("currLocalTime:"+currLocalTime+"timeConstraint.ToMins:"+timeConstraint.toMins);
+                        if(currLocalTime>timeConstraint.toMins){
+                            return false;                        
+                        }
+                }else if(timeConstraint.from && timeConstraint.from!=null 
+                        && timeConstraint.to!=null && timeConstraint.to){
+                    if(timeConstraint.condition=='XOR'){
+                        //current time is more than or equal to from OR 
+                        //    current time is less than or equal to to
+                        if(timeConstraint.fromMins<currLocalTime ||currLocalTime<timeConstraint.toMins)
+                            return false;
+                    }else if(timeConstraint.condition=='AND'){
+                        //    current time is more than or equal to from AND
+                        //    current time is less than or equal to to
+                         if(timeConstraint.fromMins>currLocalTime ||currLocalTime>timeConstraint.toMins)
+                            return false;
+                    }
+                }
+        }        
+        return true;
+}
+
+function checkIfAMenuSoldOut(menu,callback){ 
+    // menu 가격의 validity(unitPrice)도 확인함.  
+    // menu의 timeConstraints도확인함. 
+    let command = "SELECT soldout,price,options,timeConstraint FROM menus where menuNO=? AND menuName=?";
     let values = [menu.menuNO, menu.menuName];
+
+    console.log("menus:"+JSON.stringify(menu));
 
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
             console.log(err);
             callback(err);
         } else {
-                console.log("soldout:"+result[0].soldout);
+                //console.log("price:"+result[0].price);
+                //console.log("options:"+result[0].options);
+                //console.log("soldout:"+result[0].soldout);
+                if(result[0].options!=null){
+                    let optionsObj=JSON.parse(result[0].options);
+                    let optionPrice=0;
+                    menu.options.forEach(option=>{
+                       let index=optionsObj.findIndex(function(element){
+                                if(option.name==element.name) return true;
+                                return false;
+                            })
+                        console.log("index:"+index);
+                        if(index<0){
+                             callback("invalidOption");
+                             return;
+                        } 
+                        if(optionsObj[index].price!=option.price){
+                             callback("invalidOption");
+                             return;
+                        }else{
+                             optionPrice=optionPrice+option.price*option.number; 
+                        }
+                    });
+                    let price=result[0].price;
+                    if(typeof result[0].price ==='string')
+                         price=parseInt(result[0].price);
+                    console.log("computed price:"+(optionPrice+price));
+                    console.log("menu.unitPrice:"+menu.unitPrice);
+                    if(menu.unitPrice!=optionPrice+price){
+                             callback("invalidPrice");
+                             return;
+                    }
+                } 
+                if(result[0].timeConstraint!=null){ // 시간제한 확인하자. 
+                    let timeConstraint=JSON.parse(result[0].timeConstraint); 
+                    if(!checkMenuTimeConstraint(timeConstraint)){
+                        callback("invalidTimeContraint"); 
+                        return;
+                    }
+                } 
                 if (result[0].soldout=='0') { // 판매중
                     callback(null, "sale");
                 } else {
-                    callback("soldout");
+                    callback("soldout",menu.menuName);
                 }
         }
     });
@@ -3547,8 +3716,8 @@ function checkIfAMenuSoldOut(menu,callback){
 router.checkIfMenuSoldOut=function(menus,next){
     async.each(menus,checkIfAMenuSoldOut,function(err,result){
               if(err){
-                  next("soldout"); 
-              }else{
+                  next(err); 
+               }else{
                   next(null,"sale");   
               }
     });
@@ -3703,5 +3872,75 @@ setTimeout(function(){
 }, nextTimeout);
 ////////////////////////////////SoldOut -end////////////////////////////////////////////
 
+////////////////////////////////////// Kiosk -begin////////////////////////////
+router.saveKioskOrder=function(order, next) {
+    let orderedTime=new Date();
+    let command = "INSERT INTO kiosk(takitId,orderNO,orderName,amount,takeout,notiPhone,orderStatus,orderList,orderedTime,paymentType,receiptIssue,receiptType,receiptId,cardPayment) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+
+            let values = [order.takitId,order.orderNO,order.orderName, order.amount,order.takeout, order.notiPhone, "paid", JSON.stringify(order.orderList),orderedTime.toISOString(),order.paymentType,
+                          order.receiptIssue,order.receiptType,order.receiptId,order.cardPayment];
+            //console.log("order.orderList:"+JSON.stringify(order.orderList));
+            performQueryWithParam(command, values, function (err, orderResult) {
+                if (err) {
+                    console.error("saveOrder func inser orders Unable to query. Error:", JSON.stringify(err, null, 2));
+                    next(err);
+                } else {
+                    //console.dir("[Add orders]:"+result);
+                    if (orderResult.info.affectedRows === '0') {
+                        next("invalid orders");
+                    } else {
+                        console.log("saveOrder func Query succeeded. " + JSON.stringify(orderResult));
+                        // 3.orderList insert
+						let i=0;
+                        router.kioskInsertOrderList(order.takitId,parseInt(orderResult.info.insertId),i,order.orderList,next);
+                    }
+                }
+            })
+}
+
+router.kioskInsertOrderList=function(takitId,orderId,i,orderList,next){
+	let command = "INSERT INTO kioskOrderList(orderId,menuNO,menuName,quantity,options,price,amount) values(?,?,?,?,?,?,?)";
+    let menu = orderList[i];
+	console.log(i);
+	//console.log(menu.options);
+
+    let values = [orderId, menu.menuNO, menu.menuName, menu.quantity, JSON.stringify(menu.options),menu.unitPrice,menu.amount,
+                  takitId];
+               
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("saveOrder func insert kioskOrderList Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.log("saveOrder func insert kioskOrderList Query Succeeded");
+            if(i < orderList.length-1){
+                i++;
+                router.kioskInsertOrderList(takitId,orderId,i,orderList,next);
+            }else{
+                next(null,orderId);
+            }
+        }
+    });
+}
+
+router.searchKioskOrder=function(condition,next){
+    let command = "SELECT * FROM kiosk WHERE orderNO=? AND orderedTime>=? AND orderedTime<=?"; 
+    let values=[condition.orderNO,condition.start,condition.end]; 
+ 
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("[searchKioskOrder]Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.log("[searchKioskOrder] Query Succeeded"+JSON.stringify(result));
+            if(result.length === 0)
+                next(null)
+            else{
+                next(null,result[0]);
+            }
+        }
+    });
+}
+////////////////////////////////////// Kiosk -end ////////////////////////////
 module.exports = router;
 
