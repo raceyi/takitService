@@ -235,12 +235,14 @@ function saveOrderEach(param,next){
         let user_paymethod=order.paymethod;
         let shop_paymethod=JSON.parse(shopInfo.paymethod);
 
-        console.log("shop_paymethod.cash:"+shop_paymethod.cash);
-        console.log("user_paymethod:"+order.paymethod);
-        console.log("user_paymethod.cash:"+order.paymethod.cash);
+        //console.log("shop_paymethod.cash:"+shop_paymethod.cash);
+        console.log("user_paymethod:"+user_paymethod + " type:"+typeof user_paymethod);
         //재주문시 user_paymethod가 string으로 들어올수 있음. Why?
-        if(typeof user_paymethod ==="string")
-            user_paymethod=JSON.parse(user_paymethod);
+        if(typeof user_paymethod ==="string"){
+            let stringVal= user_paymethod;
+            user_paymethod=JSON.parse(stringVal);
+            console.log("user_paymethod:"+JSON.stringify(user_paymethod.cash));
+        }
         // 상점의 discount rate과 결제 방법을 확인함 
         if(param.payment=="cash" && shop_paymethod.cash!=user_paymethod.cash)
             callback("paymethod is out of date user_paymethod.cash:"+order.paymethod);
@@ -506,7 +508,6 @@ router.getOrdersUserDefault=function(req,res){
     });
 }
 
-/*
 router.getOrdersShop=function(req,res){
 	console.log("getOrders:"+JSON.stringify(req.body));
 	
@@ -529,7 +530,7 @@ router.getOrdersShop=function(req,res){
 	}else{			
 		mariaDB.getOrdersShop(req.body.takitId,req.body.option,
                               req.body.lastOrderId,req.body.limit,
-                              req.body.lastKioskOrderId,
+                              //req.body.lastKioskOrderId,
                               function(err,orders){
 			if(err){
 				console.log(err);
@@ -546,8 +547,8 @@ router.getOrdersShop=function(req,res){
 		
 	}
 };
-*/
 
+/*
 router.getOrdersShop=function(req,res){
     console.log("getOrders:"+JSON.stringify(req.body));
    
@@ -595,6 +596,7 @@ router.getOrdersShop=function(req,res){
         });
     }
 };
+*/
 
 router.checkOrder=function(req,res){ // previous status must be "paid".
 	//1. order정보 가져옴
