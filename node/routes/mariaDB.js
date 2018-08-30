@@ -1629,6 +1629,20 @@ function removeOrderList(orderId,next){
     });
 }
 
+function removeKioskOrderList(orderId,next){
+    let command = "DELETE from kioskOrderList where orderId=?";
+    let values = [orderId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("removeKioskOrderList func Unable to query. Error:", JSON.stringify(err, null, 2));
+        } else {
+            console.log("removeKioskOrderList func Query Succeeded");
+        }
+    });
+}
+
+
 router.saveOrder = function (order, shopInfo, next) {
     console.log("[order:" + JSON.stringify(order) + "]");
     console.log("order's takeout:" + order.takeout);
@@ -1835,60 +1849,97 @@ router.getLocalTimeWithOption = function (option, timezone) {
 }
 
 router.pollRecentOrder = function(orderNO,takitId,time,next){
-    var command = "SELECT * FROM orders WHERE takitId=? AND orderedTime > ? ";
-    var values = [takitId, time]; 
-    
-    performQueryWithParam(command, values, function (err, result) {
-            if (err) {
-                console.error("queryOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
-                next(err);
-            } else {
-                console.dir("[queryOrders func Get MenuInfo]:" + result.info.numRows);
-                if (result.info.numRows == 0) {
-                    next(null,false);
-                } else {
-                    for(var i=0;i<result.info.numRows;i++){
-                        if(result[i].orderNO>orderNO){
-                            console.log("poll found new order!!!");
-                            next(null,true);
-                            break;
-                        }
-                    }
-                }
-            }
-    }); 
-}
+    var command;
+    var values;
 
-router.pollKioskRecentOrder = function(orderNO,takitId,time,next){
-    var command = "SELECT * FROM kiosk WHERE takitId=? AND orderedTime > ? ";
-    var values = [takitId, time];
-   
+    if(orderNO){
+        command= "SELECT * FROM orders WHERE takitId=? AND orderedTime > ? AND orderNO >?";
+        values = [takitId, time,orderNO];
+    }else{ // shop이 모두 업데이트 되면 삭제하자.
+        command= "SELECT * FROM orders WHERE takitId=? AND orderedTime > ? ";
+        values = [takitId, time];
+    }
+
     performQueryWithParam(command, values, function (err, result) {
             if (err) {
                 console.error("queryOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
                 next(err);
             } else {
-                console.dir("[queryOrders func Get MenuInfo]:" + result.info.numRows);
-                if (result.info.numRows == 0) {
+                console.dir("[queryOrders func pollRecentOrder]:" + result.info.numRows);
+                if(result.info.numRows == 0) {
                     next(null,false);
-                } else {
-                    for(var i=0;i<result.info.numRows;i++){
-                        if(result[i].orderNO>orderNO){
-                            console.log("poll found new order!!!");
-                            next(null,true);
-                            break;
-                        }
-                    }
+                }else{
+                    next(null,true);
                 }
             }
     });
 }
 
-router.getKioskOrdersShop=function(takitId, option, lastOrderId, limit, next) {
-    console.log("takitId:" + takitId);
+router.pollKioskRecentOrder = function(orderNO,takitId,time,next){
+    var command;
+    var values;
+
+    if(orderNO){
+        command= "SELECT * FROM kiosk WHERE takitId=? AND orderedTime > ? AND orderNO >?";
+        values = [takitId, time,orderNO];
+    }else{ // shop이 모두 업데이트 되면 삭제하자.
+        command= "SELECT * FROM kiosk WHERE takitId=? AND orderedTime > ? ";
+        values = [takitId, time];
+    }
+
+    performQueryWithParam(command, values, function (err, result) {
+            if (err) {
+                console.error("queryOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
+                next(err);
+            } else {
+                console.dir("[queryOrders func pollKioskRecentOrder]:" + result.info.numRows);
+                if(result.info.numRows == 0) {
+                    next(null,false);
+                }else{
+                    next(null,true);
+                }
+            }
+    });
+}
+
+router.getOrdersShopWithStartTimeLimit=function(takitId,
+                                        startTimeLimit,
+                                        lastOrderId,
+                                        limit,
+                                        next){
+        if (lastOrderId == -1) {
+            var command = "SELECT *FROM orders WHERE takitId=? AND orderedTime > ? AND orderId > ?  ORDER BY orderId DESC LIMIT " + limit;
+        } else {
+            var command = "SELECT *FROM orders WHERE takitId=? AND orderedTime > ? AND orderId < ?  ORDER BY orderId DESC LIMIT " + limit;
+        }
+        var values = [takitId, startTime, lastOrderId];
+        performQueryWithParam(command, values, function (err, result) {
+            if (err) {
+                console.error("queryOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
+                next(err);
+            } else {
+                console.dir("[queryOrders func Get MenuInfo]:" + result.info.numRows);
+                if (result.info.numRows == 0) {
+                    next("not exist orders");
+                } else {
+                    console.log("queryOrders func Query succeeded. " + JSON.stringify(result.info));
+
+                    var orders = [];
+                    result.forEach(function (order) {
+                        decryptObj(order);
+                        orders.push(order);
+                    });
+                    console.log("orders:"+JSON.stringify(orders));
+                    next(null, orders);
+                }
+            }
+        });
+}
+
+router.getKioskOrdersShop=function(takitId,option,lastOrderId, limit, next) {
+    console.log("[getKioskOrdersShop]takitId:" + takitId);
     function queryOrders(startTime) {
         if (lastOrderId == -1) {
-
             var command = "SELECT *FROM kiosk WHERE takitId=? AND orderedTime > ? AND orderId > ?  ORDER BY orderId DESC LIMIT " + limit;
         } else {
             var command = "SELECT *FROM kiosk WHERE takitId=? AND orderedTime > ? AND orderId < ?  ORDER BY orderId DESC LIMIT " + limit;
@@ -2000,6 +2051,57 @@ router.getOrdersShop = function (takitId, option, lastOrderId, limit, next) {
     });
 };
 
+router.getKioskPeriodOrdersShop = function (takitId, startTime, endTime, lastOrderId, limit, next) {
+    console.log("takitId:" + takitId + " startTime:" + startTime + " end:" + endTime);
+
+    //startTime and endTime => change to utc time
+    async.waterfall([(callback)=>{
+        router.getShopInfo(takitId,callback);
+    },(shopInfo,callback)=>{
+
+        let tmpEnd = endTime.split('T');
+        endTime = tmpEnd[0]+"T23:59:59.999Z" // endTime은오늘의 마지막 시간으로 만들어줌
+
+        startTime=startTime.replace('T',' ').replace('Z','');
+        endTime=endTime.replace('T',' ').replace('Z','');
+
+        let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
+        let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
+        let command;
+
+
+        if (lastOrderId == -1) {
+            command = "SELECT *FROM kiosk WHERE takitId=? AND orderedTime BETWEEN ? AND ? AND orderId > ?  ORDER BY orderId DESC LIMIT " + limit;
+        } else {
+            command = "SELECT *FROM kiosk WHERE takitId=? AND orderedTime BETWEEN ? AND ? AND orderId < ?  ORDER BY orderId DESC LIMIT " + limit;
+        }
+        let values = [takitId, lcStartTime.toISOString(), lcEndTime.toISOString(), lastOrderId];
+
+        performQueryWithParam(command, values, callback);
+    }],(err,result)=>{
+        if (err) {
+            console.log("getPeriodOrders func Unable to query. Error:");
+            console.log(err);
+            next(err);
+        } else {
+            console.log("[getPeriodOrders func Get MenuInfo]:" + result.info.numRows);
+
+            if (result.info.numRows == 0) {
+                next("not exist orders");
+            } else {
+                console.log("getPeriodOrders func Query succeeded. " + JSON.stringify(result.info));
+                var orders = [];
+                result.forEach(function (order) {
+                    decryptObj(order);
+                    orders.push(order);
+                });
+
+                next(null, orders);
+            }
+        }
+    });
+};
+
 router.getPeriodOrdersShop = function (takitId, startTime, endTime, lastOrderId, limit, next) {
     console.log("takitId:" + takitId + " startTime:" + startTime + " end:" + endTime);
 
@@ -2086,8 +2188,43 @@ router.getOrdersNotiMode = function (userId, next) {
 };
 
 
+router.updateKioskOrderStatus = function (orderId, oldStatus, nextStatus, timeName, timeValue, cancelReason, next) {
+    values = {};
+    let command;
 
+    values.nextStatus = nextStatus,
+    values.timeValue = timeValue.toISOString(),
+    values.orderId = orderId,
+    values.oldStatus = oldStatus;
 
+    //cancelled 상태면 이유 넣음. 아니면 그대로 null
+    if (nextStatus === 'cancelled') {
+        values.cancelReason = cancelReason;
+        command = "UPDATE kiosk SET orderStatus=:nextStatus," + timeName + "=:timeValue, cancelReason=:cancelReason WHERE orderId=:orderId";
+    }else if(nextStatus="pickup"){
+        command = "UPDATE kiosk SET orderStatus=:nextStatus WHERE orderId=:orderId AND orderStatus=:oldStatus";
+    }else{
+        command = "UPDATE kiosk SET orderStatus=:nextStatus," + timeName + "=:timeValue WHERE orderId=:orderId AND orderStatus=:oldStatus";
+    }
+
+    performQueryWithParam(command, values, function (err, result) {
+                    if (err) {
+                        console.error("updateKioskOrderStatus func Unable to query. Error:", JSON.stringify(err, null, 2));
+                        next(err);
+                    } else {
+                        console.dir("[updateKioskOrderStatus func Get MenuInfo]:" + result.info.affectedRows);
+                        if (result.info.affectedRows == 0) {
+                            next("can't update orders");
+                        } else {
+                            console.log("updateOrderStatus func Query succeeded. " + JSON.stringify(result[0]));
+                            if(nextStatus ==='cancelled'){
+                                removeKioskOrderList(orderId);
+                            }
+                            next(null, "success");
+                        }
+                    }
+    });
+}
 
 router.updateOrderStatus = function (orderId, oldStatus, nextStatus, timeName, timeValue, cancelReason, timezone, next) {
     console.log("oldStatus:" + oldStatus + " nextStatus:" + nextStatus);
@@ -3665,11 +3802,12 @@ function checkIfAMenuSoldOut(menu,callback){
             callback(err);
         } else {
                 //console.log("price:"+result[0].price);
-                //console.log("options:"+result[0].options);
+                console.log("options:"+result[0].options);
                 //console.log("soldout:"+result[0].soldout);
                 if(result[0].options!=null){
                     let optionsObj=JSON.parse(result[0].options);
                     let optionPrice=0;
+                    console.log("menu.options:"+menu.options);
                     menu.options.forEach(option=>{
                        let index=optionsObj.findIndex(function(element){
                                 if(option.name==element.name) return true;
@@ -3875,10 +4013,11 @@ setTimeout(function(){
 ////////////////////////////////////// Kiosk -begin////////////////////////////
 router.saveKioskOrder=function(order, next) {
     let orderedTime=new Date();
-    let command = "INSERT INTO kiosk(takitId,orderNO,orderName,amount,takeout,notiPhone,orderStatus,orderList,orderedTime,paymentType,receiptIssue,receiptType,receiptId,cardPayment) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-
-            let values = [order.takitId,order.orderNO,order.orderName, order.amount,order.takeout, order.notiPhone, "paid", JSON.stringify(order.orderList),orderedTime.toISOString(),order.paymentType,
-                          order.receiptIssue,order.receiptType,order.receiptId,order.cardPayment];
+    let command = "INSERT INTO kiosk(takitId,orderNO,orderName,amount,takeout,notiPhone,orderStatus,orderList,orderedTime,paymentType,receiptIssue,receiptType,receiptId,cardPayment,cardApprovalNO,cardApprovalDate,catid) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            let secretePhone = encryption(order.notiPhone, config.pPwd);
+            console.log("secretPhone:"+secretePhone);
+            let values = [order.takitId,order.orderNO,order.orderName, order.amount,order.takeout,secretePhone, "paid", JSON.stringify(order.orderList),orderedTime.toISOString(),order.paymentType,
+                          order.receiptIssue,order.receiptType,order.receiptId,order.cardPayment,order.approvalNO,order.approvalDate,order.catid];
             //console.log("order.orderList:"+JSON.stringify(order.orderList));
             performQueryWithParam(command, values, function (err, orderResult) {
                 if (err) {
@@ -3922,6 +4061,26 @@ router.kioskInsertOrderList=function(takitId,orderId,i,orderList,next){
         }
     });
 }
+
+router.searchOrderWithCardInfo=function(condition,next){
+    let command = "SELECT * FROM kiosk WHERE cardApprovalNO=? AND cardApprovalDate=? AND catid=?";
+    let values=[condition.approvalNO,condition.approvalDate,condition.catid];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("[searchOrderWithCardInfo]Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.log("[searchOrderWithCardInfo] Query Succeeded"+JSON.stringify(result));
+            if(result.length === 0)
+                next(null);
+            else{
+                next(null,result[0]);
+            }
+        }
+    });
+}
+
 
 router.searchKioskOrder=function(condition,next){
     let command = "SELECT * FROM kiosk WHERE orderNO=? AND orderedTime>=? AND orderedTime<=?"; 

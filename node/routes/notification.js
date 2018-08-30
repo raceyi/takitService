@@ -109,7 +109,7 @@ router.setRedisSchedule = function(keyName,phone,SMS,next){
 	console.log("start setRedisSchedule:"+keyName);
 	scheduler.schedule({ key: keyName, expire: 30000, handler: function(){ // send SMS 30 seconds later
 		console.log("start SMS event"+SMS.content);
-			router.sendSMS(SMS.title+" "+SMS.content,[phone]);
+			//router.sendSMS(SMS.title+" "+SMS.content,[phone]); kalen's modification. do not send SMS for waitee order. 
 		}}, function(err){
 			if (err){
 				console.error(err);
@@ -140,7 +140,6 @@ router.setRedisScheduleLMS = function(keyName,phone,SMS,expireTime,next){
          }
       });
 }
-
 
 router.sendGCM=function(API_KEY,MSG,pushId, platform,sound, next){
 
