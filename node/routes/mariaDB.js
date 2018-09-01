@@ -1903,7 +1903,7 @@ router.pollKioskRecentOrder = function(orderNO,takitId,time,next){
 }
 
 router.getOrdersShopWithStartTimeLimit=function(takitId,
-                                        startTimeLimit,
+                                        startTime,
                                         lastOrderId,
                                         limit,
                                         next){
@@ -4083,9 +4083,30 @@ router.searchOrderWithCardInfo=function(condition,next){
 
 
 router.searchKioskOrder=function(condition,next){
-    let command = "SELECT * FROM kiosk WHERE orderNO=? AND orderedTime>=? AND orderedTime<=?"; 
-    let values=[condition.orderNO,condition.start,condition.end]; 
+    let command = "SELECT * FROM kiosk WHERE orderNO=? AND orderedTime>=? AND orderedTime<=? AND takitId=?"; 
+    let values=[condition.orderNO,condition.start,condition.end,condition.takitId]; 
  
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("[searchKioskOrder]Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.log("[searchKioskOrder] Query Succeeded"+JSON.stringify(result));
+            if(result.length === 0)
+                next(null)
+            else{
+                next(null,result[0]);
+            }
+        }
+    });
+}
+
+router.searchKioskOrderWithId=function(id,next){
+    console.log("id:"+id);
+
+    let command = "SELECT * FROM kiosk WHERE orderId=?";
+    let values=[id];
+
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
             console.error("[searchKioskOrder]Unable to query. Error:", JSON.stringify(err, null, 2));

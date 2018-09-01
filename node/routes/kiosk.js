@@ -14,7 +14,7 @@ let cashBill =require('./cashBill');
 let router = express.Router();
 
 router.pollKioskRecentOrder=function(req,res){
-    maria.pollKioskRecentOrder(req.orderNO,req.takitId,req.time,function(err,more){
+    mariaDB.pollKioskRecentOrder(req.orderNO,req.takitId,req.time,function(err,more){
        if(err){
             console.log(err);
             let response = new index.FailResponse(err);
@@ -31,12 +31,13 @@ router.pollKioskRecentOrder=function(req,res){
 
 router.getOrdersShop=function(req,res){
    console.log("getOrders:"+JSON.stringify(req.body));
+    //뭔가 오류가 있다. 분석이 필요함 ㅜㅜ 
     if(req.body.option === "period"){
         mariaDB.getKioskPeriodOrdersShop(req.body.takitId,req.body.startTime,req.body.endTime,
                                     req.body.lastOrderId,req.body.limit,
                                     function(err,kiosk){
                          if(kioskOrders.length==limit){
-                             let startTime=kioskOrders[0].orderedTime;
+                             let startTime=kioskOrders[kioskOrders.length-1].orderedTime;
                              mariaDB.getOrdersShopWithStartTimeLimit(req.body.takitId,startTime,
                                     req.body.lastOrderId,req.body.limit,
                                     function(err,orders){
@@ -56,7 +57,7 @@ router.getOrdersShop=function(req,res){
                       function(err,kioskOrders){
                          console.log("kioskOrders:"+JSON.stringify(kioskOrders));
                          if(!err && Array.isArray(kioskOrders) && kioskOrders.length==req.body.limit){
-                             let startTime=kioskOrders[0].orderedTime;
+                             let startTime=kioskOrders[kioskOrders.length-1].orderedTime;
                              mariaDB.getOrdersShopWithStartTimeLimit(req.body.takitId,startTime,
                                     req.body.lastOrderId,req.body.limit,
                                     function(err,orders){
@@ -77,6 +78,14 @@ router.getOrdersShop=function(req,res){
 };  
 
 responseOrders=function(err,kiosk,waitee,req,res){
+/*
+    kiosk.forEach((order)=>{
+       console.log("order.orderNO:"+order.orderNO+"order.orderId:"+order.orderId);
+    });
+    waitee.forEach((order)=>{
+       console.log("order.orderNO:"+order.orderNO+"order.orderId:"+order.orderId);
+    });
+*/
     if(err){
        console.log(err);
        let response = new index.FailResponse(err);
@@ -93,11 +102,25 @@ responseOrders=function(err,kiosk,waitee,req,res){
        }
        if(Array.isArray(kiosk) && Array.isArray(waitee)){
            orders=kiosk.concat(waitee);
+           orders.sort(function(a,b){
+                    if (a.orderedTime<b.orderedTime){
+                            return 1;
+                    }
+                    if (a.orderedTime>b.orderedTime){
+                            return -1;
+                    }
+                    return 0;
+           });
        }else if(Array.isArray(kiosk)){
            orders=kiosk;
        }else if(Array.isArray(waitee)){
            orders=waitee;
        }
+
+       orders.forEach((order)=>{
+           console.log("order.orderNO:"+order.orderNO+"order.orderId:"+order.orderId);
+       });
+
        response.orders=orders;
        res.send(JSON.stringify(response));
     }
@@ -210,6 +233,8 @@ router.saveOrder=function(req, res){
       }else if(order.paymentType=="cash")
           order.cardPaymet=null;     
       mariaDB.saveKioskOrder(order,callback);
+   },function(orderId,callback){
+      mariaDB.searchKioskOrderWithId(orderId,callback);
    }],(err,result)=>{
                if(err){
                   console.log("error happens,"+err);
@@ -222,7 +247,11 @@ router.saveOrder=function(req, res){
                   response.setVersion(config.MIGRATION,req.version);
                   response.orderNO = order.orderNO;
                   res.send(JSON.stringify(response));
-                  sendOrderMsgShop(order); // web server를 통해 직접 태블릿으로 전달함으로 굳이 오류 확인을 할필요는 없다. 반드시 takitShop에 해당 기능을 추가한다. 
+                  //sendOrderMsgShop(order); // web server를 통해 직접 태블릿으로 전달함으로 굳이 오류 확인을 할필요는 없다. 반드시 takitShop에 해당 기능을 추가한다. 
+
+                  console.log("!!!order:"+JSON.stringify(result));
+
+                  sendOrderMsgShop(result); // web server를 통해 직접 태블릿으로 전달함으로 굳이 오류 확인을 할필요는 없다. 반드시 takitShop에 해당 기능을 추가한다. 
                   let data={};
                   data.receivers=[req.body.notiPhone];
                   data.subject=req.body.shopName+" 주문번호:"+order.orderNO+"\n"; 
@@ -266,6 +295,8 @@ sendOrderMsgShop=function(order){
        GCM.custom = JSON.stringify(order);
 
        let sound = "takit";
+       console.log("shopUserInfo:"+JSON.stringify(shopUserInfo));
+
        noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform,sound,function(err,result){
 
        });

@@ -147,11 +147,11 @@ function sendOrderMSGShop(order, shopUserInfo,next){
       SMS.title = GCM.title;
       SMS.content = "주문번호 "+order.orderNO+" 새로고침 버튼을 눌러주세요";
       ///////////////////////////////////////////////////////////////////////////////
-	  if(!order.takitId.startsWith("TEST")){
-	  	noti.sendSMS(SMS.title+" "+SMS.content,[config.SMS.SENDER]); //set production mode
-	  }else{
-        console.log("takitId startsWith TEST. Do not send william sms");
-      }
+	  //if(!order.takitId.startsWith("TEST")){
+	  //	noti.sendSMS(SMS.title+" "+SMS.content,[config.SMS.SENDER]); //set production mode
+	  //}else{
+      //  console.log("takitId startsWith TEST. Do not send william sms");
+      //}
       //////////////////////////////////////////////////////////////////////////////
       console.log("shopUserInfo.phone:"+shopUserInfo.phone);
       noti.setRedisSchedule(shopUserInfo.userId+"_gcm_shop_"+messageId,shopUserInfo.phone,SMS,callback);
@@ -530,7 +530,6 @@ router.getOrdersShop=function(req,res){
 	}else{			
 		mariaDB.getOrdersShop(req.body.takitId,req.body.option,
                               req.body.lastOrderId,req.body.limit,
-                              //req.body.lastKioskOrderId,
                               function(err,orders){
 			if(err){
 				console.log(err);
@@ -547,56 +546,6 @@ router.getOrdersShop=function(req,res){
 		
 	}
 };
-
-/*
-router.getOrdersShop=function(req,res){
-    console.log("getOrders:"+JSON.stringify(req.body));
-   
-    if(req.body.option === "period"){
-        mariaDB.getPeriodOrdersShop(req.body.takitId,req.body.startTime,req.body.endTime,
-                                    req.body.lastOrderId,req.body.limit,
-                                    function(err,orders){
-            if(err){
-                console.log(err);
-                let response = new index.FailResponse(err);
-                response.setVersion(config.MIGRATION,req.version);
-            res.send(JSON.stringify(response));
-            }else{
-                let response = new index.SuccResponse();
-                response.setVersion(config.MIGRATION,req.version);
-            response.orders=orders;
-                res.send(JSON.stringify(response));
-            }
-        });
-    }else{
-        mariaDB.getOrdersShop(req.body.takitId,req.body.option,
-                              req.body.lastOrderId,req.body.limit,
-                              function(err,orders){
-            if(err){
-                console.log(err);
-                let response = new index.FailResponse(err);
-                response.setVersion(config.MIGRATION,req.version);
-                res.send(JSON.stringify(response));
-            }else{
-                let resultOrders=orders;
-                mariaDB.getKioskOrdersShop(req.body.takitId,req.body.option,req.body.lastKioskOrderId,req.body.limit,
-                      function(err,kioskOrders){
-                          let response = new index.SuccResponse();
-                          response.setVersion(config.MIGRATION,req.version);
-                          if(kioskOrders && kioskOrders.length>0){
-                              kioskOrders.forEach(order=>{
-                                  order.type='kiosk';
-                                  resultOrders.push(order);
-                              }) 
-                          }
-                          response.orders=resultOrders;
-                          res.send(JSON.stringify(response));
-                      });
-            }
-        });
-    }
-};
-*/
 
 router.checkOrder=function(req,res){ // previous status must be "paid".
 	//1. order정보 가져옴
@@ -1097,26 +1046,10 @@ router.pollRecentOrder =function(req,res){
             response.setVersion(config.MIGRATION,req.version);
             res.send(JSON.stringify(response));
       }else {
-            if(more){
                 let response = new index.SuccResponse();
                 response.setVersion(config.MIGRATION,req.version);
                 response.more=more;
                 res.send(JSON.stringify(response));
-            }else{
-                mariaDB.pollRecentOrder(req.body.orderNO,req.body.takitId,req.body.time,function(err,more){
-                   if(err){
-                       console.log(err);
-                       let response = new index.FailResponse(err);
-                       response.setVersion(config.MIGRATION,req.version);
-                       res.send(JSON.stringify(response));
-                   }else {
-                       let response = new index.SuccResponse();
-                       response.setVersion(config.MIGRATION,req.version);
-                       response.more=more;
-                       res.send(JSON.stringify(response));
-                   }
-                });
-           }
       }
     })
 }

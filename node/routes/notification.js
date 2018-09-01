@@ -129,7 +129,7 @@ router.setRedisScheduleLMS = function(keyName,phone,SMS,expireTime,next){
          data.subject = SMS.title;
          data.content = SMS.content;
          data.receivers = [phone];
-         router.sendLMS(data);
+         //router.sendLMS(data);
       }}, function(err){
          if (err){
             console.error(err);
