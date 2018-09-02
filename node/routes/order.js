@@ -20,6 +20,9 @@ let router = express.Router();
 let redisCli = redis.createClient(); 
 let scheduler = new Scheduler();
 
+var AsyncLock = require('async-lock');
+var lock = new AsyncLock();
+
 function updateOrderStatus(order){
    let title;
 	console.log("takeout:"+order.takeout);
@@ -174,25 +177,6 @@ function sendOrderMSGShop(order, shopUserInfo,next){
 	});
 }
 
-
-// function getTimezoneLocalTime(timezone,time,next){ // return current local time in timezone area
-// 	var offset=(new timezoneJS.Date(Date(), timezone)).getTimezoneOffset(); // offset in minutes
-// 	var currlocal=new Date(time.getTime() - (offset*60*1000));
-	
-// 	var localOrderedTime = {};
-// 	localOrderedTime.time = currlocal.toISOString();
-// 	localOrderedTime.day = currlocal.getUTCDay();
-// 	localOrderedTime.hour= currlocal.getUTCHours();	
-
-// 	next(null,localOrderedTime);
-// }
-
-
-//{\"open\":[[10,8,8,8,8,8,10],[00,00,00,00,00,00,00]],\"close\": [[18,19,19,19,19,19,18],[40,40,40,40,40,40,40]]}
-
-//[\"10:00~18:40\",\"08:00~19:40\",\"08:00~19:40\",\"08:00~19:40\",\"08:00~19:40\",\"08:00~19:40\",\"10:00~18:40\"]
-//주문정보 저장
-
 //param:uid, order,orderedTime,paymethod,customer_uid
 function saveOrderEach(param,next){
     console.log("param:"+JSON.stringify(param));
@@ -216,6 +200,8 @@ function saveOrderEach(param,next){
     let newOrderId;
  
     async.waterfall([function(callback){
+      mariaDB.checkDuplicateUserOrder(param.userId,JSON.stringify(order.orderList) ,callback);
+    },function(result,callback){
       //check if menu is soldout
       let menus=[];
       order.orderList.menus.forEach(menu=>{
@@ -402,6 +388,8 @@ checkOneTimeConstraint=function(timeConstraint){
 }
 
 router.saveOrderCart=function(req, res){
+
+lock.acquire("userUniqueId"+req.session.uid,function (done) {
     let order=req.body;
     console.log("req.body:"+JSON.stringify(req.body));
     console.log("userId:"+req.session.uid);
@@ -438,6 +426,7 @@ router.saveOrderCart=function(req, res){
             let response = new index.FailResponse(err);
             response.setVersion(config.MIGRATION,req.version);
             res.send(JSON.stringify(response));
+            done(null);
             return;
           }
           let items=shops;
@@ -448,6 +437,7 @@ router.saveOrderCart=function(req, res){
                   let response = new index.FailResponse(err);
                   response.setVersion(config.MIGRATION,req.version);
                   res.send(JSON.stringify(response));
+                  done(null);
               }else{
                   console.log("eachResult:"+JSON.stringify(eachResult));
                   let response = new index.SuccResponse();
@@ -456,9 +446,11 @@ router.saveOrderCart=function(req, res){
                   console.log("save order result:"+JSON.stringify(eachResult));
                   res.send(JSON.stringify(response));
                   console.log("All done "+JSON.stringify(response));
+                  done(null);
               }
           }); 
     });
+}); //end of lock.acquire 
 };
 
 

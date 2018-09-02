@@ -41,13 +41,19 @@ router.getOrdersShop=function(req,res){
                              mariaDB.getOrdersShopWithStartTimeLimit(req.body.takitId,startTime,
                                     req.body.lastOrderId,req.body.limit,
                                     function(err,orders){
-                                         responseOrders(err,kioskOrders,orders,req,res);
+                                         if(err=="not exist orders")
+                                             responseOrders(null,kioskOrders,orders,req,res);
+                                         else
+                                             responseOrders(err,kioskOrders,orders,req,res);
                              });
                          }else{
                            mariaDB.getPeriodOrdersShop(req.body.takitId,req.body.startTime,req.body.endTime,
                               req.body.lastOrderId,req.body.limit,
                               function(err,orders){
-                                  responseOrders(err,kioskOrders,orders,req,res);
+                                  if(err=="not exist orders")
+                                      responseOrders(null,kioskOrders,orders,req,res);
+                                  else
+                                      responseOrders(err,kioskOrders,orders,req,res);
                               });
                          }
         });
@@ -61,7 +67,10 @@ router.getOrdersShop=function(req,res){
                              mariaDB.getOrdersShopWithStartTimeLimit(req.body.takitId,startTime,
                                     req.body.lastOrderId,req.body.limit,
                                     function(err,orders){
-                                         responseOrders(err,kioskOrders,orders,req,res); 
+                                         if(err=="not exist orders")
+                                             responseOrders(null,kioskOrders,orders,req,res);
+                                         else
+                                             responseOrders(err,kioskOrders,orders,req,res); 
                              });
                          }else{
                            mariaDB.getOrdersShop(req.body.takitId,req.body.option,
@@ -78,14 +87,16 @@ router.getOrdersShop=function(req,res){
 };  
 
 responseOrders=function(err,kiosk,waitee,req,res){
-/*
+
+    if(kiosk)
     kiosk.forEach((order)=>{
-       console.log("order.orderNO:"+order.orderNO+"order.orderId:"+order.orderId);
+       console.log("kiosk order.orderNO:"+order.orderNO+"order.orderId:"+order.orderId);
     });
+    if(waitee)
     waitee.forEach((order)=>{
-       console.log("order.orderNO:"+order.orderNO+"order.orderId:"+order.orderId);
+       console.log("waitee order.orderNO:"+order.orderNO+"order.orderId:"+order.orderId);
     });
-*/
+
     if(err){
        console.log(err);
        let response = new index.FailResponse(err);
@@ -118,7 +129,7 @@ responseOrders=function(err,kiosk,waitee,req,res){
        }
 
        orders.forEach((order)=>{
-           console.log("order.orderNO:"+order.orderNO+"order.orderId:"+order.orderId);
+           console.log("response order.orderNO:"+order.orderNO+"order.orderId:"+order.orderId);
        });
 
        response.orders=orders;
@@ -396,6 +407,49 @@ router.cancelOrder=function(req,res){
          res.send(JSON.stringify(response));
         }
     });
+}
+
+router.getSalesAndSatas = function(req,res){
+    // 1. today
+    // 2. week
+    // 3. month
+    // 4. period
+        function finalCallback(err,result){
+            if(err){
+                console.log(err);
+                let response = new index.FailResponse(err);
+                response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+            }else{
+                console.log("getSalesAndSatas success");
+                let response = new index.SuccResponse();
+                response.setVersion(config.MIGRATION,req.version);
+                response.sales=result[0];
+                response.stats=result[1];
+                res.send(JSON.stringify(response));
+            }
+        }
+
+        console.log(req.body);
+        if(req.body.option === "period"){
+            async.parallel([function(callback){
+                mariaDB.getKioskSalesPeriod(req.body.takitId, req.body.startTime, req.body.endTime, callback);
+            },function(callback){
+                mariaDB.getPeriodStatsMenu(req.body.takitId,req.body.startTime,req.body.endTime,callback);
+            }],finalCallback);
+        }else{
+            async.waterfall([function(callback){
+                mariaDB.getShopInfo(req.body.takitId,callback);
+            },function(shopInfo,callback){
+                let startTime = mariaDB.getLocalTimeWithOption(req.body.option,shopInfo.timezone);
+
+                async.parallel([function(callback){
+                    mariaDB.getKioskSales(req.body.takitId,startTime,callback);
+                },function(callback){
+                    mariaDB.getKioskStatsMenu(req.body.takitId,startTime,callback);
+                }],callback);
+            }],finalCallback);
+        }
 }
 
 module.exports = router;

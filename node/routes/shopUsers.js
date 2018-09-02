@@ -56,7 +56,7 @@ function checkFacebookToken(appToken,token,next){
 }
 
 router.loginWithEmail=function(req,res){
-    console.log("loginWithEmail");
+    console.log("loginWithEmail "+JSON.stringify(req.body));
     mariaDB.checkShopUserWithEmailAndPassword(req.body.email, req.body.password, function(err,result){
         if(err){
             console.log(err);
@@ -69,12 +69,13 @@ router.loginWithEmail=function(req,res){
                 if(err){
                     console.log(err);
                     let response = new index.Response("invalidId");
-                response.setVersion(config.MIGRATION,req.version);
+                    response.setVersion(config.MIGRATION,req.version);
                     res.send(JSON.stringify(response));
                 }else{
                     console.log("getShopUserInfo function result:");
                     console.log(shopUserInfo);
                     req.session.uid = shopUserInfo[0].userId;
+                    console.log("***************req.session:"+JSON.stringify(req.session));
                      //body.shopUserInfo={};
                     let response = new index.SuccResponse();
                     response.setVersion(config.MIGRATION,req.version);
@@ -309,7 +310,7 @@ router.sleepMode=function(req,res){
 }
 
 router.getShopInfo=function(req,res){
-	console.log("getShopInfo");
+	console.log("---------------------------getShopInfo");
 
 	mariaDB.getShopInfo(req.body.takitId,function(err,shopInfo){
 		if(err){
@@ -949,5 +950,21 @@ router.uploadMenuImage = (req,res)=>{
         }
     })
 }
+
+router.modifyBusinessHours=function(req,res){
+     mariaDB.updateBusinessHour (req.body,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
 
 module.exports = router;

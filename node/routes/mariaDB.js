@@ -1642,7 +1642,6 @@ function removeKioskOrderList(orderId,next){
     });
 }
 
-
 router.saveOrder = function (order, shopInfo, next) {
     console.log("[order:" + JSON.stringify(order) + "]");
     console.log("order's takeout:" + order.takeout);
@@ -1712,6 +1711,22 @@ router.getOrder = function (orderId, next) {
 
 }
 
+// 5초전의 주문이라면 duplicate으로 에러처리한다. 
+router.checkDuplicateUserOrder = function(userId,orderList, next){
+    let command="SELECT orderedTime,orderList FROM orders WHERE userId="+userId +" ORDER BY orderId DESC LIMIT 1;" 
+    performQuery(command, function(err,result){
+        if(err){
+            next(err);
+        }else{
+            let now= new Date();
+            let lastOrderedTime = new Date(result[0].orderedTime);
+            if(result[0].orderList==orderList && now.getTime()-lastOrderedTime.getTime()< 5*1000+9*60*60*1000){ // less than 5 seconds + 시차 
+                next("duplicate order");
+            }else
+                next(null,result[0]);
+        }
+    });
+}
 
 
 //user가 주문내역 검색할 때,
@@ -4121,6 +4136,147 @@ router.searchKioskOrderWithId=function(id,next){
         }
     });
 }
+
+
+router.updateBusinessHour = function (shopInfo, next) {
+    let command = "UPDATE shopInfo SET businessTime=:businessTime where takitId=:takitId";
+
+    let values={};
+    values.businessTime=shopInfo.businessTime;
+    values.takitId=shopInfo.takitId;
+
+    performQueryWithParam(command,values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("updateshopInfo success "+JSON.stringify(result));
+            next(null, "success");
+        }
+    });
+};
+
+
+router.getKioskPeriodStatsMenu = function (takitId, startTime, endTime, next) {
+    console.log("getKioskPeriodStatsMenu comes");
+
+    async.waterfall([(callback)=>{
+        router.getShopInfo(takitId,callback);
+    },(shopInfo,callback)=>{
+        let tmpEnd = endTime.split('T');
+        endTime = tmpEnd[0]+"T23:59:59.999Z" // endTime은오늘의 마지막 시간으로 만들어줌
+
+        startTime=startTime.replace('T',' ').replace('Z','');
+        endTime=endTime.replace('T',' ').replace('Z','');
+        let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
+        let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
+
+        let command = "SELECT menuName, SUM(quantity) AS count, SUM(kioskOrderList.amount) AS menuSales FROM kioskOrderList LEFT JOIN kiosk ON kioskOrderList.orderId=kiosk.orderId WHERE menuNO LIKE'" + takitId + "%' AND (orderStatus='completed' OR orderStatus='pickup') AND orderedTime BETWEEN ? AND ? GROUP BY menuName";
+        let values = [lcStartTime.toISOString(), lcEndTime.toISOString()];
+
+        performQueryWithParam(command, values,callback);
+
+    }],(err,result)=>{
+        if (err) {
+            console.error("getPeriodStatsMenu func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            if (result.info.numRows == '0') {
+                console.log(result.info.numRows);
+                next(null,0);
+            } else {
+                console.log("getPeriodStatsMenu func Query succeeded. " + JSON.stringify(result.info));
+                delete result.info;
+                next(null, result);
+            }
+        }
+    });
+
+}
+
+router.getKioskStatsMenu = function (takitId, startTime, next) {
+    //select menuName, SUM(quantity) FROM kioskOrderList where menuNO LIKE \'"+takitId+"%\'GROUP BY menuName";
+    console.log("getKioskStatsMenu comes");
+
+    let command = "SELECT menuName, SUM(quantity) AS count, SUM(kioskOrderList.amount) AS menuSales FROM kioskOrderList LEFT JOIN kiosk ON kioskOrderList.orderId=kiosk.orderId WHERE (orderStatus='completed' OR orderStatus='pickup') AND menuNO LIKE '" + takitId + "%' AND orderedTime > ? GROUP BY menuName"
+    let values = [startTime];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("getKioskStatsMenu func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            if (result.info.numRows == 0) {
+                next(null, 0);
+            } else {
+                console.log("getKioskStatsMenu func Query succeeded. " + JSON.stringify(result.info));
+                delete result.info;
+                console.log(result);
+                next(null, result);
+            }
+        }
+    });
+}
+
+router.getKioskSalesPeriod = function (takitId, startTime, endTime, next) {
+    console.log("takitId:" + takitId + " startTime:" + startTime + " end:" + endTime);
+
+    async.waterfall([(callback)=>{
+        router.getShopInfo(takitId,callback);
+    },(shopInfo,callback)=>{
+        let tmpEnd = endTime.split('T');
+        endTime = tmpEnd[0]+"T23:59:59.999Z" // endTime은오늘의 마지막 시간으로 만들어줌
+
+        startTime=startTime.replace('T',' ').replace('Z','');
+        endTime=endTime.replace('T',' ').replace('Z','');
+        let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
+        let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
+
+        let command = "SELECT SUM(amount) AS sales FROM kiosk WHERE takitId=? AND (orderStatus='completed' OR orderStatus='pickup' )AND orderedTime BETWEEN ? AND ?" //startTime과 endTime 위치 중요!!
+        let values = [takitId, lcStartTime.toISOString(), lcEndTime.toISOString()];
+        performQueryWithParam(command, values, callback);
+    }],(err,result)=>{
+        if (err) {
+            console.error("getSalesPeriod func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.dir("[getSalesPeriod func Get MenuInfo]:" + result.info.numRows);
+
+            if (result.info.numRows == 0) {
+                next(null, 0);
+            } else {
+                console.log("getSalesPeriod func Query succeeded. " + JSON.stringify(result.info));
+                next(null, result[0].sales);
+            }
+        }
+    });
+}
+
+router.getKioskSales = function (takitId, startTime, next) {
+    //select sum(amount) from orders where takitId = "세종대@더큰도시락" and orderedTime < "2016-12-28";
+    console.log("takitId:" + takitId);
+
+    let command = "SELECT SUM(amount) AS sales FROM kiosk WHERE takitId=? AND (orderStatus='completed' OR orderStatus='pickup')AND orderedTime > ?";
+    let values = [takitId, startTime];
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("querySales func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.dir("[querySales func Get MenuInfo]:" + result.info.numRows);
+            if (result.info.numRows == 0) {
+                next(null, 0);
+            } else {
+                console.log("querySales func Query succeeded. " + JSON.stringify(result.info));
+                console.log(result);
+                next(null, result[0].sales);
+            }
+        }
+    });
+}
+
+
+
 ////////////////////////////////////// Kiosk -end ////////////////////////////
 module.exports = router;
 
