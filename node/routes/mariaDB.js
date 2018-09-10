@@ -1718,12 +1718,16 @@ router.checkDuplicateUserOrder = function(userId,orderList, next){
         if(err){
             next(err);
         }else{
-            let now= new Date();
-            let lastOrderedTime = new Date(result[0].orderedTime);
-            if(result[0].orderList==orderList && now.getTime()-lastOrderedTime.getTime()< 5*1000+9*60*60*1000){ // less than 5 seconds + 시차 
-                next("duplicate order");
-            }else
-                next(null,result[0]);
+            if(result.info.numRows == 0){
+                    next(null,"firstUser");
+            }else{ // 
+                let now= new Date();
+                let lastOrderedTime = new Date(result[0].orderedTime);
+                if(result[0].orderList==orderList && now.getTime()-lastOrderedTime.getTime()< 5*1000+9*60*60*1000){ // less than 5 seconds + 시차 
+                    next("duplicate order");
+                }else
+                    next(null,result[0]);
+            }
         }
     });
 }

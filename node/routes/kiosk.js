@@ -14,7 +14,7 @@ let cashBill =require('./cashBill');
 let router = express.Router();
 
 router.pollKioskRecentOrder=function(req,res){
-    mariaDB.pollKioskRecentOrder(req.orderNO,req.takitId,req.time,function(err,more){
+    mariaDB.pollKioskRecentOrder(req.body.orderNO,req.body.takitId,req.body.time,function(err,more){
        if(err){
             console.log(err);
             let response = new index.FailResponse(err);
@@ -36,24 +36,24 @@ router.getOrdersShop=function(req,res){
         mariaDB.getKioskPeriodOrdersShop(req.body.takitId,req.body.startTime,req.body.endTime,
                                     req.body.lastOrderId,req.body.limit,
                                     function(err,kiosk){
-                         if(kioskOrders.length==limit){
-                             let startTime=kioskOrders[kioskOrders.length-1].orderedTime;
+                         if(kiosk && kiosk.length==limit){
+                             let startTime=kiosk[kiosk.length-1].orderedTime;
                              mariaDB.getOrdersShopWithStartTimeLimit(req.body.takitId,startTime,
                                     req.body.lastOrderId,req.body.limit,
                                     function(err,orders){
                                          if(err=="not exist orders")
-                                             responseOrders(null,kioskOrders,orders,req,res);
+                                             responseOrders(null,kiosk,orders,req,res);
                                          else
-                                             responseOrders(err,kioskOrders,orders,req,res);
+                                             responseOrders(err,kiosk,orders,req,res);
                              });
                          }else{
                            mariaDB.getPeriodOrdersShop(req.body.takitId,req.body.startTime,req.body.endTime,
                               req.body.lastOrderId,req.body.limit,
                               function(err,orders){
                                   if(err=="not exist orders")
-                                      responseOrders(null,kioskOrders,orders,req,res);
+                                      responseOrders(null,kiosk,orders,req,res);
                                   else
-                                      responseOrders(err,kioskOrders,orders,req,res);
+                                      responseOrders(err,kiosk,orders,req,res);
                               });
                          }
         });
@@ -263,19 +263,21 @@ router.saveOrder=function(req, res){
                   console.log("!!!order:"+JSON.stringify(result));
 
                   sendOrderMsgShop(result); // web server를 통해 직접 태블릿으로 전달함으로 굳이 오류 확인을 할필요는 없다. 반드시 takitShop에 해당 기능을 추가한다. 
-                  let data={};
-                  data.receivers=[req.body.notiPhone];
-                  data.subject=req.body.shopName+" 주문번호:"+order.orderNO+"\n"; 
-                  data.content=order.orderName+"\n";
-                  req.body.orderList.forEach(menu=>{
+                  if(req.body.notiPhone){
+                      let data={};
+                      data.receivers=[req.body.notiPhone];
+                      data.subject=req.body.shopName+" 주문번호:"+order.orderNO+"\n"; 
+                      data.content=data.subject;
+                      data.content+=order.orderName+"\n";
+                      req.body.orderList.forEach(menu=>{
                       data.content+=menu.menuName+" "+menu.quantity+"개\n";
-                      menu.options.forEach((option)=>{
-                          data.content+=option.name+"x"+option.number;
-                          if(option.select!==undefined)
-                              data.content+=" "+option.select+"\n";
-                          data.content+="+"+option.price*option.number+"\n";
-                      }); 
-                  });
+                          menu.options.forEach((option)=>{
+                              data.content+=option.name+"x"+option.number;
+                              if(option.select!==undefined)
+                                  data.content+=" "+option.select+"\n";
+                              data.content+="+"+option.price*option.number+"\n";
+                          }); 
+                      });
                       data.content+=req.body.address+"\n";
                       data.content+="사업자번호:"+req.body.businessNumber+"\n";
 
@@ -290,14 +292,16 @@ router.saveOrder=function(req, res){
                       data.content+="카드번호:"+req.body.cardNO+"\n";
                       data.content+=req.body.cardName+"\n";
                       data.content+="승인번호:"+req.body.approvalNO+"\n";
-                  console.log("sendLMS:"+JSON.stringify(data));
-                  noti.sendLMS(data); // 문자전송에 실패하였을 경우 고객들에게 어떻게 알려줄까? 일단 카카오로 바꾼이후에 처리하자.  
+                      console.log("sendLMS:"+JSON.stringify(data));
+                      noti.sendLMS(data); // 문자전송에 실패하였을 경우 고객들에게 어떻게 알려줄까? 일단 카카오로 바꾼이후에 처리하자.  
+                  }
               }
    });
 }
 
 sendOrderMsgShop=function(order){
    mariaDB.getShopPushIdWithEmail(order.takitId,function(err,shopUserInfo){
+       order.type="kiosk";
        const GCM = {};
        GCM.title = updateOrderStatus(order);
        GCM.content = "주문번호 "+order.orderNO+" 주문내역:"+order.orderName;
