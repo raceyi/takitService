@@ -2253,7 +2253,7 @@ router.updateOrderStatus = function (orderId, oldStatus, nextStatus, timeName, t
      //임시로 lock함수를 사용하여 해결함. 
   lock.acquire(orderId, function(done) {
   
-    var command = "SELECT orderStatus FROM orders WHERE orderId=?";  //orderStatus와 oldStatus 같은지 비교하기 위해 조회함===> 잘못됨. 수정필요함 ㅜㅜ  
+    var command = "SELECT orderStatus,cancelledTime FROM orders WHERE orderId=?";  //orderStatus와 oldStatus 같은지 비교하기 위해 조회함===> 잘못됨. 수정필요함 ㅜㅜ  
     var values = [orderId];
 
     performQueryWithParam(command, values, function (err, result) {
@@ -2270,7 +2270,10 @@ router.updateOrderStatus = function (orderId, oldStatus, nextStatus, timeName, t
                 values = {};
 
                 //orderStatus === oldStatus 이면 update 실행. 다르면 실행x
-                if (result[0].orderStatus === oldStatus || oldStatus === '' || oldStatus === null) {
+                if(oldStatus === '' && nextStatus==='cancelled' && result[0].cancelledTime!=null){  
+                    //상점주에 의한 cancel일 경우 모든 상태에서 주문취소가 가능하다. 이미 취소된 주문에 대해 두번 취소가되어 고객환불이 두번일어나는 경우를 막기위함
+                    done('incorrect old orderStatus');
+                }else if (result[0].orderStatus === oldStatus || oldStatus === '' || oldStatus === null) {
                     command = "UPDATE orders SET orderStatus=:nextStatus," + timeName + "=:timeValue, cancelReason=:cancelReason , localCancelledTime=:localCancelledTime WHERE orderId=:orderId";
                     values.nextStatus = nextStatus,
                         values.timeValue = timeValue.toISOString(),
