@@ -1090,6 +1090,20 @@ router.registerUserCoupon=function(req,res){
    });
 }
 
+router.getStampCount=function(req,res){
+    console.log("getStampCount:"+JSON.stringify(req.body));
+      mariaDB.getStampCount(req.session.uid, req.body.takitId,function(err,result){
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.stampCount= result;
+            res.send(JSON.stringify(response));
+        }
+      });
+}
 
 /*
 router.resetCashConfirmCount = function (req,res){

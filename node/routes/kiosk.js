@@ -439,7 +439,7 @@ router.getSalesAndSatas = function(req,res){
             async.parallel([function(callback){
                 mariaDB.getKioskSalesPeriod(req.body.takitId, req.body.startTime, req.body.endTime, callback);
             },function(callback){
-                mariaDB.getPeriodStatsMenu(req.body.takitId,req.body.startTime,req.body.endTime,callback);
+                mariaDB.getKioskPeriodStatsMenu(req.body.takitId,req.body.startTime,req.body.endTime,callback);
             }],finalCallback);
         }else{
             async.waterfall([function(callback){

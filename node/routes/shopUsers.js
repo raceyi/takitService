@@ -390,6 +390,10 @@ router.getSalesAndSatas = function(req,res){
 				response.setVersion(config.MIGRATION,req.version);
 				response.sales=result[0];
 				response.stats=result[1];
+                if(req.body.stamp){
+                    response.issueStampCount=result[2];
+                    response.couponAmount=result[3];
+                }
 				res.send(JSON.stringify(response));
 			}
 		}
@@ -400,18 +404,44 @@ router.getSalesAndSatas = function(req,res){
 				mariaDB.getSalesPeriod(req.body.takitId, req.body.startTime, req.body.endTime, callback);
 			},function(callback){
 				mariaDB.getPeriodStatsMenu(req.body.takitId,req.body.startTime,req.body.endTime,callback);
-			}],finalCallback);
+			},function(callback){
+                // stamp정보를 count한다. 
+                if(req.body.stamp){
+                    mariaDB.getPeriodIssueStamp(req.body.takitId, req.body.startTime, req.body.endTime, callback); 
+                }else{
+                    callback(null,"done"); 
+                } 
+            },function(callback){
+                // 사용 쿠폰수를 count한다. 
+                if(req.body.stamp){
+                    mariaDB.getPeriodCouponAmount(req.body.takitId, req.body.startTime, req.body.endTime, callback);  
+                }else{
+                    callback(null,"done");
+                } 
+            }],finalCallback);
 		}else{
 			async.waterfall([function(callback){
 				mariaDB.getShopInfo(req.body.takitId,callback);
 			},function(shopInfo,callback){
 				let startTime = mariaDB.getLocalTimeWithOption(req.body.option,shopInfo.timezone);
-
 				async.parallel([function(callback){
 					mariaDB.getSales(req.body.takitId,startTime,callback);
 				},function(callback){
 					mariaDB.getStatsMenu(req.body.takitId,startTime,callback);
-				}],callback);
+				},function(callback){
+                   //stamp정보를 count한다. 
+                   if(req.body.stamp)
+                       mariaDB.getIssueStamp(req.body.takitId,startTime,callback);
+                   else
+                       callback(null,"done");
+                },function(callback){
+                // 사용 쿠폰수를 count한다. 
+                    if(req.body.stamp){
+                        mariaDB.getCouponAmount(req.body.takitId,startTime,callback);  
+                    }else{
+                        callback(null,"done");
+                    }
+                }],callback);
 			}],finalCallback);
 		}
 
@@ -440,84 +470,6 @@ router.getAccount = function(req,res){
 	});
 }
 
-
-/*
-router.saveCafeInfoWithFile = function(req, res, next){
-	var img = req.file.path; // full name
-	console.log("img:"+req.file.path);
-	console.log("req.body:"+JSON.stringify(req.body));
-	console.log("req.file:"+JSON.stringify(req.file));
-	var body={};
-	body=req.body;
-	body.imagePath=req.body.takitId+"_main";
-	s3.upload_cafe_image(req.file.path,req.body.takitId+"_main",function success(){
-		console.log("s3 upload success");
-		dynamoDB.getCafeInfo(req.body.takitId, function(cafeInfos){
-		    if(err){
-		    	console.log(err);
-		    	res.end(JSON.stringify({result:"failure"}));
-		    }else{
-		    	if(cafeInfos.length==1){
-			    	// update an item
-			    	console.log("updateCafeInfo");
-			    	dynamoDB.updateCafeInfo(body,function(shop){
-			    		var response={result:"success",shopInfo:JSON.stringify(shop)};
-			    		return res.end(JSON.stringify(response));
-			    	},function fail(){
-			    		return res.end(JSON.stringify({result:"failure"}));
-			    	});
-			    }else if(cafeInfos.length==0){
-			    	// put new item
-			    	dynamoDB.addCafeInfo(body,function(shop){
-			    		var response={result:"success",shopInfo:JSON.stringify(shop)};
-			    		return res.end(JSON.stringify(response));
-			    	},function fail(){
-			    		return res.end(JSON.stringify({result:"failure"}));
-			    	});
-			    }else{
-			        console.log("cafe Info duplicated! Please check SW bug");
-			        res.end(JSON.stringify({result:"failure"}));
-			    }
-		    }
-		});
-	},function fail(){
-		return res.end(JSON.stringify({result:"failure"}));
-	});
-};
-
-router.saveCafeInfo=function(req,res,next){
-	dynamoDB.getCafeInfo(req.body.takitId, function(err,cafeInfos){
-		if(err){
-			console.log(err);
-			res.end(JSON.stringify({result:"failure"}));
-		}else{
-			if(cafeInfos.length==1){
-		    	// update an item
-		    	console.log("updateCafeInfo");
-		    	dynamoDB.updateCafeInfo(req.body,function(shop){
-		    		var response={result:"success",shopInfo:JSON.stringify(shop)};
-		    		return res.end(JSON.stringify(response));
-		    	},function fail(){
-		    		return res.end(JSON.stringify({result:"failure"}));
-		    	});
-		    }else if(cafeInfos.length==0){
-		    	// put new item
-		    	dynamoDB.addCafeInfo(req.body,function(shop){
-		    		var response={result:"success",shopInfo:JSON.stringify(shop)};
-		    		return res.end(JSON.stringify(response));
-		    	},function fail(){
-		    		return res.end(JSON.stringify({result:"failure"}));
-		    	});
-		    }else{
-		        console.log("cafe Info duplicated! Please check SW bug");
-		        res.end(JSON.stringify({result:"failure"}));
-		    }
-		}
-	    
-	});
-};
-
-*/
 router.sendGMSCouponMsg=function(api_key,pushid,MSGcontents,custom,next){
 	var sender = new gcm.Sender(api_key);
 	var title="coupon";
@@ -566,136 +518,6 @@ router.sendGMSCouponMsg=function(api_key,pushid,MSGcontents,custom,next){
 // 
 //var local_hour=local_order_time.substring(11,13);
 //console.log("hour:"+local_hour);
-
-/*
-router.couponSend=function(req,res,next){
-	
-
-	var orders = {};
-	var ExclusiveStartKey='0';
-
-	//오늘 날짜 설정 
-	var date = new Date();
-	
-	var today = date.getUTCFullYear().toString()+
-	            (date.getUTCMonth()+1).toString()+
-	            date.getUTCDate().toString();
-	console.log(today);
-	//console.log(req.body.takitId);
-	//console.log(req);
-
-	//1. order정보에서 조건에 맞는 쿼리 가져오기
-	var q=d3.queue();
-	
-	if(req.body.periodOption==="period"){
-		
-		q.defer(dynamoDB.setRedisPeriodOrders,req.body.takitId,10,req.body.startDate,req.endDate,ExclusiveStartKey);
-		
-	}else{
-		q.defer(dynamoDB.setRedisOrders,req.body.takitId, req.body.periodOption, 10, ExclusiveStartKey,today);
-	}
-	 //2. 1의 결과값 redis 저장
-		q.await(function(err,result){
-			console.log("await comes");
-			if(err){
-				console.log(err);
-				throw err;
-			}else{
-				//console.log("result:"+JSON.stringify(result1));
-				if(typeof result === 'undefind' || result === null){
-					res.end(JSON.stringify("notExistUser"));
-				}
-				
-				console.log("get Keys call");
-
-				var q=d3.queue();
-				
-				redisLib.getKeys(today+"_*",function(err,key){
-					for(var i=0; i<key.length; i++){
-						redisLib.getRedisAll(key[i],function(err,user){
-							if(err){
-								console.log(err);
-								throw err;
-							}else{
-								console.log(user);
-								router.sendGMSCouponMsg(SERVER_API_KEY,user.pushid,req.body.MSGcontents,user.buyer_name,function(err,MSGResult){
-									if(err){
-										console.log(err);
-										throw err;
-									}else{
-										if(MSGResult.success){
-											res.end(JSON.stringify("success"));
-										}else{
-											res.end(JSON.stringify("failure"));
-										}
-										
-									}
-								});
-
-							}
-						});
-					}
-				});
-				
-			}
-		});
-
-
-
-};
-
-
-
-
-router.customerSearch=function(req,res,next){
-	//콜백 함수 정의
-	function success(orders,LastEvaluatedKey){
-		var response={};
-		response.orders=orders;
-		response.LastEvaluatedKey=LastEvaluatedKey.toString();
-
-		orders.forEach(function(item){
-			var key = "user_"+orders.order_no;
-			redis.orderSetRedis(key,orders);
-		});
-
-		var q = d3.queue();
-
-		q.awaitAll(function(error) {
-			  if (error)
-				  throw error;
-			  console.log("orders:"+JSON.stringify(orders));
-			  res.end(JSON.stringify(response));
-			});
-	}
-
-	function fail(err){
-		res.statusCode=501; // internal server error
-		res.end(JSON.stringify(err));
-	}
-
-	//user가 설정한 기간이면
-	if(req.body.option==="period"){
-		dynamoDB.getPeriodOrders(req.body.takitId,
-				req.body.count,
-				req.body.start,
-				req.body.end,
-				req.body.ExclusiveStartKey,
-				success,
-				fail);
-	}else{//한주, 한달로 설정 했을 때
-		dynamoDB.getOrders(req.body.takitId, req.body.periodOption, 10, 0,success, fail);
-
-	}
-
-	//+day
-	//+hour
-	//+customer(빈도,구매액)
-};
-
-*/
-
-
 
 router.addTakitId=function(req,res){
     console.log("router.insertTakitId");

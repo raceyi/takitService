@@ -975,7 +975,7 @@ function queryCafeHomeCategory(cafeHomeResponse, req, res) {
     var takitId = decodeURI(url_strs[1]);
     console.log("takitId:" + takitId);
 
-    console.log(cafeHomeResponse);
+    //console.log(cafeHomeResponse);
     var command = "SELECT *FROM categories WHERE takitId=? ORDER BY sequence";
     var values = [takitId];
     performQueryWithParam(command, values, function (err, result) {
@@ -991,16 +991,16 @@ function queryCafeHomeCategory(cafeHomeResponse, req, res) {
                 response.setVersion(config.MIGRATION, req.version);
                 res.send(JSON.stringify(response));
             } else {
-                console.log("queryCafeHomeCategory func Query succeeded. " + JSON.stringify(result));
+                //console.log("queryCafeHomeCategory func Query succeeded. " + JSON.stringify(result));
 
                 var categories = [];
                 result.forEach(function (item) {
-                    console.log(JSON.stringify(item));
+                    //console.log(JSON.stringify(item));
                     categories.push(item);
                 });
 
                 cafeHomeResponse.categories = categories;
-                console.log("cafeHomeResponse:" + (JSON.stringify(cafeHomeResponse)));
+                //console.log("cafeHomeResponse:" + (JSON.stringify(cafeHomeResponse)));
                 console.log("send res");
                 res.end(JSON.stringify(cafeHomeResponse));
 
@@ -1033,11 +1033,10 @@ function queryCafeHomeMenu(cafeHomeResponse, req, res) {
                 response.setVersion(config.MIGRATION, req.version);
                 res.send(JSON.stringify(response));
             } else {
-                console.log("queryCafeHomeMenu Query succeeded. " + JSON.stringify(result[0]));
-
+                //console.log("queryCafeHomeMenu Query succeeded. " + JSON.stringify(result[0]));
                 var menus = [];
                 result.forEach(function (item) {
-                    console.log(JSON.stringify(item));
+                    //console.log(JSON.stringify(item));
                     menus.push(item);
                 });
 
@@ -1125,7 +1124,7 @@ function queryCafeHomeCategoryPost(cafeHomeResponse, req, res) {
     var takitId = req.body.takitId;
     console.log("takitId:" + takitId);
 
-    console.log(cafeHomeResponse);
+    //console.log(cafeHomeResponse);
     var command = "SELECT *FROM categories WHERE takitId=? ORDER BY sequence";
     var values = [takitId];
     performQueryWithParam(command, values, function (err, result) {
@@ -1136,17 +1135,16 @@ function queryCafeHomeCategoryPost(cafeHomeResponse, req, res) {
             res.send(JSON.stringify(response));
         } else {
 			var categories = [];
-            console.log("queryCafeHomeCategory func Query succeeded. " + JSON.stringify(result));
+            //console.log("queryCafeHomeCategory func Query succeeded. " + JSON.stringify(result));
             if (result.info.numRows != 0) {
-
                 var categories = [];
                 result.forEach(function (item) {
-                    console.log(JSON.stringify(item));
+                    //console.log(JSON.stringify(item));
                     categories.push(item);
                 });
             }
                 cafeHomeResponse.categories = categories;
-                console.log("cafeHomeResponse:" + (JSON.stringify(cafeHomeResponse)));
+                //console.log("cafeHomeResponse:" + (JSON.stringify(cafeHomeResponse)));
                 console.log("send res");
                 res.end(JSON.stringify(cafeHomeResponse));	
             
@@ -1171,11 +1169,11 @@ function queryCafeHomeMenuPost(cafeHomeResponse, req, res) {
             response.setVersion(config.MIGRATION, req.version);
             res.send(JSON.stringify(response));
         } else {
-        	console.log("queryCafeHomeMenu Query succeeded. " + JSON.stringify(result[0]));
+        	//console.log("queryCafeHomeMenu Query succeeded. " + JSON.stringify(result[0]));
             var menus = [];
             if (result.info.numRows != 0) {
                 result.forEach(function (item) {
-                    console.log(JSON.stringify(item));
+                    //console.log(JSON.stringify(item));
                     menus.push(item);
                 });
             }
@@ -1210,7 +1208,7 @@ router.queryCafeHomePost = function (req, res) {
             } else {
                 result.forEach(function (item) {
                     delete item.account;
-                    console.log("-----------------------hummmm"+JSON.stringify(item));
+                    //console.log("-----------------------hummmm"+JSON.stringify(item));
                     cafeHomeResponse.shopInfo = item;
                     queryCafeHomeMenuPost(cafeHomeResponse, req, res);
                 });
@@ -1654,9 +1652,9 @@ router.saveOrder = function (order, shopInfo, next) {
 
         //3. encrypt phone
             let secretUserPhone = encryption(userInfo.phone, config.pPwd);
-            let command = "INSERT INTO orders(takitId,shopName,orderName,payMethod,amount,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,userMSG,deliveryAddress,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType,deliveryFee, imp_uid,approval,card_info,total,payInfo) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            let command = "INSERT INTO orders(takitId,shopName,orderName,payMethod,amount,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,userMSG,deliveryAddress,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType,deliveryFee, imp_uid,approval,card_info,total,payInfo,couponDiscount,stampUsage,couponDiscountAmount,stampIssueCount) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
       //payInfo는 주문시 상점의 할인결제옵션임. payMethod와 다름.재주문을 위해 저장함. 
-            let values = [order.takitId,order.shopName, order.orderName, order.paymethod, order.amount, order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList,order.userMSG, order.deliveryAddress, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType,order.deliveryFee,order.imp_uid,order.approval,order.card_info,order.total,order.payInfo];
+            let values = [order.takitId,order.shopName, order.orderName, order.paymethod, order.amount, order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList,order.userMSG, order.deliveryAddress, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType,order.deliveryFee,order.imp_uid,order.approval,order.card_info,order.total,order.payInfo,order.couponDiscount,order.stampUsage,order.couponDiscountAmount,order.stampIssueCount];
             performQueryWithParam(command, values, function (err, orderResult) {
                 if (err) {
                     console.error("saveOrder func inser orders Unable to query. Error:", JSON.stringify(err, null, 2));
@@ -2253,7 +2251,8 @@ router.updateOrderStatus = function (orderId, oldStatus, nextStatus, timeName, t
      //임시로 lock함수를 사용하여 해결함. 
   lock.acquire(orderId, function(done) {
   
-    var command = "SELECT orderStatus,cancelledTime FROM orders WHERE orderId=?";  //orderStatus와 oldStatus 같은지 비교하기 위해 조회함===> 잘못됨. 수정필요함 ㅜㅜ  
+    var command = "SELECT orderStatus,cancelledTime FROM orders WHERE orderId=?";  //orderStatus와 oldStatus 같은지 비교하기 위해 조회함===> 잘못됨. 수정필요함 ㅜㅜ
+
     var values = [orderId];
 
     performQueryWithParam(command, values, function (err, result) {
@@ -2273,7 +2272,7 @@ router.updateOrderStatus = function (orderId, oldStatus, nextStatus, timeName, t
                 if(oldStatus === '' && nextStatus==='cancelled' && result[0].cancelledTime!=null){  
                     //상점주에 의한 cancel일 경우 모든 상태에서 주문취소가 가능하다. 이미 취소된 주문에 대해 두번 취소가되어 고객환불이 두번일어나는 경우를 막기위함
                     done('incorrect old orderStatus');
-                }else if (result[0].orderStatus === oldStatus || oldStatus === '' || oldStatus === null) {
+                } else if (result[0].orderStatus === oldStatus || oldStatus === '' || oldStatus === null) {
                     command = "UPDATE orders SET orderStatus=:nextStatus," + timeName + "=:timeValue, cancelReason=:cancelReason , localCancelledTime=:localCancelledTime WHERE orderId=:orderId";
                     values.nextStatus = nextStatus,
                         values.timeValue = timeValue.toISOString(),
@@ -2443,6 +2442,42 @@ router.getPeriodStatsMenu = function (takitId, startTime, endTime, next) {
 
 }
 
+router.getKioskPeriodStatsMenu = function (takitId, startTime, endTime, next) {
+    console.log("getKioskPeriodStatsMenu comes");
+
+    async.waterfall([(callback)=>{
+        router.getShopInfo(takitId,callback);
+    },(shopInfo,callback)=>{
+        let tmpEnd = endTime.split('T');
+        endTime = tmpEnd[0]+"T23:59:59.999Z" // endTime은오늘의 마지막 시간으로 만들어줌
+
+        startTime=startTime.replace('T',' ').replace('Z','');
+        endTime=endTime.replace('T',' ').replace('Z','');
+        let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
+        let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
+
+        let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales FROM kioskOrderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE menuNO LIKE'" + takitId + "%' AND (orderStatus='completed' OR orderStatus='pickup') AND orderedTime BETWEEN ? AND ? GROUP BY menuName";
+        let values = [lcStartTime.toISOString(), lcEndTime.toISOString()];
+
+        performQueryWithParam(command, values,callback);
+
+    }],(err,result)=>{
+        if (err) {
+            console.error("getPeriodStatsMenu func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            if (result.info.numRows == '0') {
+                console.log(result.info.numRows);
+                next(null,0);
+            } else {
+                console.log("getPeriodStatsMenu func Query succeeded. " + JSON.stringify(result.info));
+                delete result.info;
+                next(null, result);
+            }
+        }
+    });
+
+}
 ////////////매출 및 통계 end////////////
 
 
@@ -4282,6 +4317,368 @@ router.getKioskSales = function (takitId, startTime, next) {
     });
 }
 
+router.getStampCount=function(uid, takitId,next){
+  let command = "SELECT stampList  FROM userInfo WHERE userId=?";
+    let values = [uid];
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("getStampCount func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.dir("[getStampCount] result.info.numRows:" + result.info.numRows);
+            if (result.info.numRows == 0) {
+                next(null, 0);
+            } else {
+                console.log("querySales func Query succeeded. " + JSON.stringify(result[0]));
+                let count=0;
+                if(result && result[0].stampList!=null){
+                  let list=JSON.parse(result[0].stampList);
+                  console.log("list... "+JSON.stringify(list));
+                  for(var i=0;i<list.length;i++){
+                    console.log("takitId:"+list[i].takitId);
+                    if(list[i].takitId==takitId){
+                        count=list[i].count;
+                        console.log("count:"+count);
+                        break;
+                    }
+                  }
+                }
+                console.log("getStampCount-count:"+count);
+                next(null, count);
+            }
+        }
+    });
+}
+
+router.saveStampCoupon=function(order,next){
+    let command = "INSERT INTO stampCoupon(takitId,orderId,orderedTime,userId,issuedCount,stampCount,amount) values(?,?,?,?,?,?,?)";
+    let values = [order.takitId, order.orderId, order.orderedTime, order.userId, order.couponDiscount, order.couponDiscount,order.couponDiscountAmount];
+    console.log("saveStampCoupon:"+command);
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("saveStampCoupon func insert saveStampCoupon Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.log("saveStampCoupon Query Succeeded");
+            next(null,"done");
+        }
+    });
+}
+
+router.updateUserStampList=function(userId,takitId,countIn,next){
+    console.log("updateUserStampList");
+    let count=countIn;
+    if(typeof count ==="string"){
+        count=parseInt(count);
+    }
+    async.waterfall([(callback)=>{
+        router.getUserInfo(userId,callback);
+    },(userInfo,callback)=>{
+    //기존 값을 읽은후에 update해야만 한다. 
+      
+      let stampList=[];
+      if(userInfo.stampList!=null){
+          stampList=JSON.parse(userInfo.stampList);
+      }
+          let index=stampList.findIndex(function(element){
+                if(element.takitId==takitId){
+                    return true;
+                }
+                return false;
+           });
+           if(index>=0){
+                stampList[index].count+=count;
+           }else{
+                stampList.push({takitId:takitId,count:count});
+           }
+           let command = "UPDATE userInfo set stampList=? where userId=?";
+           let values = [JSON.stringify(stampList), userId];
+
+           performQueryWithParam(command, values, function (err, result) {
+               if (err) {
+                   console.log(err);
+                   callback(err);
+               }else {
+                   console.log("updateUserStampList function result" + JSON.stringify(result));
+                   //사용자의 stampList를 업데이트 한다.
+                   callback(null);
+               }
+           });
+      
+     }],(err,result)=>{
+               console.log("updateUserStampList: returns");
+               if(err){
+                   console.log("updateUserStampList-err:"+JSON.stringify(err));
+                   if(next)
+                       next(err);
+               }else{
+                   if(next)
+                       next(null,"done");
+               }
+     });    
+}
+
+
+router.updateStampIssueCount=function(order,next){
+    console.log("updateStampIssueCount");
+    let command = "UPDATE orders set stampIssueCount=? where orderId=?";
+    let values = [order.stampIssueCount, order.orderId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("updateStampIssueCount function result" + JSON.stringify(result));
+            //사용자의 stampList를 업데이트 한다. 
+            router.updateUserStampList(order.userId,order.takitId,order.stampIssueCount,next);
+        }
+    });
+}
+
+router.insertStampIssue=function(order,next){
+    let command = "INSERT INTO stamp(takitId,orderId,count,userId,orderedTime) values(?,?,?,?,?)";
+    let values = [order.takitId, order.orderId, order.stampIssueCount,order.userId,order.orderedTime];
+
+    console.log("insertStampIssue:"+command);
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("insertStampIssue func insert Unable to query. Error:", JSON.stringify(err, null, 2));
+            if(next)
+                next(err);
+        } else {
+            console.log("insertStampIssue Query Succeeded ");
+            if(next)
+                next(null,"done");
+        }
+    });
+}
+
+router.getMenuStampCount=function(menus,next){
+    let command="SELECT stampCount,menuNO,menuName from menus where (menuNO=\""+menus[0].menuNO+"\" AND menuName=\""+menus[0].menuName+"\")";
+    for(let i=1;i<menus.length;i++){
+       command=command+"OR (menuNO=\""+menus[i].menuNO+"\") AND menuName=(\""+menus[i].menuName+"\")";
+    }
+    console.log("command:"+command);
+
+    performQueryWithParam(command, function (err, result) {
+        if (err) {
+            console.error("generateStamp func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.log("generateStamp func Query Succeeded:"+JSON.stringify(result));
+            if(result.info.numRows == 0)
+                next(null,[]);
+            else{
+                console.log("menuInfo:"+JSON.stringify(result));
+                next(null,result);
+            }
+        }
+    });
+}
+
+router.generateStamp=function(order,next){
+    let issueStamp=0;
+    let menus=[];
+    console.log("order.orderList:"+order.orderList);
+
+    let orderList=order.orderList;;
+    if(typeof order.orderList ==="string"){
+         orderList=JSON.parse(order.orderList);
+    }
+    orderList.menus.forEach((menu)=>{
+         menus.push({menuNO:menu.menuNO,menuName:menu.menuName}); 
+    });
+    async.waterfall([(callback)=>{
+         router.getMenuStampCount(menus,callback);
+    },(menuInfos,callback)=>{
+               console.log("menuInfos:"+JSON.stringify(menuInfos));
+               orderList.menus.forEach((menu)=>{
+                  let index=menuInfos.findIndex(function(element){
+                               if(element.menuNO==menu.menuNO && element.menuName==menu.menuName)
+                                   return true;
+                               return false;
+                            })
+                   if(menuInfos[index].stampCount!=null){
+                        let quantity=menu.quantity;
+                        let stampCount=menuInfos[index].stampCount;
+                        if(typeof quantity ==="string")
+                            quantity=parseInt(quantity);
+                        if(typeof stampCount ==="string")
+                            stampCount=parseInt(stampCount);
+                            issueStamp+=quantity*stampCount;
+                   }
+               })
+               // update stampIssueCount of order.
+               if(order.couponDiscount!=null){ //쿠폰으로 구매한 경우 제외한다.
+                   let couponDiscount=order.couponDiscount;
+                   if(typeof couponDiscount === "string")
+                        couponDiscount=parseInt(couponDiscount);
+                   issueStamp-=couponDiscount;
+               } 
+               order.stampIssueCount=issueStamp;
+               router.updateStampIssueCount(order,callback);
+     },(result,callback)=>{
+               // insert stamp into stamp table.
+                console.log("insertStampIssue....");
+                router.insertStampIssue(order,callback);
+     }],(err,result)=>{
+           console.log("generateStamp done err:"+err);
+           if(err){
+                next(err);
+           }else{
+                next(null,"done");
+           }
+     });
+}
+
+router.getPeriodIssueStamp=function(takitId,startTime,endTime,next){
+    async.waterfall([(callback)=>{
+        router.getShopInfo(takitId,callback);
+    },(shopInfo,callback)=>{
+        let tmpEnd = endTime.split('T');
+        endTime = tmpEnd[0]+"T23:59:59.999Z" // endTime은오늘의 마지막 시간으로 만들어줌
+
+        startTime=startTime.replace('T',' ').replace('Z','');
+        endTime=endTime.replace('T',' ').replace('Z','');
+        let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
+        let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
+
+        let command = "SELECT SUM(count) as total FROM stamp WHERE takitId=? AND orderedTime BETWEEN ? AND ? AND cancel=?";
+        let values = [takitId,lcStartTime.toISOString(), lcEndTime.toISOString(),false];
+
+        performQueryWithParam(command, values,callback);
+    }],(err,result)=>{
+        if (err) {
+            console.error("getPeriodStatsMenu func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            if (result.info.numRows == '0') {
+                console.log(result.info.numRows);
+                next(null,0);
+            } else {
+                console.log("getPeriodStatsMenu func Query succeeded. " + JSON.stringify(result.info));
+                delete result.info;
+                next(null, result[0].total);
+            }
+        }
+    });
+}
+
+router.getPeriodCouponAmount=function(takitId,startTime,endTime,next){
+    router.getShopInfo(takitId,function(err,shopInfo){
+        if(err){
+            next(err);
+            return;
+        }
+
+        let tmpEnd = endTime.split('T');
+        endTime = tmpEnd[0]+"T23:59:59.999Z" // endTime은오늘의 마지막 시간으로 만들어줌
+
+        startTime=startTime.replace('T',' ').replace('Z','');
+        endTime=endTime.replace('T',' ').replace('Z','');
+        let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
+        let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
+
+        let command = "SELECT SUM(amount) as total FROM stampCoupon WHERE takitId=? AND cancel=? AND orderedTime BETWEEN ? AND ? ";
+        let values = [takitId,false,lcStartTime.toISOString(), lcEndTime.toISOString()];
+
+        performQueryWithParam(command, values,function(err,result){
+          if (err) {
+            console.error("stampCoupon func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+          } else {
+            console.log("getPeriodCouponAmount:"+JSON.stringify(result));
+            if (result.info.numRows == '0') {
+                console.log(result.info.numRows);
+                next(null,0);
+            } else {
+                console.log("getPeriodStatsMenu func Query succeeded. " + JSON.stringify(result.info));
+                delete result.info;
+                next(null, result[0].total);
+            }
+          }
+       });
+    });
+}
+
+router.getIssueStamp=function(takitId,startTime,next){
+    console.log("takitId:" + takitId);
+
+    let command = "SELECT SUM(count) as total FROM stamp WHERE takitId=? AND orderedTime > ? AND cancel=?";
+    let values = [takitId, startTime,false];
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("getIssueStamp func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.dir("[getIssueStamp func Get MenuInfo]:" + result.info.numRows);
+            if (result.info.numRows == 0) {
+                next(null, 0);
+            } else {
+                console.log("getIssueStamp func Query succeeded. " + JSON.stringify(result.info));
+                console.log(result);
+                next(null, result[0].total);
+            }
+        }
+    });
+}
+
+router.getCouponAmount=function(takitId,startTime,next){
+    console.log("takitId:" + takitId);
+
+    let command = "SELECT SUM(amount) as total FROM stampCoupon WHERE takitId=? AND orderedTime > ? AND cancel=?";
+    let values = [takitId, startTime,false];
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("getCouponAmount func Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.dir("[getCouponAmount func]:" + result.info.numRows);
+            if (result.info.numRows == 0) {
+                next(null, 0);
+            } else {
+                console.log("getCouponAmount func Query succeeded. " + JSON.stringify(result.info));
+                console.log(result);
+                console.log("total:"+result[0].total);
+                next(null, result[0].total);
+            }
+        }
+    });
+
+}
+
+router.cancelStamp=function(order,next){
+    let command = "UPDATE stamp set cancel=true where orderId=?";
+    let values = [order.orderId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("cancelStamp func Unable to query. Error:", JSON.stringify(err, null, 2));
+            if(next)
+                next(err);
+        } else {
+            if(next) 
+                next(null);
+        }
+    });
+}
+
+router.cancelStampCoupon=function(order,next){
+    let command = "UPDATE stampCoupon set cancel=true where orderId=?";
+    let values = [order.orderId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("cancelStampCoupon func Unable to query. Error:", JSON.stringify(err, null, 2));
+            if(next)
+                next(err);
+        } else {
+            if(next)
+                next(null);
+        }
+    });
+}
 
 
 ////////////////////////////////////// Kiosk -end ////////////////////////////
