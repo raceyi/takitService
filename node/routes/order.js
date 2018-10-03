@@ -150,10 +150,8 @@ function sendOrderMSGShop(order, shopUserInfo,next){
       SMS.title = GCM.title;
       SMS.content = "주문번호 "+order.orderNO+" 새로고침 버튼을 눌러주세요";
       ///////////////////////////////////////////////////////////////////////////////
-	  //if(!order.takitId.startsWith("TEST")){
-	  //	noti.sendSMS(SMS.title+" "+SMS.content,[config.SMS.SENDER]); //set production mode
-	  //}else{
-      //  console.log("takitId startsWith TEST. Do not send william sms");
+	  //if(order.takitId=="세종대@리얼후라이"){ //당분간 전송한다. 
+	  // 	noti.sendSMS(SMS.title+" "+SMS.content,[config.SMS.SENDER]); //set production mode
       //}
       //////////////////////////////////////////////////////////////////////////////
       console.log("shopUserInfo.phone:"+shopUserInfo.phone);
@@ -173,6 +171,12 @@ function sendOrderMSGShop(order, shopUserInfo,next){
          response.order = order;
          response.messageId = GCM.messageId;
          next(null,response);
+         if(order.takitId=="세종대@리얼후라이"){
+             const SMS = {};
+             SMS.title = GCM.title;
+             SMS.content = "주문번호 "+order.orderNO+" 새로고침 버튼을 눌러주세요";
+             noti.sendSMS(SMS.title+" "+SMS.content,[config.SMS.SENDER]); //set production mode
+         }
       }
 	});
 }
@@ -924,10 +928,18 @@ router.shopCancelOrderWithEmail=function(req,res){
             }
             if(order.stampIssueCount!=null){ //stamp를 restore한다. 
                 //사용자의 stamp정보를 업데이트 해야함. 
-                let stampRestore=-order.stampIssueCount;
+                console.log("!!!!!!!!!!!!!!!!!order.stampIssueCount:"+order.stampIssueCount);
+                let stampIssueCount=order.stampIssueCount;
+                if(typeof stampIssueCount ==="string")
+                    stampIssueCount=parseInt(stampIssueCount);
+                let stampRestore=0-stampIssueCount;
                 if(order.stampUsage!=null){ //stamp 쿠폰사용후 주문취소시 돌려준다.
-                    stampRestore+=order.stampUsage;
+                    let stampUsage=order.stampUsage;
+                    if(typeof stampUsage ==="string")
+                        stampUsage=parseInt(stampUsage);
+                    stampRestore+=stampUsage;
                 }
+                console.log("!!!!!!!!!!!!!!!!!order.stampRestore:"+stampRestore);
                 mariaDB.updateUserStampList(order.userId,order.takitId,stampRestore);
                 //stamp,stampCoupon table을 업데이트 해야함.   
                 mariaDB.cancelStamp(order);

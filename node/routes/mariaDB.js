@@ -2740,7 +2740,7 @@ router.getDepositedCash = function (cashList, next) {
 	let command = "SELECT * FROM cashList WHERE transactionType='deposit' and confirm=0 and cashId =:depositMemo and bankCode=:bankCode "
                     +"and amount=:amount and depositTime like '"+cashList.depositTime.substring(0,13)+"%'";
 
-	if(cashList.bankCode =='-1' || cashList.bankCode=='-2'){
+	if(cashList.bankCode =='-1' || cashList.bankCode=='-2' || cashList.bankCode=='-3'){
         command = "SELECT * FROM cashList WHERE transactionType='deposit' and confirm=0 and cashId =:depositMemo "
                     +"and amount=:amount and depositTime like '"+cashList.depositTime.substring(0,13)+"%'";
     }
@@ -4371,6 +4371,8 @@ router.updateUserStampList=function(userId,takitId,countIn,next){
     if(typeof count ==="string"){
         count=parseInt(count);
     }
+    console.log("****************************count:"+count);
+
     async.waterfall([(callback)=>{
         router.getUserInfo(userId,callback);
     },(userInfo,callback)=>{
@@ -4387,7 +4389,9 @@ router.updateUserStampList=function(userId,takitId,countIn,next){
                 return false;
            });
            if(index>=0){
+                console.log("prev!!!!count is stampList[index].count:"+stampList[index].count); 
                 stampList[index].count+=count;
+                console.log("next!!!!!count is stampList[index].count:"+stampList[index].count); 
            }else{
                 stampList.push({takitId:takitId,count:count});
            }
