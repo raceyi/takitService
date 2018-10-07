@@ -4070,10 +4070,13 @@ setTimeout(function(){
 ////////////////////////////////////// Kiosk -begin////////////////////////////
 router.saveKioskOrder=function(order, next) {
     let orderedTime=new Date();
-    let command = "INSERT INTO kiosk(takitId,orderNO,orderName,amount,takeout,notiPhone,orderStatus,orderList,orderedTime,paymentType,receiptIssue,receiptType,receiptId,cardPayment,cardApprovalNO,cardApprovalDate,catid) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-            let secretePhone = encryption(order.notiPhone, config.pPwd);
-            console.log("secretPhone:"+secretePhone);
-            let values = [order.takitId,order.orderNO,order.orderName, order.amount,order.takeout,secretePhone, "paid", JSON.stringify(order.orderList),orderedTime.toISOString(),order.paymentType,
+    let command = "INSERT INTO kiosk(takitId,orderNO,orderName,amount,takeout,orderStatus,orderList,orderedTime,paymentType,receiptIssue,receiptType,receiptId,cardPayment,cardApprovalNO,cardApprovalDate,catid) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            let values;
+            if(order.paymentType=="card")
+                values= [order.takitId,order.orderNO,order.orderName, order.amount,order.takeout,"paid", JSON.stringify(order.orderList),orderedTime.toISOString(),order.paymentType,
+                          order.receiptIssue,order.receiptType,order.receiptId,order.cardPayment,order.approvalNO,order.approvalDate,order.catid];
+            else if(order.paymentType=="cash")
+                values= [order.takitId,order.orderNO,order.orderName, order.amount,order.takeout,"unpaid", JSON.stringify(order.orderList),orderedTime.toISOString(),order.paymentType,
                           order.receiptIssue,order.receiptType,order.receiptId,order.cardPayment,order.approvalNO,order.approvalDate,order.catid];
             //console.log("order.orderList:"+JSON.stringify(order.orderList));
             performQueryWithParam(command, values, function (err, orderResult) {
@@ -4159,7 +4162,7 @@ router.searchKioskOrder=function(condition,next){
 }
 
 router.searchKioskOrderWithId=function(id,next){
-    console.log("id:"+id);
+    console.log("searchKioskOrderWithId-id:"+id);
 
     let command = "SELECT * FROM kiosk WHERE orderId=?";
     let values=[id];
@@ -4684,6 +4687,156 @@ router.cancelStampCoupon=function(order,next){
     });
 }
 
+router.checkRegisterNotiPhone=function(phone,next){
+   var secretPhone = encryption(phone, config.pPwd);
+   var command = "select * from kioskNotification where phone=? ";
+   var values=[secretPhone];
+   performQueryWithParam(command, values, function (err, result) {
+        console.log("c.query success");
+        if (err) {
+            next(err);
+        } else {
+            console.dir("[checkRegisterNotiPhone]:" + result.info.numRows);
+            if (result.info.numRows === "0") {
+                next(null,null);
+            } else {
+                next(null,result[0]);
+            }
+        }
+    });
+}
+
+insertWaiteeNumber=function(phone,waiteeNumber,next){
+    var secretPhone = encryption(phone, config.pPwd);
+    var command = 'INSERT INTO kioskNotification (phone,waiteeNumber) VALUES (?,?)';
+    var values = [secretPhone,waiteeNumber];
+   
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("insertWaiteeNumber func result" + JSON.stringify(result));
+            if(result.info.affectedRows==1)
+                next(null,{waiteeNumber:waiteeNumber});
+            else
+                next("db error");
+        }
+    });
+
+}
+
+
+router.registerNotiPhone=function(phone,next){
+   // last 4 digits
+   if(!phone || phone.length<4){
+       next("invalidPhone");
+       return;    
+   }
+   let last4digits=phone.substr(phone.length-4,4);
+
+   var command = "select * from kioskNotification where (waiteeNumber like \"%"+last4digits+"\") OR waiteeNumber= \""+last4digits+"\"";
+   performQuery(command, function (err, result) {
+        console.log("c.query success");
+        if (err) {
+            next(err);
+        } else {
+            console.dir("[registerNotiPhone]:" + result.info.numRows);
+            if (result.info.numRows == 0) { // 마지막 4 digit으로 선택한다. 
+                console.log("registerNotiPhone-waiteeNumber:"+last4digits);
+                insertWaiteeNumber(phone,last4digits,next);    
+            } else { // 앞의 digit들을 확인한다. 
+                let array=result;
+                array.forEach(noti=>{
+                    noti.phone=decryption(noti.phone,config.pPwd);
+                });
+                lookForUniqueDigits(result,phone,5,function(err,digitNumber){
+                    console.log("digitNumber:"+digitNumber);
+                    let waiteeNumber=phone.substr(phone.length-digitNumber,digitNumber);
+                    console.log("registerNotiPhone-waiteeNumber:"+waiteeNumber);
+                    insertWaiteeNumber(phone,waiteeNumber,next);
+                });
+            }
+        }
+    });
+}
+
+router.saveKioskNotiPhone=function(phone,orderId,next){
+    let values = {};
+    let command;
+
+    values.orderId = orderId;
+    values.notiPhone = encryption(phone, config.pPwd);
+    //cancelled 상태면 이유 넣음. 아니면 그대로 null
+    command = "UPDATE kiosk SET notiPhone=:notiPhone WHERE orderId=:orderId";
+
+    performQueryWithParam(command, values, function (err, result) {
+                    if (err) {
+                        console.error("saveKioskNotiPhone func Unable to query. Error:", JSON.stringify(err, null, 2));
+                        next(err);
+                    } else {
+                        console.dir("[saveKioskNotiPhone func Get MenuInfo]:" + result.info.affectedRows);
+                        if (result.info.affectedRows == 0) {
+                            next("can't update orders");
+                        } else {
+                            console.log("saveKioskNotiPhone func Query succeeded. " + JSON.stringify(result[0]));
+                            next(null, "success");
+                        }
+                    }
+    });  
+
+}
+
+router.searchWaiteeNumber=function(waiteeNumber,callback){
+   var command = "select * from kioskNotification where waiteeNumber=? ";
+   var values=[waiteeNumber];
+   performQueryWithParam(command, values, function (err, result) {
+        console.log("c.query success");
+        if (err) {
+            next(err);
+        } else {
+            console.dir("[searchWaiteeNumber]:" + result.info.numRows);
+            if (result.info.numRows === "0") {
+                callback(null,null);
+            } else {
+                let phone=decryption(result[0].phone,config.pPwd);
+                callback(null,phone);
+            }
+        }
+    });
+}
+
+lookForUniqueDigits=function(array,phone,digitNumber,next){
+   console.log("array:"+JSON.stringify(array));
+   let subset=array.filter(function(element){
+            if(phone.substr(phone.length-digitNumber)==element.phone.substr(phone.length-digitNumber)){
+                              return true; 
+            }
+   });
+   if(subset.length<=0){
+       console.log("distinguish digits");
+       next(null,digitNumber);
+   }else{
+       let waiteeSets=subset.filter(function(element){
+                          if(element.waiteeNumber.length>=digitNumber) 
+                              return true;
+                         });
+       if(waiteeSets.length<=0){
+          console.log("already assinged digits");
+          next(null,digitNumber); 
+       }else
+          lookForUniqueDigits(subset,phone,digitNumber+1,next);
+   }
+}
+
+/*
+let array=[{"phone":"01027228226","waiteeNumber":"8226"}, 
+           {"phone":"01027328226","waiteeNumber":"28226"},
+           {"phone":"01024328226","waiteeNumber":"328226"}];
+lookForUniqueDigits(array,"01044328226",5,function(err,digitNumber){
+    console.log("[lookForUniqueDigits]digitNumber:"+digitNumber);
+})
+*/
 
 ////////////////////////////////////// Kiosk -end ////////////////////////////
 module.exports = router;

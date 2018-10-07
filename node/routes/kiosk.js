@@ -11,6 +11,7 @@ let index = require('./index');
 let op = require('./op');
 let socket = require('./socket');
 let cashBill =require('./cashBill');
+let kakao =require('./kakao');
 let router = express.Router();
 
 router.pollKioskRecentOrder=function(req,res){
@@ -245,6 +246,7 @@ router.saveOrder=function(req, res){
           order.cardPaymet=null;     
       mariaDB.saveKioskOrder(order,callback);
    },function(orderId,callback){
+      order.orderId=orderId;
       mariaDB.searchKioskOrderWithId(orderId,callback);
    }],(err,result)=>{
                if(err){
@@ -257,6 +259,7 @@ router.saveOrder=function(req, res){
                   let response = new index.SuccResponse();
                   response.setVersion(config.MIGRATION,req.version);
                   response.orderNO = order.orderNO;
+                  response.order=order;
                   res.send(JSON.stringify(response));
                   //sendOrderMsgShop(order); // web server를 통해 직접 태블릿으로 전달함으로 굳이 오류 확인을 할필요는 없다. 반드시 takitShop에 해당 기능을 추가한다. 
 
@@ -455,6 +458,117 @@ router.getSalesAndSatas = function(req,res){
             }],finalCallback);
         }
 }
+
+router.sendOrderWithPhone=function(req,res){
+    console.log("sendOrderWithPhone body:"+JSON.stringify(req.body));
+    //주문 전달     
+    let order={};
+    let shopInfo={};
+
+    async.waterfall([function(callback){
+        mariaDB.searchKioskOrderWithId(req.body.orderId,callback);
+    },function(orderInfo,callback){
+        if(!order){
+            callback("invalidOrderId");
+        }else{
+            order=orderInfo;
+            mariaDB.getShopInfo(order.takitId,callback);
+        }
+    },function(shop,callback){
+        //kakao api호출
+     shopInfo=shop;
+     if(order.paymentType=="card")
+         kakao.sendCardOrderMsg(order,shopInfo,req.body.phone,callback);
+     else
+         kakao.sendCashOrderMsg(order,shopInfo,req.body.phone,callback);
+    },function(result,callback){ //update notiPhone kiosk 
+         mariaDB.saveKioskNotiPhone(req.body.phone,req.body.orderId,callback);
+    }],function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });    
+}
+
+//lock함수가 필요하다 ㅜㅜ. 앞에 뭘붙이지? kioskNoti+phone 
+router.registerPhone=function(req,res){
+    async.waterfall([function(callback){
+        mariaDB.checkRegisterNotiPhone(req.body.phone,callback);
+    },function(registeredInfo,callback){
+        console.log("registeredInfo:"+registeredInfo);
+        if(registeredInfo==null){
+            mariaDB.registerNotiPhone(req.body.phone,callback);
+        }else{
+            callback("alreadyRegistered:"+registeredInfo.waiteeNumber);
+        }
+    }],function(err,result){
+      if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            if(err=="alreadyRegistered"){
+                response.waiteeNumber=result;
+            }
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.digitsMask=result.waiteeNumber;
+            response.digitsNumber=result.waiteeNumber.length;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        } 
+    });
+}
+
+router.sendOrderInfoWithWaitee=function(req,res){
+    //1. 등록번호를 찾음
+    //2. 등록번호로 주문 전달
+    //3. order정보에 전화번호 암호화해서 저장함=>  향후 사용처는?
+    //주문 전달
+    let phone,order,shop;
+    console.log("sendOrderInfoWithWaitee:"+JSON.stringify(req.body));
+    async.waterfall([function(callback){
+        mariaDB.searchWaiteeNumber(req.body.waiteeNumber,callback);
+    },function(phoneNumber,callback){
+        if(phoneNumber==null){
+            callback("waiteeNumberInvald");
+        }else{
+            phone=phoneNumber;
+            mariaDB.searchKioskOrderWithId(req.body.orderId,callback);
+        }
+    },function(orderInfo,callback){
+        order=orderInfo;
+        mariaDB.getShopInfo(order.takitId,callback);
+    },function(shop,callback){
+        shopInfo=shop;
+        //kakao api호출
+     if(order.paymentType=="card")
+         kakao.sendCardOrderMsg(order,shopInfo,phone,callback);
+     else
+         kakao.sendCashOrderMsg(order,shopInfo,phone,callback);
+    },function(result,callback){ //update notiPhone kiosk
+         mariaDB.saveKioskNotiPhone(phone,req.body.orderId,callback);
+    }],function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
 
 module.exports = router;
 
