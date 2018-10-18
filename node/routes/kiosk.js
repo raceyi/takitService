@@ -48,7 +48,7 @@ router.getOrdersShop=function(req,res){
         mariaDB.getKioskPeriodOrdersShop(req.body.takitId,req.body.startTime,req.body.endTime,
                                     req.body.lastOrderId,req.body.limit,
                                     function(err,kiosk){
-                         if(kiosk && kiosk.length==limit){
+                         if(kiosk && kiosk.length==req.body.limit){
                              let startTime=kiosk[kiosk.length-1].orderedTime;
                              mariaDB.getOrdersShopWithStartTimeLimit(req.body.takitId,startTime,
                                     req.body.lastOrderId,req.body.limit,
