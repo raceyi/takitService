@@ -108,11 +108,19 @@ router.registIssue=function(info){
     function(result){
       console.log("registIssue-result:"+JSON.stringify(result));
       //mgtKey을 db에 저장한다. 
-      mariaDB.saveCashBillKey(info.orderId,cashbill.mgtKey,function(err,result){
+      if(info.kiosk){
+        mariaDB.saveKioskCashBillKey(info.orderId,cashbill.mgtKey,function(err,result){
+         if(err){
+             console.log("!!!fail to save kiosk-cashBillKey!!!");
+         }
+       });   
+      }else{
+       mariaDB.saveCashBillKey(info.orderId,cashbill.mgtKey,function(err,result){
          if(err){
              console.log("!!!fail to save cashBillKey!!!");
          }
-      }); 
+       }); 
+      }
     }, function(Error){
       console.log("registIssue-error:"+JSON.stringify(Error));
   });
@@ -206,11 +214,19 @@ cancelBill=function(info,confirmNum,tradeDate){
   cashbillService.revokeRegistIssue(testCorpNum, mgtKey, orgConfirmNum, orgTradeDate,
     function(result) {
         console.log("registIssue-result:"+JSON.stringify(result));
-        mariaDB.saveCancelCashBillKey(info.orderId,mgtKey,function(err,result){
+        if(info.kiosk){
+         mariaDB.saveKioskCancelCashBillKey(info.orderId,mgtKey,function(err,result){
+            if(err){
+                console.log("!!!fail to save kiosk-cancelCashBillKey!!!");
+            }
+         });
+       }else{
+          mariaDB.saveCancelCashBillKey(info.orderId,mgtKey,function(err,result){
             if(err){
                 console.log("!!!fail to save cancelCashBillKey!!!");
             }
-        });
+         });
+       }
     }, function(Error) {
       console.log("revokeRegistIssue-error:"+JSON.stringify(Error));
   });

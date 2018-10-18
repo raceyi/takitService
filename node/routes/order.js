@@ -314,6 +314,11 @@ function saveOrderEach(param,next){
         //console.log("orderNO:"+orderNO);
         order.orderList=JSON.stringify(order.orderList);
         //console.log("orderList......:"+JSON.stringify(order.orderList));
+        //stampIssueCount를 보정한다. 왜 앱에서 정상으로 전달해주지 않을까? ㅜㅜ
+        if(shopInfo.stamp!=null && shopInfo.stamp){
+            console.log("!!!shop issue stamp!!!\n");
+            order.stampIssueCount=0;
+        }
         mariaDB.saveOrder(order,shopInfo,callback);
     },function(orderId,callback){
         console.log(orderId);

@@ -679,6 +679,23 @@ router.saveCashBillKey=function(orderId,cashBillKey,next){
     });
 }
 
+router.saveKioskCashBillKey=function(orderId,cashBillKey,next){
+    console.log("saveCashBill orderId:"+orderId);
+    let command = "UPDATE kiosk set cashBillKey=? where orderId=?";
+    let values = [cashBillKey, orderId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("saveKioskCashBillKey function result" + JSON.stringify(result));
+            next(null);
+        }
+    });
+}
+
+
 router.saveCancelCashBillKey=function(orderId,cancelCashBillKey,next){
     let command = "UPDATE orders set cancelCashBillKey=? where orderId=?";
     let values = [cancelCashBillKey, orderId];
@@ -693,6 +710,22 @@ router.saveCancelCashBillKey=function(orderId,cancelCashBillKey,next){
         }
     });
 }
+
+router.saveKioskCancelCashBillKey=function(orderId,cancelCashBillKey,next){
+    let command = "UPDATE orders set cancelCashBillKey=? where orderId=?";
+    let values = [cancelCashBillKey, orderId];
+   
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            console.log("saveKioskCancelCashBillKey function result" + JSON.stringify(result));
+            next(null);
+        }
+    });
+}
+
 
 router.getRevokeRegistOrders=function(next){
     let date=new Date(Date.now()-24*60*60*1000*3); //3 days ago;
@@ -3865,7 +3898,8 @@ function checkIfAMenuSoldOut(menu,callback){
                     let optionsObj=JSON.parse(result[0].options);
                     let optionPrice=0;
                     console.log("menu.options:"+menu.options);
-                    menu.options.forEach(option=>{
+                    for(let j=0;j<menu.options.length;j++){
+                       let option=menu.options[j];
                        let index=optionsObj.findIndex(function(element){
                                 if(option.name==element.name) return true;
                                 return false;
@@ -3874,14 +3908,13 @@ function checkIfAMenuSoldOut(menu,callback){
                         if(index<0){
                              callback("invalidOption");
                              return;
-                        } 
-                        if(optionsObj[index].price!=option.price){
+                        }else if(optionsObj[index].price!=option.price){
                              callback("invalidOption");
                              return;
                         }else{
                              optionPrice=optionPrice+option.price*option.number; 
                         }
-                    });
+                    }
                     let price=result[0].price;
                     if(typeof result[0].price ==='string')
                          price=parseInt(result[0].price);
@@ -3908,12 +3941,86 @@ function checkIfAMenuSoldOut(menu,callback){
     });
 }
 
+function checkIfAMenuSoldOutEn(menu,callback){
+    // menu 가격의 validity(unitPrice)도 확인함.
+    // menu의 timeConstraints도확인함.
+    let command = "SELECT soldout,price,optionsEn,timeConstraint FROM menus where menuNO=? AND menuName=?";
+    let values = [menu.menuNO, menu.menuName];
+
+    console.log("menu:"+JSON.stringify(menu));
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            callback(err);
+        } else {
+                //console.log("price:"+result[0].price);
+                console.log("optionsEn:"+result[0].optionsEn);
+                //console.log("soldout:"+result[0].soldout);
+                if(result[0].optionsEn!=null){
+                    let optionsObj=JSON.parse(result[0].optionsEn);
+                    let optionPrice=0;
+                    console.log("menu.optionsEn:"+JSON.stringify(menu.optionsEn));
+                    for(let j=0;j<menu.optionsEn.length;j++){
+                       let option=menu.optionsEn[j];
+                       let index=optionsObj.findIndex(function(element){
+                                if(option.name==element.name) return true;
+                                return false;
+                            })
+                        console.log("index:"+index + "option:"+JSON.stringify(option));
+                        if(!option.filterOption){ //filterOption은 무시한다.
+                          if(index<0){
+                             callback("invalidOption");
+                             return;
+                          }else if(optionsObj[index].price!=option.price){
+                             callback("invalidOption");
+                             return;
+                          }else{
+                             optionPrice=optionPrice+option.price*option.number;
+                          }
+                        }
+                    }
+                    let price=result[0].price;
+                    if(typeof result[0].price ==='string')
+                         price=parseInt(result[0].price);
+                    console.log("computed price:"+(optionPrice+price));
+                    console.log("menu.unitPrice:"+menu.unitPrice);
+                    if(menu.unitPrice!=optionPrice+price){
+                             callback("invalidPrice");
+                             return;
+                    }
+                }
+                if(result[0].timeConstraint!=null){ // 시간제한 확인하자.
+                    let timeConstraint=JSON.parse(result[0].timeConstraint);
+                    if(!checkMenuTimeConstraint(timeConstraint)){
+                        callback("invalidTimeContraint");
+                        return;
+                    }
+                }
+                if (result[0].soldout=='0') { // 판매중
+                    callback(null, "sale");
+                } else {
+                    callback("soldout",menu.menuName);
+                }
+        }
+    });
+}
+
 router.checkIfMenuSoldOut=function(menus,next){
     async.each(menus,checkIfAMenuSoldOut,function(err,result){
               if(err){
                   next(err); 
                }else{
                   next(null,"sale");   
+              }
+    });
+}
+
+router.checkIfMenuSoldOutEn=function(menus,next){
+    async.each(menus,checkIfAMenuSoldOutEn,function(err,result){
+              if(err){
+                  next(err);
+               }else{
+                  next(null,"sale");
               }
     });
 }
@@ -4070,14 +4177,15 @@ setTimeout(function(){
 ////////////////////////////////////// Kiosk -begin////////////////////////////
 router.saveKioskOrder=function(order, next) {
     let orderedTime=new Date();
-    let command = "INSERT INTO kiosk(takitId,orderNO,orderName,amount,takeout,orderStatus,orderList,orderedTime,paymentType,receiptIssue,receiptType,receiptId,cardPayment,cardApprovalNO,cardApprovalDate,catid) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+    let command = "INSERT INTO kiosk(takitId,orderNO,orderName,amount,takeout,orderStatus,orderList,orderedTime,paymentType,receiptIssue,receiptType,receiptId,cardPayment,cardApprovalNO,cardApprovalDate,catid,orderNameEn) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
             let values;
             if(order.paymentType=="card")
                 values= [order.takitId,order.orderNO,order.orderName, order.amount,order.takeout,"paid", JSON.stringify(order.orderList),orderedTime.toISOString(),order.paymentType,
-                          order.receiptIssue,order.receiptType,order.receiptId,order.cardPayment,order.approvalNO,order.approvalDate,order.catid];
+                          order.receiptIssue,order.receiptType,order.receiptId,order.cardPayment,order.approvalNO,order.approvalDate,order.catid,order.orderNameEn];
             else if(order.paymentType=="cash")
                 values= [order.takitId,order.orderNO,order.orderName, order.amount,order.takeout,"unpaid", JSON.stringify(order.orderList),orderedTime.toISOString(),order.paymentType,
-                          order.receiptIssue,order.receiptType,order.receiptId,order.cardPayment,order.approvalNO,order.approvalDate,order.catid];
+                          order.receiptIssue,order.receiptType,order.receiptId,order.cardPayment,order.approvalNO,order.approvalDate,order.catid,order.orderNameEn];
+            console.log("order.nameEn:"+order.nameEn);
             //console.log("order.orderList:"+JSON.stringify(order.orderList));
             performQueryWithParam(command, values, function (err, orderResult) {
                 if (err) {
@@ -4087,11 +4195,13 @@ router.saveKioskOrder=function(order, next) {
                     //console.dir("[Add orders]:"+result);
                     if (orderResult.info.affectedRows === '0') {
                         next("invalid orders");
-                    } else {
+                    } else if(order.paymentType=="card"){
                         console.log("saveOrder func Query succeeded. " + JSON.stringify(orderResult));
                         // 3.orderList insert
 						let i=0;
                         router.kioskInsertOrderList(order.takitId,parseInt(orderResult.info.insertId),i,order.orderList,next);
+                    }else{ //cash. Not paid yet.현금을 받은 이후에 orderList 테이블에 추가한다. 
+                        next(null,parseInt(orderResult.info.insertId));
                     }
                 }
             })
