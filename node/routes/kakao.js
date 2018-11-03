@@ -246,20 +246,20 @@ if(order.orderNameEn==null || !order.orderNameEn || (order.orderNameEn && order.
         receiptIssue="N";
         receiptId="none";
     }
-    msg=shopInfo.shopName+" Order is delivered.\n\
+    msg=shopInfo.shopName+"Your order is delivered.\n\
 ▶Order number:"+ order.orderNO+"\n\
-▶Order list :"+ order.orderNameEn+"\n\
+▶Order list:"+ order.orderNameEn+"\n\
      "+orderList+"\n\
 ▶Amount:"+ order.amount+"\n\
-▶Order time:"+orderTime+"\n\
+▶Order Time:"+orderTime+"\n\
 -----------receipt---------\n\
-Payment:"+paymentType+"\n\
+payment:"+paymentType+"\n\
 Shop name: "+shopInfo.shopName+"\n\
 Shop address:"+shopInfo.address+"\n\
-Net sales:  "+netAmount+"\n\
-Tax  :"+tax+"\n\
-Sales:"+order.amount+"\n\
-Cash receipt issue: "+receiptIssue+"\n\
+net sales: "+netAmount+"\n\
+tax:"+tax+"\n\
+sales:"+order.amount+"\n\
+Cash receipt issue:"+receiptIssue+"\n\
 Cash receipt Id :"+ receiptId+"\n";
 }
 console.log("msg:"+msg);

@@ -453,7 +453,7 @@ issueCashBill=function(req){
         order=orderInfo;
         if(!order){
             callback("invalidOrderId");
-        }else if(order.receiptType==null || order.receiptId==null ||shopInfo.businessNumber==null){ //발급하지 않음.
+        }else if(order.receiptType==null || order.receiptId==null){ //발급하지 않음.
             callback(null,null);
         }else{
             order=orderInfo;
