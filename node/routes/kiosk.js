@@ -317,10 +317,7 @@ router.saveOrder=function(req, res){
                   response.orderNO = order.orderNO;
                   response.order=order;
                   res.send(JSON.stringify(response));
-                  //sendOrderMsgShop(order); // web server를 통해 직접 태블릿으로 전달함으로 굳이 오류 확인을 할필요는 없다. 반드시 takitShop에 해당 기능을 추가한다. 
-
-                  console.log("!!!order:"+JSON.stringify(result));
-
+                  console.log("!!!KIOSK-saveOrder-done:"+JSON.stringify(result));
                   sendOrderMsgShop(result); // web server를 통해 직접 태블릿으로 전달함으로 굳이 오류 확인을 할필요는 없다. 반드시 takitShop에 해당 기능을 추가한다. 
               }
    });
