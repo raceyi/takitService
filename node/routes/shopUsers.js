@@ -12,6 +12,7 @@ const async = require('async');
 const noti = require('./notification');
 let crypto = require('crypto');
 let multer = require('multer');
+var fs = require('fs');
 
 var FACEBOOK_SHOP_APP_SECRET
 var FACEBOOK_SHOP_APP_ID;
@@ -771,6 +772,43 @@ router.uploadMenuImage = (req,res)=>{
             res.send(JSON.stringify(response));
         }
     })
+}
+
+router.uploadMenuImageWeb = (req,res)=>{
+   console.log("req.file:"+JSON.stringify(req.file));
+   let path=req.file.path;
+   let destination;
+    async.waterfall([(callback)=>{
+      //rename filename as req.body.fileName
+      destination=req.file.destination+'/'+req.body.fileName;
+      console.log("destination:"+destination);
+      fs.rename(path,destination, callback);
+    },(callback)=>{
+        //console.log("req.body:"+req.body);
+        //console.log("req.file:"+req.file);
+        mariaDB.selectImagePath(req.body,callback);
+    },(result,callback)=>{
+        let data = { fileName : req.body.fileName,
+                     bucket:config.imgBucket,
+                     key : config.s3Key }
+        s3.uploadS3(data,callback);
+    }],(err,result)=>{
+        //remove upload file
+        fs.unlink(destination); // 여러개가 동시에 동일한 이름일 경우 문제가 될수 있다 ㅜㅜ. menuName으로 그럴것같지는 않음. 나중에 확인하자.
+        if(err){
+            console.log("err:"+err);
+            let response = new index.FailResponse(err);
+            console.log(response);
+            response.setVersion(config.MIGRATION,req.version);
+            console.log(response);
+            res.send(JSON.stringify(response));
+        }else{
+            console.log(result);
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
 }
 
 router.modifyBusinessHours=function(req,res){

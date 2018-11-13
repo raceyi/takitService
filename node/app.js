@@ -37,6 +37,7 @@ let cash = require('./routes/cash');
 let config=require('./config');
 let tomcatServer=require("./routes/tomcatServer");
 let op = require('./routes/op')
+let kiosk=require('./routes/kiosk');
 
 var cors = require('cors');
 var app = express();
@@ -127,12 +128,11 @@ var createGracefulShutdownMiddleware = require('express-graceful-shutdown');
 
 app.use(createGracefulShutdownMiddleware(secureServer, {forceTimeout:30000}));
 
-
-
 app.all('*',function(req,res,next){
 	console.log(req.cookies)
 	console.log("req.url:"+req.url);
 	var url=req.url.toString();
+/*
 	if(req.body.version===config.OLD_VERSION || (url.startsWith("/cafe/shopHome") && req.method==="GET") ){
 		const baseUrl = 'http://127.0.0.1:3000';
     	console.log("old-version req.method:"+req.method);
@@ -143,6 +143,7 @@ app.all('*',function(req,res,next){
         	request({url: baseUrl+req.url,headers: req.headers,body: JSON.stringify(req.body),method:req.method}).pipe(res);
     	}
 	}else{
+*/
 	if(req.hasOwnProperty('session')){
    	console.log("valid session");
       console.log("req.session:"+JSON.stringify(req.session));
@@ -166,7 +167,7 @@ app.all('*',function(req,res,next){
             req.url==="/shop/kakaoLogin" || req.url==="/shop/facebooklogin" || req.url==="/shop/loginWithEmail" || req.url==="/shop/secretLogin" || req.url==="/shop/emailLogin" || 
 				req.url ==="/SMSCertification" || req.url === "/checkSMSCode" || req.url === "/passwordReset" || req.url==="/getUserInfo" ||
 			 	req.url ==="/shop/insertTakitId" || req.url ==="/shop/insertCategory" || req.url ==="/shop/insertMenu" ||
-				req.url ==="/shop/insertShopInfo" || req.url ==="/shop/updateCategory" || req.url ==="/shop/updateMenu") 
+				req.url ==="/shop/insertShopInfo" || req.url ==="/shop/updateCategory" || req.url ==="/shop/updateMenu" ||req.url==="/emailLogin/" || req.url==="/shop/loginWithEmail/") 
 				&& req.method === "POST"){
             next();
          }else if(url.startsWith("/oauth") && req.method==="GET"){ // just for kakaotalk login
@@ -194,10 +195,16 @@ app.all('*',function(req,res,next){
          res.end(JSON.stringify({"result":"failure"}));
    	}
    }
-}
+//} old version 
 });
 
-app.use('/', index);
+//app.use('/', index);
+app.get('/', function(req, res){
+    // save index.html in public folder.
+    console.log("get function comes");
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.post('/shopEnter',users.shopEnter);
 //app.use('/users', users);
 app.post('/getMenu',users.getMenu);
@@ -230,12 +237,12 @@ app.post('/getKeywordShops',users.getKeywordShops);
 app.post('/getKeywordShopInfos',users.getKeywordShopInfos);
 app.post('/getFavoriteShops',users.getFavoriteShops);
 app.post('/getEvents',users.getEvents);
+app.post('/getStampCount',users.getStampCount);
 
 app.post('/getOrdersDefault',order.getOrdersUserDefault); // added by kalen.lee
 app.post('/getOrders',order.getOrdersUser);
-app.post('/saveOrder',order.saveOrder);
+//app.post('/saveOrder',order.saveOrder);
 app.post('/saveOrderCart',order.saveOrderCart);
-app.post('/cancelOrder',order.cancelOrderUser);
 app.post('/cancelOrderCart',order.cancelOrderUserCart);
 app.post('/getOldOrders',order.getOldOrders);
 
@@ -245,9 +252,10 @@ app.post('/getCoupons',users.getCoupons);
 app.post('/downloadCoupon',users.downloadCoupon);
 
 app.post('/shop/getOrders',order.getOrdersShop);
-app.post('/shop/checkOrder',order.checkOrder);
-app.post('/shop/completeOrder',order.completeOrder);
-app.post('/shop/cancelOrder',order.shopCancelOrder);
+
+//app.post('/shop/checkOrder',order.checkOrder);
+//app.post('/shop/completeOrder',order.completeOrder);
+//app.post('/shop/cancelOrder',order.shopCancelOrder);
 //kalen.lee-begine
 app.post('/shop/checkOrderWithEmail',order.checkOrderWithEmail);
 app.post('/shop/completeOrderWithEmail',order.completeOrderWithEmail);
@@ -257,10 +265,10 @@ app.post('/shop/notifyOrder',order.notifyOrder);
 //kalen.lee-end
 
 app.post('/shop/loginWithEmail',shopUsers.loginWithEmail);
-app.post('/shop/secretLogin', shopUsers.secretLogin);
-app.post('/shop/facebooklogin', shopUsers.facebookLogin);
+//app.post('/shop/secretLogin', shopUsers.secretLogin);
+//app.post('/shop/facebooklogin', shopUsers.facebookLogin);
 app.post('/shop/emailLogin', shopUsers.emailLogin);
-app.post('/shop/kakaoLogin',shopUsers.kakaoLogin);
+//app.post('/shop/kakaoLogin',shopUsers.kakaoLogin);
 app.post('/shop/getShopInfo',shopUsers.getShopInfo);
 app.post('/shop/openShop',shopUsers.openShop);
 app.post('/shop/closeShop',shopUsers.closeShop);
@@ -269,6 +277,7 @@ app.post('/shop/successGCM',shopUsers.successGCM);
 app.post('/shop/sleepMode',shopUsers.sleepMode);
 app.post('/shop/refreshInfo',shopUsers.refreshInfo);
 app.post('/shop/getSalesAndSatas',shopUsers.getSalesAndSatas);
+app.post('/shop/modifyBusinessHours',shopUsers.modifyBusinessHours);
 //app.post('/shop/couponSend', shopUsers.couponSend);
 //app.post('/shop/customerSearch', shopUsers.customerSearch);
 
@@ -317,6 +326,27 @@ app.post('/getPayMethod',mariaDB.getPayMethod);
 app.post('/removePayInfo',card.removePayInfo);
 app.post('/addPayInfo',card.addPayInfo);
 
+app.post('/registerUserCoupon',users.registerUserCoupon);
+app.post('/shop/getRecentOrder',order.pollRecentOrder);
+
+app.post('/kiosk/checkSoldOut',kiosk.checkSoldOut);
+app.post('/kiosk/saveOrder',kiosk.saveOrder);
+app.post('/kiosk/searchOrder',kiosk.searchOrder);
+app.post('/kiosk/getOrders',kiosk.getOrdersShop);
+app.post('/kiosk/getKioskRecentOrder',kiosk.pollKioskRecentOrder);
+
+app.post('/kiosk/checkOrder',kiosk.checkOrder);
+app.post('/kiosk/completeOrder',kiosk.completeOrder);
+app.post('/kiosk/cancelOrder',kiosk.cancelOrder);
+app.post('/kiosk/pickupOrder',kiosk.pickupOrder);
+app.post('/kiosk/paidCheckOrder',kiosk.paidAndCheckOrder);
+app.post('/kiosk/searchOrderWithCardInfo',kiosk.searchOrderWithCardInfo);
+app.post('/kiosk/getSalesAndSatas',kiosk.getSalesAndSatas);
+app.post('/kiosk/registerPhone',kiosk.registerPhone);
+app.post('/kiosk/sendOrderInfoWithPhone',kiosk.sendOrderWithPhone);
+app.post('/kiosk/sendOrderInfoWithWaitee',kiosk.sendOrderInfoWithWaitee);
+app.post('/kiosk/checkSoldOutEn',kiosk.checkSoldOutEn);
+
 // catch 404 and forward to error handler
 app.post('/takitIdAutocomplete',function(req,res,next){
 	console.log("takitIdAutocomplete comes(req:"+JSON.stringify(req.body)+")");
@@ -351,11 +381,22 @@ var storage =   multer.diskStorage({
 	  }
 });
 
-var upload = multer({
+var uploadWeb = multer({
 	  dest: __dirname + '/uploads',
 	  limits: {fileSize: 10000000, files:1},
 	}).single('file');
 
+app.post('/shop/uploadMenuImageWeb', function(req,res){
+    uploadWeb(req,res,function(err) {
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            shopUsers.uploadMenuImageWeb(req,res);
+        }
+    });
+})
 
 app.post('/ocrFileSubmit',function(req,res){
     upload(req,res,function(err) {

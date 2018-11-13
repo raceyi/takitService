@@ -236,7 +236,7 @@ router.sendGCM=function(API_KEY,MSG,pushId, platform,sound, next){
 
 router.sendEmail=function(email,subject,content, next){
 	const smtpTransport = nodemailer.createTransport({
-		host: 'smtp.worksmobile.com',
+		host: 'smtp.daum.net',
 		port: 465,
 		secure: true, // use SSL
 		//tls : ssl_options

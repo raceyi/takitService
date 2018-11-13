@@ -279,7 +279,7 @@ function saveOrderEach(param,next){
             console.log(parseInt(businessTime.openHour));
             console.log(typeof localOrderedTime.getUTCHours());
             console.log(localOrderedTime.getUTCHours()+","+localOrderedTime.getUTCMinutes());
-            if(shopInfo.business === "on" && (businessTime.openHour < localOrderedTime.getUTCHours() ||
+            if(/* shopInfo.business === "on" && */ (businessTime.openHour < localOrderedTime.getUTCHours() ||
                 (businessTime.openHour === localOrderedTime.getUTCHours() && businessTime.openMin <= localOrderedTime.getUTCMinutes()))
                 && (businessTime.closeHour > localOrderedTime.getUTCHours() ||
                 (businessTime.closeHour === localOrderedTime.getUTCHours() && businessTime.closeMin > localOrderedTime.getUTCMinutes()))){
