@@ -26,6 +26,9 @@ function decryption(secretData, pwd) {
 }
 
 router.pollKioskRecentOrder=function(req,res){
+    let now = new Date();
+    console.log("pollKioskRecentOrder "+now.toLocaleTimeString()+ " "+ req.body.takitId);
+
     mariaDB.pollKioskRecentOrder(req.body.orderNO,req.body.takitId,req.body.time,function(err,more){
        if(err){
             console.log(err);
@@ -302,6 +305,7 @@ router.saveOrder=function(req, res){
           order.cardPaymet=null;     
       mariaDB.saveKioskOrder(order,callback);
    },function(orderId,callback){
+      
       order.orderId=orderId;
       mariaDB.searchKioskOrderWithId(orderId,callback);
    }],(err,result)=>{
@@ -337,8 +341,11 @@ sendOrderMsgShop=function(order){
        console.log("shopUserInfo:"+JSON.stringify(shopUserInfo));
 
        noti.sendGCM(config.SHOP_SERVER_API_KEY,GCM,[shopUserInfo.shopPushId], shopUserInfo.platform,sound,function(err,result){
-
+           
        });
+
+       //GCM이 전달안될경우 전달되도록함. 중복전달될수 있음으로 1초 이후에 보낸다. Poll과 함께 사용함.
+       setTimeout(function(){ console.log("send again with socket"); socket.notifySocket(order); }, 1000);
    });
 }
 

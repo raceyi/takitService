@@ -1039,6 +1039,7 @@ router.getOldOrders=(req,res)=>{
     });
 }
 
+/*
 router.pollRecentOrder =function(req,res){
     console.log("order.pollRecentOrder");
 
@@ -1055,6 +1056,36 @@ router.pollRecentOrder =function(req,res){
                 res.send(JSON.stringify(response));
       }
     })
+}
+*/
+
+router.pollRecentOrder =function(req,res){
+    let now = new Date();
+    console.log("order.pollRecentOrder "+now.toLocaleTimeString() + " "+req.body.takitId);
+    async.waterfall([function(callback){
+       if(req.body.waiteePaidOrders && req.body.waiteePaidOrders.length>0){
+           mariaDB.checkPaidOrderStatus(req.body.waiteePaidOrders,callback);
+       }else
+           callback(null,false);
+    },function(more,callback){
+        if(more){
+          callback(null,more);
+        }else{
+          mariaDB.pollRecentOrder(req.body.orderNO,req.body.takitId,req.body.time,callback);
+        }
+    }],function(err,result){
+            if(err){
+              console.log(err);
+              let response = new index.FailResponse(err);
+              response.setVersion(config.MIGRATION,req.version);
+              res.send(JSON.stringify(response));
+            }else {
+                let response = new index.SuccResponse();
+                response.setVersion(config.MIGRATION,req.version);
+                response.more=result;
+                res.send(JSON.stringify(response));
+            }
+    });
 }
 
 module.exports = router;
