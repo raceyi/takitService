@@ -1218,6 +1218,9 @@ function queryCafeHomeMenuPost(cafeHomeResponse, req, res) {
 }
 
 router.queryCafeHomePost = function (req, res) {
+    ///////////////////////////////////////////////////
+    res.set('Access-Control-Allow-Origin', '*'); //cors configuration
+    ///////////////////////////////////////////////////
     console.log("queryCafeHomePost:" + JSON.stringify(req.url));
     var takitId = req.body.takitId;
     console.log("takitId:" + takitId);
@@ -1915,7 +1918,8 @@ router.pollRecentOrder = function(orderNO,takitId,time,next){
                 console.error("queryOrders func Unable to query. Error:", JSON.stringify(err, null, 2));
                 next(err);
             } else {
-                console.dir("[queryOrders func pollRecentOrder]:" + result.info.numRows);
+                let now=new Date();
+                console.dir("[queryOrders func pollRecentOrder]:"+ now.toString() +" "+ result.info.numRows);
                 if(result.info.numRows == 0) {
                     next(null,false);
                 }else{
@@ -4937,6 +4941,32 @@ lookForUniqueDigits=function(array,phone,digitNumber,next){
        }else
           lookForUniqueDigits(subset,phone,digitNumber+1,next);
    }
+}
+
+router.checkPaidOrderStatus=function(waiteePaidOrders,next){
+   var command = "select orderStatus from orders where orderId=?";
+   var values=[waiteePaidOrders[0].orderId];
+   for(let i=1;i<waiteePaidOrders.length;i++){
+       command+=" OR orderId=?";
+       values.push(waiteePaidOrders[i].orderId);
+   }
+   console.log("checkPaidOrderStatus: "+command);
+   performQueryWithParam(command, values, function (err, result) {
+        console.log("c.query success");
+        if (err) {
+            next(err);
+        } else {
+            for(let j=0;j<result.info.numRows;j++){
+                   console.log("result["+j+"] "+ result[j].orderStatus);
+                   if(result[j].orderStatus=='cancelled'){
+                       next(null,1);
+                       return;
+                   }
+            }
+            next(null,0);
+            return;
+        }
+   });
 }
 
 /*
