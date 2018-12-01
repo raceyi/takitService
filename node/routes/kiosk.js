@@ -305,7 +305,6 @@ router.saveOrder=function(req, res){
           order.cardPaymet=null;     
       mariaDB.saveKioskOrder(order,callback);
    },function(orderId,callback){
-      
       order.orderId=orderId;
       mariaDB.searchKioskOrderWithId(orderId,callback);
    }],(err,result)=>{
@@ -319,10 +318,10 @@ router.saveOrder=function(req, res){
                   let response = new index.SuccResponse();
                   response.setVersion(config.MIGRATION,req.version);
                   response.orderNO = order.orderNO;
-                  response.order=order;
+                  response.order=result; 
                   res.send(JSON.stringify(response));
                   console.log("!!!KIOSK-saveOrder-done:"+JSON.stringify(result));
-                  sendOrderMsgShop(result); // web server를 통해 직접 태블릿으로 전달함으로 굳이 오류 확인을 할필요는 없다. 반드시 takitShop에 해당 기능을 추가한다. 
+                  sendOrderMsgShop(result); 
               }
    });
 }
