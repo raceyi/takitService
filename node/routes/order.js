@@ -202,6 +202,9 @@ function saveOrderEach(param,next){
     order.stampUsage           =order.stampUsage;
     order.couponDiscount       =order.couponDiscount;
 
+    // [2018.12.05]discount없는 값을 저장하기 위해 원래총합을 저장한다. 
+    console.log("!!!!!!order.price:"+order.price);
+
     console.log("!!!!!!order.total:"+param.total);
     console.log("!!!!!!order.stampUsage:"+order.stampUsage);
     console.log("!!!!!!order.couponDiscountAmount:"+order.couponDiscountAmount);
