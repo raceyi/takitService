@@ -389,7 +389,8 @@ router.getSalesAndSatas = function(req,res){
 				console.log("getSalesAndSatas success");
 				let response = new index.SuccResponse();
 				response.setVersion(config.MIGRATION,req.version);
-				response.sales=result[0];
+				response.sales=result[0].sales;
+				response.originalSales=result[0].originalSales;
 				response.stats=result[1];
                 if(req.body.stamp){
                     response.issueStampCount=result[2];

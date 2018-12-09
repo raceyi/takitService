@@ -1636,10 +1636,10 @@ router.insertOrderList=(userId,orderId,i,orderList,next)=>{
 
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
-            console.error("saveOrder func insert orderList Unable to query. Error:", JSON.stringify(err, null, 2));
+            console.error("insertOrderList func insert orderList Unable to query. Error:", JSON.stringify(err, null, 2));
             next(err);
         } else {
-            console.log("saveOrder func insert orderList Query Succeeded");
+            console.log("insertOrderList func insert orderList Query Succeeded");
             if(i < orderList.menus.length-1){
                 i++;
                 router.insertOrderList(userId,orderId,i,orderList,next);
@@ -1688,9 +1688,9 @@ router.saveOrder = function (order, shopInfo, next) {
 
         //3. encrypt phone
             let secretUserPhone = encryption(userInfo.phone, config.pPwd);
-            let command = "INSERT INTO orders(takitId,shopName,orderName,payMethod,amount,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,userMSG,deliveryAddress,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType,deliveryFee, imp_uid,approval,card_info,total,payInfo,couponDiscount,stampUsage,couponDiscountAmount,stampIssueCount) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            let command = "INSERT INTO orders(takitId,shopName,orderName,payMethod,amount,price,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,userMSG,deliveryAddress,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType,deliveryFee, imp_uid,approval,card_info,total,payInfo,couponDiscount,stampUsage,couponDiscountAmount,stampIssueCount) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
       //payInfo는 주문시 상점의 할인결제옵션임. payMethod와 다름.재주문을 위해 저장함. 
-            let values = [order.takitId,order.shopName, order.orderName, order.paymethod, order.amount, order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList,order.userMSG, order.deliveryAddress, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType,order.deliveryFee,order.imp_uid,order.approval,order.card_info,order.total,order.payInfo,order.couponDiscount,order.stampUsage,order.couponDiscountAmount,order.stampIssueCount];
+            let values = [order.takitId,order.shopName, order.orderName, order.paymethod, order.amount,order.price,order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList,order.userMSG, order.deliveryAddress, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType,order.deliveryFee,order.imp_uid,order.approval,order.card_info,order.total,order.payInfo,order.couponDiscount,order.stampUsage,order.couponDiscountAmount,order.stampIssueCount];
             performQueryWithParam(command, values, function (err, orderResult) {
                 if (err) {
                     console.error("saveOrder func inser orders Unable to query. Error:", JSON.stringify(err, null, 2));
@@ -2365,7 +2365,7 @@ router.getSales = function (takitId, startTime, next) {
     //select sum(amount) from orders where takitId = "세종대@더큰도시락" and orderedTime < "2016-12-28";
     console.log("takitId:" + takitId);
 
-    let command = "SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND (orderStatus='completed' OR orderStatus='pickup')AND orderedTime > ?";
+    let command = "SELECT SUM(amount) AS sales, SUM(price) AS originalSales FROM orders WHERE takitId=? AND (orderStatus='completed' OR orderStatus='pickup')AND orderedTime > ?";
     let values = [takitId, startTime];
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
@@ -2378,7 +2378,8 @@ router.getSales = function (takitId, startTime, next) {
             } else {
                 console.log("querySales func Query succeeded. " + JSON.stringify(result.info));
 				console.log(result);
-                next(null, result[0].sales);
+                //next(null, result[0].sales);
+                next(null, result[0]);
             }
         }
     });
@@ -2398,7 +2399,7 @@ router.getSalesPeriod = function (takitId, startTime, endTime, next) {
         let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
         let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
 
-        let command = "SELECT SUM(amount) AS sales FROM orders WHERE takitId=? AND (orderStatus='completed' OR orderStatus='pickup' )AND orderedTime BETWEEN ? AND ?" //startTime과 endTime 위치 중요!!
+        let command = "SELECT SUM(amount) AS sales, SUM(price) AS originalSales FROM orders WHERE takitId=? AND (orderStatus='completed' OR orderStatus='pickup' )AND orderedTime BETWEEN ? AND ?" //startTime과 endTime 위치 중요!!
         let values = [takitId, lcStartTime.toISOString(), lcEndTime.toISOString()];
         performQueryWithParam(command, values, callback);
     }],(err,result)=>{
@@ -2409,10 +2410,12 @@ router.getSalesPeriod = function (takitId, startTime, endTime, next) {
             console.dir("[getSalesPeriod func Get MenuInfo]:" + result.info.numRows);
 
             if (result.info.numRows == 0) {
-                next(null, 0);
+                //next(null, 0);
+                next(null, {sales:0, originalSales:0});
             } else {
                 console.log("getSalesPeriod func Query succeeded. " + JSON.stringify(result.info));
-                next(null, result[0].sales);
+                //next(null, result[0].sales);
+                next(null, result[0]);
             }
         }
     });
@@ -2422,7 +2425,7 @@ router.getStatsMenu = function (takitId, startTime, next) {
     //select menuName, SUM(quantity) FROM orderList where menuNO LIKE \'"+takitId+"%\'GROUP BY menuName";
     console.log("getStatsMenu comes");
 
-    let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE (orderStatus='completed' OR orderStatus='pickup') AND menuNO LIKE '" + takitId + "%' AND orderedTime > ? GROUP BY menuName"
+    let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales, SUM(orderList.price) AS orignalMenuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE (orderStatus='completed' OR orderStatus='pickup') AND menuNO LIKE '" + takitId + "%' AND orderedTime > ? GROUP BY menuName"
     let values = [startTime];
 
     performQueryWithParam(command, values, function (err, result) {
@@ -2456,7 +2459,7 @@ router.getPeriodStatsMenu = function (takitId, startTime, endTime, next) {
         let lcStartTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(startTime));
         let lcEndTime = op.getTimezoneLocalTime(shopInfo.timezone,new Date(endTime));
 
-        let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE menuNO LIKE'" + takitId + "%' AND (orderStatus='completed' OR orderStatus='pickup') AND orderedTime BETWEEN ? AND ? GROUP BY menuName";
+        let command = "SELECT menuName, SUM(quantity) AS count, SUM(orderList.amount) AS menuSales,SUM(orderList.price) AS orignalMenuSales FROM orderList LEFT JOIN orders ON orderList.orderId=orders.orderId WHERE menuNO LIKE'" + takitId + "%' AND (orderStatus='completed' OR orderStatus='pickup') AND orderedTime BETWEEN ? AND ? GROUP BY menuName";
         let values = [lcStartTime.toISOString(), lcEndTime.toISOString()];
 
         performQueryWithParam(command, values,callback);
