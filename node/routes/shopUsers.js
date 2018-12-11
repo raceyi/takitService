@@ -14,6 +14,14 @@ let crypto = require('crypto');
 let multer = require('multer');
 var fs = require('fs');
 
+const legacy = require('legacy-encoding');
+var iconv = require('iconv-lite');
+const readline = require('readline');
+var path = require('path');
+
+var AsyncLock = require('async-lock');
+var lock = new AsyncLock();
+
 var FACEBOOK_SHOP_APP_SECRET
 var FACEBOOK_SHOP_APP_ID;
 var FACEBOOK_SHOP_APP_TOKEN;
@@ -827,5 +835,106 @@ router.modifyBusinessHours=function(req,res){
     });
 }
 
+router.importMenuFile = (req,res)=>{
+   console.log("!!!!!req.file:"+JSON.stringify(req.file));
+   let instream = fs.createReadStream(req.file.path).pipe(iconv.decodeStream('euc-kr'));
+   let outstream = new (require('stream'))(),
+   rl = readline.createInterface(instream, outstream);
+   let header;
+   let takitId=req.body.takitId;
+   let objNames=[];
+   let menus=[];
+   let done=false;
+
+    rl.on('line', function (line) {
+        console.log(line);
+        if(!header){ //read the first line
+             let cols=line.split(",");
+             cols.forEach(col=>{
+                objNames.push(col.trim());
+                console.log("col:"+col.trim());
+             });
+             header=true;
+        }else{
+             let cols=line.split(",");
+             let menu={};
+             for(let i=0;i<objNames.length;i++){
+                 menu[objNames[i]]=cols[i].trim();
+             }
+             console.log("menu:"+JSON.stringify(menu));
+             menus.push(menu);
+        }
+    });
+
+    rl.on('close', function (line) {  // 마지막 line의 종료를 어떻게 확인하지? 메모리로 올린후에 작업하자.ㅜㅜ
+       const lockName="importMenuFile-"+takitId;
+       lock.acquire(lockName, function (doneFunc) { // 파일이 두번 업로드 된다. 이유가 뭘까? 일단 한번 처리후 다시 처리하도록 조치함.
+         console.log('done reading file. done...:'+done);
+         if(!done){
+           done=true;
+           async.mapSeries(menus, function(menu,callback){
+                mariaDB.importUpdateMenu(takitId,menu,callback);
+           },function(err,result){
+                if(err){
+                    console.log("!!!! File import error:"+err);
+                    let response = new index.FailResponse(err);
+                    response.setVersion(config.MIGRATION,req.version);
+                    res.send(JSON.stringify(response));
+                    doneFunc(null,"success");
+                }else{ //All done successfully
+                    console.log("All done successfully");
+                    //send response
+                    let response = new index.SuccResponse();
+                    response.setVersion(config.MIGRATION,req.version);
+                    res.send(JSON.stringify(response));
+                    doneFunc(null,"success");
+                }
+           });
+          }else{
+              doneFunc(null,"success");
+          }
+      });
+    });
+}
+
+router.exportMenus=function(req,res){
+ mariaDB.exportMenus(req.body.takitId,function(err,result){
+  if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+  }else{
+   let now=new Date();
+   let publicDir=path.join(__dirname, '../public');
+   let filename= "/menus_"+now.getTime()+".csv";
+   console.log("filename:"+filename);
+   var stream = fs.createWriteStream(publicDir+filename);
+   console.log("result:"+JSON.stringify(result));
+   stream.once('open', function(fd) {
+      let buffer = legacy.encode("categoryName,menuName,price,imagePath\n",'euckr');
+      stream.write(buffer);
+      result.forEach(category=>{
+          category.forEach(menu=>{
+               // @로 split한다.
+               let categoryName=menu.categoryName;
+               //stream.write(menu.categoryName+','+menu.menuName+','+menu.price+'\n','utf8');
+               buffer = legacy.encode(menu.categoryName+','+menu.menuName+','+menu.price+','+menu.imagePath+'\n','euckr');
+               stream.write(buffer);
+          });
+      });
+      stream.end();
+            let response = new index.SuccResponse();
+            response.url= filename;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+      //fs.unlink(filename, function (err) {
+      //  if (err) throw err;
+      //  console.log('File deleted!');
+      //});
+   });
+  }
+ });
+}
 
 module.exports = router;

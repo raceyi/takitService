@@ -4104,6 +4104,37 @@ router.configureMenuSoldOut=function(menu,next){
         }
     });
 }
+
+router.configureCategorySoldOut=function(params,next){
+    //params={categories,soldout,takitId};
+    // category의 MenuNO를 찾아 해당 MenuNO를 가지고 있는menus의 값을 변경하면 된다.
+
+    console.log("!!! configureCategorySoldOut:"+JSON.stringify(params));
+
+    let soldout=params.soldout?1:0;
+    let values = [soldout];
+    params.categories.forEach(category=>{
+         let menuNO=params.takitId+';'+category;
+         values.push(menuNO);
+    });
+
+    let command="UPDATE menus SET soldout=? where menuNO=?";
+    for(let i=1;i<params.categories.length;i++){
+        command+="OR menuNO=?";
+    }
+    console.log("command:"+command);
+    console.log("values:"+JSON.stringify(values));
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log(err);
+            next(err);
+        } else {
+            next(null,"success");
+        }
+    });
+}
+
 ////////////////////////////////SoldOut -begin ////////////////////////////////////////////
 //  매일 00:00에 soldout flag를 false로 reset한다
 //  성공한다면 shopInfo table에 soldoutDate설정값을 저장한다.
@@ -4982,5 +5013,167 @@ lookForUniqueDigits(array,"01044328226",5,function(err,digitNumber){
 */
 
 ////////////////////////////////////// Kiosk -end ////////////////////////////
+
+router.exportMenus =function(takitId,next){
+   let command = "select categoryNO,categoryName from categories where takitId="+"\""+ takitId+"\"";
+   performQuery(command, function (err, result) {
+        if (err) {
+            console.log(JSON.stringify(err));
+            next(err);
+        }
+        console.dir("[exportMenus]:" + result.info.numRows);
+        if(result.info.numRows === "0"){
+            console.log("no menus");
+            next(null,[]);
+        }else{
+           async.mapSeries(result, function(category,callback){ // menu정보가 많을 경우 메모리 사용량이 늘어난다 ㅜㅜ
+                console.log("category:"+JSON.stringify(category));
+                let menuNO= takitId+';'+category.categoryNO;
+                let queryCommand="select menuName,price,imagePath from menus where menuNO="+"\""+menuNO+"\"";
+                performQuery(queryCommand, function (err, result) {
+                    if(err){
+                         console.log(JSON.stringify(err));
+                         callback(err);
+                    }
+                    if(result.info.numRows === "0"){
+                        console.log("no menus");
+                        callback(null,[]);
+                    }else{
+                        result.forEach(menu=>{
+                                  menu.categoryName=category.categoryName;
+                        });
+                        callback(null,result);
+                    }
+                });
+           },function(err,result){
+                if(err){
+                    next(err);
+                }else{
+                    next(null,result);
+                }
+           });
+        }
+   })
+}
+
+checkCategoryExist=function(takitId,categoryName,next){
+   let command="SELECT categoryNO from categories where takitId=? and categoryName=?";
+   let values=[takitId,categoryName];
+   performQueryWithParam(command, values, function (err, result) {
+                    if(err){
+                         console.log(JSON.stringify(err));
+                         next(err);
+                    }
+                    if(result.info.numRows === "0"){
+                        console.log(categoryName+" doesn't exist.");
+                        next(null,null);
+                    }else{
+                        console.log(categoryName+" exist.");
+                        next(null,result[0].categoryNO);
+                    }
+   });
+}
+
+checkMenuExist=function(menuNO,menuName,next){
+   let command="SELECT price from menus where menuNO=? and menuName=?";
+   let values=[menuNO,menuName];
+   performQueryWithParam(command, values, function (err, result) {
+                    if(err){
+                         console.log(JSON.stringify(err));
+                         next(err);
+                    }
+                    if(result.info.numRows === "0"){
+                        console.log(menuName+" doesn't exist.");
+                        next(null,false);
+                    }else{
+                        console.log(menuName+" exist.");
+                        next(null,true);
+                    }
+   });
+}
+
+findNewCategoryNumber=function(takitId,next){
+   // lock이 되어야 한다. 상점에서 동시에 메뉴를 올리지는 않을듯싶다.
+   let command = "SELECT categoryNO from categories where takitId=?";
+   let values=[takitId];
+   performQueryWithParam(command, values, function (err, result) {
+                    if(err){
+                         console.log(JSON.stringify(err));
+                         next(err);
+                    }
+                    if(result.info.numRows === "0"){
+                        console.log("category doesn't exist.");
+                        next(null,1);
+                    }else{
+                        let max=0;
+                        for(let i=0;i<result.length;i++){
+                            console.log("categoryNO:"+result[i].categoryNO);
+                            let categoryNO=result[i].categoryNO;
+                            if(typeof categoryNO =='string')
+                                categoryNO=parseInt(categoryNO);
+                            if(categoryNO>max)
+                                max=categoryNO;
+                        }
+                        next(null,max+1);
+                    }
+   });
+}
+
+insertCategoryImport=function(takitId,category,next){
+    let newCategoryNO;
+    async.waterfall([(callback)=>{
+        // 1. 가장 큰 categoryNO를 확인한다.
+        findNewCategoryNumber(takitId,callback);
+    },(categoryNO,callback)=>{
+        // 2. category를 추가한다.
+        newCategoryNO=categoryNO;
+        let newCategory=Object.assign({}, category);
+        newCategory.categoryNO=categoryNO;
+        router.insertCategory(newCategory,callback);
+    }],(err,insertResult)=>{
+        if(err && err!=null & err.code==1062){ //duplicate error
+            //look for categoryNO and return it;
+            checkCategoryExist(takitId,category.categoryName,next);
+        }else
+            next(err,newCategoryNO);
+    });
+}
+
+router.importUpdateMenu=function(takitId,menu,next){
+     console.log("updateMneu  menu:"+JSON.stringify(menu));
+        if(menu.categoryName){
+            let menuNO;
+            async.waterfall([(callback)=>{
+                checkCategoryExist(takitId,menu.categoryName,callback);
+            },(categoryNO,callback)=>{
+                // categoryName이 존재한다면
+                if(categoryNO!=null){
+                    callback(null,categoryNO);
+                }else{
+                    let category={takitId:takitId,categoryName:menu.categoryName,categoryNameEn:menu.categoryNameEn};
+                    insertCategoryImport(takitId,category,callback);
+                }
+            },(categoryNO,callback)=>{
+                 // 1.메뉴가 존재하는지를 확인한다.
+                 menuNO=takitId+";"+categoryNO;
+                 checkMenuExist(menuNO,menu.menuName,callback);
+            },(exist,callback)=>{
+                 let menuObj=Object.assign({}, menu);
+                 delete menuObj.categoryName;
+                 menuObj.menuNO=menuNO;
+                 menuObj.oldMenuName=menu.menuName;
+                 if(exist){
+                    router.updateMenu(menuObj,callback);
+                 }else{
+                    router.insertMenu(menuObj,callback);
+                 }
+            }],(err,result)=>{
+                 next(err,result);
+            });
+        }else{
+            next("menu doesn't have categoryName");
+        }
+}
+
 module.exports = router;
 
