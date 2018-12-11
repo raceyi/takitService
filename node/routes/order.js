@@ -204,7 +204,9 @@ function saveOrderEach(param,next){
 
     // [2018.12.05]discount없는 값을 저장하기 위해 원래총합을 저장한다. 
     console.log("!!!!!!order.price:"+order.price);
-
+    if(!order.price){
+         order.price=0; // orderList의 price를 모두 합산하여 price를 계산해야만 한다.     
+    }
     console.log("!!!!!!order.total:"+param.total);
     console.log("!!!!!!order.stampUsage:"+order.stampUsage);
     console.log("!!!!!!order.couponDiscountAmount:"+order.couponDiscountAmount);
@@ -1023,6 +1025,22 @@ router.configureSoldOut=function(req,res){
     });
 }
 
+router.configureSoldOutCategory=function(req,res){
+    console.log("userId:"+req.session.uid);
+    mariaDB.configureCategorySoldOut(req.body,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.soldout=result;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
 
 router.getOldOrders=(req,res)=>{
     console.log("order.getOldOrders");
