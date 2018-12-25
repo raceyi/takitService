@@ -937,4 +937,19 @@ router.exportMenus=function(req,res){
  });
 }
 
+router.modifyFoodOrigin = function(req,res){
+    mariaDB.updateFoodOrigin(req.body.takitId,req.body.foodOrigin,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    })
+}
+
 module.exports = router;

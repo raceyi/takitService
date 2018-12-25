@@ -5175,5 +5175,20 @@ router.importUpdateMenu=function(takitId,menu,next){
         }
 }
 
+router.updateFoodOrigin=function(takitId,foodOrigin,next){
+    let command = "UPDATE shopInfo set foodOrigin=? where takitId=?";
+    var values=[foodOrigin,takitId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log("updateFoodOrigin func Unable to query. Error:", JSON.stringify(err));
+            next(err);
+        } else {
+            console.log("updateFoodOrigin Query succeeded. " + JSON.stringify(result));
+            next(null, "success");
+        }
+    });
+}
+
 module.exports = router;
 
