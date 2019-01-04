@@ -15,6 +15,7 @@ const redis = require("redis");
 const redisCli = redis.createClient();
 const router = express.Router();
 const fs=require('fs');
+const promotion = require('../promotion');
 
 let cash = require('./cash'); //Any problem?
 
@@ -216,7 +217,6 @@ router.facebookLogin = function(req, res){
 		 response.userInfo=userInfo;
          if(notice)
              response.notice=notice;
-         response.userInfo.recommendShops=mariaDB.getRecommendShops();
          res.send(JSON.stringify(response));
       }
    });
@@ -260,7 +260,6 @@ router.kakaoLogin=function(req,res){//referenceId 확인해서 로그인.
             if(notice)
                 response.notice=notice;
 			response.userInfo=userInfo;
-            response.userInfo.recommendShops=mariaDB.getRecommendShops(); 
 			console.log(JSON.stringify(response));
          res.send(JSON.stringify(response));
       }
@@ -306,7 +305,6 @@ router.emailLogin=function(req,res){
 			let response = new index.SuccResponse();
 			response.setVersion(config.MIGRATION,req.version);
 			response.userInfo=userInfo;		
-            response.userInfo.recommendShops=mariaDB.getRecommendShops(); 
             if(notice)
                 response.notice=notice;
             console.log(JSON.stringify(userInfo));
@@ -351,18 +349,7 @@ router.signup=function(req,res){
 	if(validityCheck(req.body.email,req.body.phone)){
 		console.log("email and phone is valid");
 
-		/*let password=null;
-   		if(req.body.hasOwnProperty('password') && req.body.password !==null){
-         	password=req.body.password;
-        	}
-
-            let referenceId=null;
-        	if(req.body.hasOwnProperty('referenceId') && req.body.referenceId !==null){
-         	referenceId=req.body.referenceId;
-        	}
-		*/
 			mariaDB.insertUser(req.body,function(err,result){
-       	    /* mariaDB.insertUser(referenceId,password,req.body.name,req.body.email,req.body.country, req.body.phone,0,function(err,result){ */
         	console.log("mariaDB next function."+JSON.stringify(result));
             if(err){
 				console.log(JSON.stringify(err));
@@ -380,7 +367,6 @@ router.signup=function(req,res){
 						response.result = "success";
                	  response.email=req.body.email;
                   req.session.uid=result;
-                  response.recommends= mariaDB.getRecommendShops(); 
                   console.log(req.session.uid);
                   console.log('send result'+JSON.stringify());
                	res.send(JSON.stringify(response));
@@ -1033,7 +1019,9 @@ router.enterMenuDetail=(req,res)=>{
 }
 
 
-var issuedCoupons=[{name:"캐시충전",amount:3000}];
+//var issuedCoupons=[{name:"캐시충전",amount:3000}]; 2018.12.31일 만료됨.
+var issuedCoupons=[];
+
 router.registerUserCoupon=function(req,res){
    mariaDB.getCouponList(req.session.uid, function(err,couponList){
        if(err){
@@ -1103,6 +1091,69 @@ router.getStampCount=function(req,res){
             res.send(JSON.stringify(response));
         }
       });
+}
+
+router.getWholeStores=function(req,res){
+     mariaDB.getWholeStores(function(err,result){
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.stores=result;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+     });
+}
+
+router.getNearStores=function(req,res){ // 위경도의 diff를 통해 계산하는것이 맞다. How?
+      mariaDB.getNearStores(req.body.coord,function(err,result){
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.stores=result;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+     });
+}
+
+router.getNewStores=function(req,res){
+            console.log("getNewStores!!!");
+            let response = new index.SuccResponse();
+            response.stores=mariaDB.getNewShops();
+            console.log("new stores:"+JSON.stringify(response.stores));
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+}
+
+router.getPromotions=function(req,res){
+            console.log("getPromotions!!!");
+            let response = new index.SuccResponse();
+            response.promotions=promotion;
+            console.log("promotions:"+JSON.stringify(response.promotions));
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+}
+
+router.getWaiteeCouponInfo=function(req,res){
+     mariaDB.getWaiteeCouponInfo(function(err,result){
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.couponInfo=result;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+     });
 }
 
 /*

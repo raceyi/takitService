@@ -952,4 +952,19 @@ router.modifyFoodOrigin = function(req,res){
     })
 }
 
+router.saveReviewResponse=function(req,res){
+     mariaDB.saveReviewResponse(req.body.orderId,req.body.response,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    })
+}
+
 module.exports = router;
