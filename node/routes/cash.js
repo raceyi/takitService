@@ -48,19 +48,39 @@ router.createCashId = function (req, res) {
                         response.setVersion(config.MIGRATION, req.version);
                         res.send(JSON.stringify(response));
                     }else{
-                         //Add cash by 1000won for promottion temporarily
-                         mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), 1000,0, function(err,result){
-                             if(err){
-                               console.log("error give 1000won promotaion for "+ req.body.cashId.toUpperCase());
+                          let amount=0;
+                          let seq;
+                          mariaDB.getRegisterCount(function(err,counter){
+                              if(!err && counter<=1000){  //선착순 1000명에게 전달함.
+                                  amount=1000;
+                                  seq=counter;
+                              }
+                              if(amount>0){//Add cash by 1000 won for promottion temporarily
+                                mariaDB.updateBalanceCash(req.body.cashId.toUpperCase(), amount,0, function(err,result){
+                                   if(err){
+                                       console.log("error give won promotaion for "+ req.body.cashId.toUpperCase());
+                                   }
+                                   //1000원 입금을 고객에게 알리자.
+                                   let response = new index.SuccResponse();
+                                   response.cashBalance=amount;
+                                   response.seq=seq;
+                                   response.setVersion(config.MIGRATION, req.version);
+                                   res.send(JSON.stringify(response));
+                                   //update counter
+                                   mariaDB.update2019RegisterCounter();
+                               });
+                              }else{
+                                   let response = new index.SuccResponse();
+                                   response.cashBalance=amount;
+                                   response.seq=seq;
+                                   response.setVersion(config.MIGRATION, req.version);
+                                   res.send(JSON.stringify(response));
+                                   //update counter
+                                   mariaDB.update2019RegisterCounter();
                              }
-                             //1000원 입금을 고객에게 알리자. 
-                             let response = new index.SuccResponse();
-                             response.cashBalance=1000;                        
-                             response.setVersion(config.MIGRATION, req.version);
-                             res.send(JSON.stringify(response));
-                         });
-                    }
-                });
+                          });
+                   }
+               });
             }
         }
     });
@@ -406,7 +426,6 @@ router.checkCashInstantly = function (req, res) {
     });
 }
 
-
 setInterval(function () {
     let nowTime = op.getTimezoneLocalTime('Asia/Seoul', new Date()); //농협 timezone= 'Asia/Seoul'    
     let beforeTime = op.getTimezoneLocalTime('Asia/Seoul', new Date(new Date().getTime() - 350000)).toISOString(); //지금시간 local시간으로 -6분전 시간으로 계산 //농협이 'Asia/Seoul' 이므로 이시간으로 맞춰줌
@@ -447,7 +466,6 @@ setInterval(function () {
         });
     //}
 }, 15000); //15초 마다
-
 
 //cash 수동 확인 -> cashId는 있고, 통장인자내역에 cashId를 넣지 않아서, user가 정보 넣고 조회 할 때
 //depositTime, depositAmount, bankName,

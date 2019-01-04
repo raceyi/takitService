@@ -204,9 +204,27 @@ function saveOrderEach(param,next){
 
     // [2018.12.05]discount없는 값을 저장하기 위해 원래총합을 저장한다. 
     console.log("!!!!!!order.price:"+order.price);
-    if(!order.price){
-         order.price=0; // orderList의 price를 모두 합산하여 price를 계산해야만 한다.     
+    {
+         if(!order.price)
+             order.price=0; // orderList의 price를 모두 합산하여 price를 계산해야만 한다.     
+         let orderList;
+         if(typeof order.orderList === 'string'){
+             orderList=JSON.parse(order.orderList);
+         }else{
+             orderList=order.orderList;
+         }
+         let price=0;
+         orderList.menus.forEach(menu=>{
+           if(menu.price){
+               price+=menu.price;
+           }else{
+               console.log("menu has no price");
+           }
+         });
+         console.log("computed order price:"+price);
+         order.price=price;
     }
+    
     console.log("!!!!!!order.total:"+param.total);
     console.log("!!!!!!order.stampUsage:"+order.stampUsage);
     console.log("!!!!!!order.couponDiscountAmount:"+order.couponDiscountAmount);
@@ -269,7 +287,8 @@ function saveOrderEach(param,next){
         }
         console.log("order.orderedTime:"+order.orderedTime);
 
-        let UTCOrderTime=new Date(order.orderedTime);
+        //let UTCOrderTime=new Date(order.orderedTime); App에서 주는 orderedTime에 문제가 있다?
+        let UTCOrderTime=new Date();
         let localOrderedTime  = op.getTimezoneLocalTime(shopInfo.timezone,UTCOrderTime);
 
         order.localOrderedTime=localOrderedTime.toISOString();
@@ -284,7 +303,7 @@ function saveOrderEach(param,next){
             console.log(parseInt(businessTime.openHour));
             console.log(typeof localOrderedTime.getUTCHours());
             console.log(localOrderedTime.getUTCHours()+","+localOrderedTime.getUTCMinutes());
-            if(/* shopInfo.business === "on" && */ (businessTime.openHour < localOrderedTime.getUTCHours() ||
+            if( shopInfo.business === "on" && (businessTime.openHour < localOrderedTime.getUTCHours() ||
                 (businessTime.openHour === localOrderedTime.getUTCHours() && businessTime.openMin <= localOrderedTime.getUTCMinutes()))
                 && (businessTime.closeHour > localOrderedTime.getUTCHours() ||
                 (businessTime.closeHour === localOrderedTime.getUTCHours() && businessTime.closeMin > localOrderedTime.getUTCMinutes()))){
@@ -1006,6 +1025,25 @@ router.getFavoriteMenu=function(req,res){
     });
 };
 
+router.getFavoriteMenu16=function(req,res){
+    console.log("userId:"+req.session.uid);
+    mariaDB.getFavoriteMenu16(req.session.uid,function(err,result){
+        console.log("!!!!getFavoriteMenu16:"+JSON.stringify(result));
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            console.log("getFavoriteMenu:"+JSON.stringify(result));
+            response.menus=result;
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+};
+
 // kalen.lee -end
 ////////////////////////////////////////////////////////////////////////////////
 router.configureSoldOut=function(req,res){
@@ -1106,6 +1144,46 @@ router.pollRecentOrder =function(req,res){
                 response.more=result;
                 res.send(JSON.stringify(response));
             }
+    });
+}
+
+router.inputReviewLike=function(req,res){
+   console.log("req.body:"+JSON.stringify(req.body));
+   let takitId=req.body.takitId;
+   let like=req.body.like;
+   console.log("takitId:"+takitId+" like:"+like+" review:"+req.body.review);
+
+   async.waterfall([function(callback){
+      mariaDB.saveReviewLike(req.body.orderId,req.body.like,req.body.review,callback);
+   },function(result,callback){
+      mariaDB.updateShopLike(takitId,like,callback);
+   }],function(err,result){
+      if(err){
+         console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+      }else {
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+      }
+   });
+}
+
+router.getReviews=function(req,res){
+   console.log("getReviews:"+JSON.stringify(req.body));
+    mariaDB.getShopReviews(req.body,(err,orders)=>{
+        if(err){
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+         res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            response.reviews=orders;
+         res.send(JSON.stringify(response));
+        }
     });
 }
 

@@ -40,43 +40,30 @@ c.on('close', function () {
     console.log('Client connected');
 });
 
-var recommendShops;
-
-getRecommendShopsInfo(); //Please call it....
-
-function getRecommendShopsInfo(){
-    console.log("getRecommendShops\n");
-    fs.readFile('recommend.shop', 'utf8', function(err, contents) {
-        //console.log(contents);
-        let recommends=JSON.parse(contents);
-        console.log("recommends:"+JSON.stringify(recommends));
-        recommendShopInfo(recommends,function (err, info){ 
+var newShops;
+getNewShopsInfo();
+function getNewShopsInfo(){
+    console.log("getNewShops\n");
+    fs.readFile('new.shop', 'utf8', function(err, contents) {
+        console.log(contents);
+        let newShopsNames=JSON.parse(contents);
+        console.log("newShops:"+JSON.stringify(newShopsNames));
+        recommendShopInfo(newShopsNames,function (err, info){
             console.log("info:"+JSON.stringify(info));
-            let updateRecommendShops=[];
+            let updateNewShops=[];
             for(var i=0;i<info.length;i++){
                 let shop=info[i];
-                if(info[0].starCount!=0){
-                    shop.rate=shop.starRating/shop.starCount;
-                }else{
-                    shop.rate=null;
-                }
-                updateRecommendShops.push(shop);
+                updateNewShops.push(shop);
             }
-            recommendShops=updateRecommendShops; //!!!Please use sync and wait later
-            console.log("recommendShops:"+JSON.stringify(recommendShops));
+            newShops=updateNewShops; //!!!Please use sync and wait later
+            console.log("!!!! -----newShops:"+JSON.stringify(newShops));
         });
    });
 }
 
-router.getRecommendShops=function(){
-    console.log("recommendShops:"+JSON.stringify(recommendShops));
-    return recommendShops;
+router.getNewShops=function(){
+    return newShops;
 }
-
-setInterval(()=>{
-   getRecommendShopsInfo();
-}, 60*60*1000); //every 60 minutes
-
 
 var flag;
 function performQuery(command, handler) {
@@ -230,8 +217,7 @@ function recommendShopInfo(shops,next) {
                 console.log("result:"+JSON.stringify(result));
                 result.forEach(element => {
                     let shop={};
-                    shop.starRating    =element.starRating;
-                    shop.starCount     =element.starCount;
+                    shop.upVoteCount    =element.upVoteCount;
                     shop.classification=element.classification;
                     shop.takitId       =element.takitId;
                     shop.imagePath     =element.imagePath;
@@ -3208,17 +3194,26 @@ router.updateSequence=function(category,num,next){
 router.updateSeqWhenModify=function(category,next){
 	//newSequence : want to update sequence,   //oldSequence : saved sequence before
 	let command;
+
+    //  kalen.lee@takt.biz - 201209
+    // oldeSequence의 값에 상관없이 sequence의 값을 설정한다.
+    // sequence가 동일할 경우는 category이름으로 순서를 정한다.
+    // 아래 조건문이 필요한 이유가 있을까? sequence를 앱에서 단순히 순서로만 사용한다면 문제되지 않는다.
+    // 나중에 검증하자. 
+
 	if(category.oldSequence > category.newSequence){
-    	command = "UPDATE categories SET sequence=(CASE WHEN sequence < :newSequence THEN sequence "
+     	command = "UPDATE categories SET sequence=(CASE WHEN sequence < :newSequence THEN sequence "
         	+ "WHEN sequence=:oldSequence THEN :newSequence WHEN sequence > :oldSequence THEN sequence "
         	+ "ELSE sequence+1 END)";
 	}else{
-		command = "UPDATE categories SET sequence=(CASE WHEN sequence > :newSequence THEN sequence "
+    		command = "UPDATE categories SET sequence=(CASE WHEN sequence > :newSequence THEN sequence "
             + "WHEN sequence=:oldSequence THEN :newSequence WHEN sequence < :oldSequence THEN sequence "
             + "ELSE sequence-1 END)";
 	}
-
 	command += " WHERE takitId=:takitId";
+
+    //command = "UPDATE categories SET sequence= :newSequence "
+    //command += " WHERE takitId=:takitId AND categoryName=:categoryName AND categoryNO=:categoryNO";
 
     performQueryWithParam(command, category, function (err, result) {
         if (err) {
@@ -5186,6 +5181,288 @@ router.updateFoodOrigin=function(takitId,foodOrigin,next){
         } else {
             console.log("updateFoodOrigin Query succeeded. " + JSON.stringify(result));
             next(null, "success");
+        }
+    });
+}
+
+ router.queryShopInfo =function(req,res){
+     console.log("queryShopInfo:" + JSON.stringify(req.body));
+     console.log("takitId:" + req.body.takitId);
+     let cafeHomeResponse = new index.SuccResponse();
+     cafeHomeResponse.setVersion(config.MIGRATION, req.version);
+
+     var command = "select *from shopInfo where takitId=?";
+     var values = [req.body.takitId];
+     performQueryWithParam(command, values, function (err, result) {
+         if (err) {
+             console.log(err);
+             let response = new index.FailResponse(err);
+             response.setVersion(config.MIGRATION, req.version);
+             res.send(JSON.stringify(response));
+         } else {
+             if (result.info.numRows === "0") {
+                 console.log("queryCafeHome function's query failure");
+                 let response = new index.FailResponse("query failure");
+                 response.setVersion(config.MIGRATION, req.version);
+                 res.send(JSON.stringify(response));
+             } else {
+                 let response = new index.SuccResponse();
+                 response.setVersion(config.MIGRATION, req.version);
+                 response.shopInfo=result[0];
+                 res.send(JSON.stringify(response));
+             }
+         }
+     });
+ }
+
+ router.getShopReviews=function(body,next){
+        let lastOrderId=body.lastOrderId;
+        let takitId=body.takitId;
+        let limit=body.limit;
+
+        if (lastOrderId == -1) {
+          command = "SELECT reviewTime,review,userName,shopResponse,shopResponseTime,voteUp,orderId FROM orders WHERE takitId=? AND orderId > ? AND voteUp is not NULL ORDER BY orderId DESC LIMIT " + limit;
+
+        } else {
+          command = "SELECT reviewTime,review,userName,shopResponse,shopResponseTime,orderId FROM orders WHERE takitId=? AND orderId < ?  AND voteUp is not NULL ORDER BY orderId DESC LIMIT " + limit;
+        }
+        values = [takitId, lastOrderId];
+
+        performQueryWithParam(command, values, function (err, result) {
+          if (err) {
+              console.error("getShopReviews func Unable to query. Error:", JSON.stringify(err, null, 2));
+              next(err);
+          } else {
+              console.dir("getShopReviews func]:" + result.info.numRows);
+              if (result.info.numRows == 0) {
+                  next(null, result.info.numRows);
+              } else {
+                  console.log("getShopReviews func Query succeeded. " + JSON.stringify(result.info));
+
+                  var reviews = [];
+                  result.forEach(function (order) {
+                      decryptObj(order);
+                      reviews.push(order);
+                  });
+                  next(null,reviews);
+              }
+          }
+      })
+ }
+
+ router.saveReviewLike=function(orderId,like,review,callback){
+     let likeNum=0;
+
+     if(like==true){
+         likeNum=1;
+     }
+     let command = "UPDATE orders SET review=?,voteUp=?,reviewTime=? WHERE orderId=?";
+     let values = [review,likeNum, new Date().toISOString(),orderId];
+
+     performQueryWithParam(command, values, function (err, result) {
+         if (err) {
+             console.log(err);
+             callback(err);
+         } else {
+                 console.log(result);
+                 callback(null,result);
+         }
+     });
+ }
+
+ router.updateShopLike=function(takitId,like,next){
+     console.log("like:"+like);
+     let command;
+     if(like){
+         command = "UPDATE shopInfo SET upVoteCount=upVoteCount+1 WHERE takitId=?";
+     }else{
+         command = "UPDATE shopInfo SET downVoteCount=downVoteCount+1 WHERE takitId=?";
+     }
+      let values = [takitId];
+
+     performQueryWithParam(command, values, function (err, result) {
+         if (err) {
+             console.log(err);
+             next(err);
+         } else {
+                 console.log(result);
+                 next(null,result);
+         }
+     });
+ }
+
+
+ getFavoriteMenusInfo16=function(menus,next){
+     if(menus.length==0){
+         next(null,[]);
+     }else{
+         let command="SELECT * from menus WHERE (menuNO=? AND menuName=?) ";
+         let values=[menus[0].menuNO,menus[0].menuName];
+
+         for(var i=1;i<16 && i<menus.length;i++){
+            command+="OR (menuNO=? AND menuName=?)";
+            values.push(menus[i].menuNO);
+            values.push(menus[i].menuName);
+         }
+         performQueryWithParam(command, values, function (err, result) {
+             if(err){
+                 next(err);
+             }else{
+                 console.log("result:"+JSON.stringify(result));
+                 menuInfos=[];
+                 // 순서대로 나오는것이 아님 ㅜㅜ
+                 //console.log("menus.length:"+menus.length);
+                 for(var j=0;j<16 && j<menus.length;j++){
+                     let menuItem=menus[j];
+                     ///console.log("menuItem:"+JSON.stringify(menuItem));
+                     let index=result.findIndex(function(menu){
+                         return(menu.menuNO==menuItem.menuNO && menu.menuName==menuItem.menuName);
+                     });
+                     if(index>=0){
+                         let menuInfo=result[index];
+                         let i=menuInfo.menuNO.indexOf(';');
+                         menuInfo.takitId=menuInfo.menuNO.substr(0,i);
+                         menuInfo.count=menuItem.count; //2018.07.04
+                         menuInfos.push(menuInfo);
+                     }
+                 }
+                 next(null,menuInfos);
+             }
+         })
+     }
+ }
+
+ router.getFavoriteMenu16=function(userId,next){
+     let command ="select orderList.takitId,orderList.menuNO,orderList.menuName,menus.price,menus.imagePath, count(*) as count  from orderList LEFT JOIN menus ON orderList.menuNO=menus.menuNO AND orderList.menuName=menus.menuName where userId=? GROUP BY orderList.menuNO,orderList.menuName order by count desc LIMIT 16;"
+
+     let values = [userId];
+
+     performQueryWithParam(command, values, function (err, result) {
+         if (err) {
+             console.log(err);
+             callback(err);
+         } else {
+                 let menus=[];
+                 for(var i=0;i<16 && i<result.info.numRows;i++)
+                     menus.push(result[i]);
+                 console.log("getFavoiteMenus16-menus.length:"+menus.length);
+                 getFavoriteMenusInfo16(menus,function(err,menuInfos){
+                    console.log("!!!!menuInfos:"+JSON.stringify(menuInfos));
+                    if(err)
+                        next(err);
+                    else
+                        next(null,menuInfos);
+                 });
+         }
+     });
+ }
+
+ router.saveReviewResponse=function(orderId,response,next){
+     let command = "UPDATE orders set shopResponse=?, shopResponseTime=? where orderId=?";
+     var values=[response, new Date().toISOString(),orderId];
+
+     performQueryWithParam(command, values, function (err, result) {
+         if (err) {
+             console.log("saveReviewResponse func Unable to query. Error:", JSON.stringify(err));
+             next(err);
+         } else {
+             console.log("saveReviewResponse Query succeeded. " + JSON.stringify(result));
+             next(null, "success");
+         }
+     });
+ }
+
+ router.getWholeStores=function(next){
+
+     var command = "select * from shopInfo where takitId NOT LIKE 'TEST%' AND takitId NOT LIKE 'test%';";
+
+     console.log("command:" + command);
+     performQuery(command, function (err, result) {
+         if (err) {
+             console.log(JSON.stringify(err));
+             next(err);
+         }
+         console.dir("[getUserPaymentInfo]:" + result.info.numRows);
+         if (result.info.numRows === "0") {
+             next("invalid DB status");
+         } else {
+            var shops = [];
+            result.forEach(function (item) {
+                     shops.push(item);
+            });
+             console.log("shop number:" + shops.length);
+             next(null,shops);
+         }
+     });
+ }
+
+ router.getNearStores=function(coord,next){
+     let lowLong  = coord.longitude - 0.01;
+     let highLong = coord.longitude + 0.01;
+     let lowLat   = coord.latitude - 0.01;
+     let highLat = coord.latitude + 0.01;
+
+     var command = "select * from shopInfo where (longitude >=?) AND (longitude <=?) AND (latitude>=?) AND (latitude<=?);"; // 0.01도 차이
+     var values=[lowLong,highLong,lowLat,highLat];
+
+     console.log("command:" + command);
+     performQueryWithParam(command, values, function (err, result) {
+         if (err) {
+             next(err);
+         } else {
+            var shops = [];
+            result.forEach(function (item) {
+                     shops.push(item);
+            });
+             console.log("shop number:" + shops.length);
+             next(null,shops);
+         }
+     });
+ }
+
+ router.getWaiteeCouponInfo=function(next){
+     var command = "select textValue from configuration where name='coupon'"; // 0.01도 차이
+     performQuery(command, function (err, result) {
+         if (err) {
+             console.log("findTakitId Error:" + JSON.stringify(err));
+             next(JSON.stringify(err));
+         } else {
+             console.log("result:" + JSON.stringify(result));
+             if (result == undefined) {
+                 next(null,"");
+             } else {
+                 console.dir("result:" + result.info.numRows);
+                 next(null,result[0].textValue);
+             }
+         }
+     });
+ }
+
+ //2019년 가입자중 1000명 이내의 고객인지를 카운트한다.
+ //가입자 천명에게 천원을 증정함.
+ router.getRegisterCount=function(next){
+     var command = "select numValue from configuration where name='registerCounter'";
+     performQuery(command, function (err, result) {
+         if (err) {
+             next(JSON.stringify(err));
+         } else {
+             console.log("result:" + JSON.stringify(result));
+             if (result == undefined) {
+                 next("invalid Number");
+             } else {
+                 next(null,result[0].numValue);
+             }
+         }
+     });
+ }
+
+router.update2019RegisterCounter=function(){
+    let command = "UPDATE configuration set numValue=numValue+1 where name='registerCounter'";
+    performQuery(command, function (err, result) {
+        if (err) {
+            console.log(JSON.stringify(err));
+        } else {
+            //Do nothing
         }
     });
 }
