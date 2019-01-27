@@ -171,7 +171,7 @@ function sendOrderMSGShop(order, shopUserInfo,next){
          response.order = order;
          response.messageId = GCM.messageId;
          next(null,response);
-         if(order.takitId=="세종대@리얼후라이"){
+         if(order.takitId=="세종대@리얼후라이" || order.takitId=="세종대@학생식당"){
              const SMS = {};
              SMS.title = GCM.title;
              SMS.content = "주문번호 "+order.orderNO+" 새로고침 버튼을 눌러주세요";
@@ -343,6 +343,12 @@ function saveOrderEach(param,next){
             console.log("!!!shop issue stamp!!!\n");
             order.stampIssueCount=0;
         }
+        if(shopInfo.manualStore && shopInfo.manualStore=='1'){ // manualStore: 수동 처리매장
+            order.orderStatus="checked"; // 학생식당의 경우 바로 접수상태로  처리된다.
+            order.manualStore=shopInfo.manualStore;
+        }
+        order.feeRate=shopInfo.feeRate;
+        order.fee=shopInfo.feeRate*order.price;
         mariaDB.saveOrder(order,shopInfo,callback);
     },function(orderId,callback){
         console.log(orderId);
@@ -753,6 +759,14 @@ router.completeOrderWithEmail=function(req,res){//previous status must be "check
    },function(result,callback){
       order = result;
         async.parallel([function(callback){
+           //manualStore의 경우 orderNO를 저장한다.
+          if(order.manualStore=='1' && req.body.manualOrderNO){
+              order.manualOrderNO=req.body.manualOrderNO; // 적절한 위치는 아니다 ㅜㅜ
+              mariaDB.saveManualOrderNO(req.body.orderId,req.body.manualOrderNO,callback);
+          }else{
+              callback(null,"done");
+          }
+        },function(callback){       
             mariaDB.updateSalesShop(order.takitId,order.total,callback);
         },function(callback){
             //발생쿠폰수를 세어 저장한다.
@@ -772,7 +786,7 @@ router.completeOrderWithEmail=function(req,res){//previous status must be "check
             mariaDB.getPushId(order.userId,callback);
         }],callback);
    },function(result,callback){
-        let userInfo = result[3];
+        let userInfo = result[4];
         userInfo.SMSNoti="on";
       sendOrderMSGUser(order,userInfo,callback);
    }],function(err,result){
