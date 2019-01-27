@@ -39,7 +39,38 @@ c.on('close', function () {
 }).on('connect', function () {
     console.log('Client connected');
 });
+/////////////////////////////////////////////////////////////////////////
+getRecommendShopsInfo(); //Please call it....
 
+function getRecommendShopsInfo(){
+    console.log("getRecommendShops\n");
+    fs.readFile('recommend.shop', 'utf8', function(err, contents) {
+        //console.log(contents);
+        let recommends=JSON.parse(contents);
+        console.log("recommends:"+JSON.stringify(recommends));
+        recommendShopInfo(recommends,function (err, info){
+            console.log("info:"+JSON.stringify(info));
+            let updateRecommendShops=[];
+            for(var i=0;i<info.length;i++){
+                let shop=info[i];
+                if(info[0].starCount!=0){
+                    shop.rate=shop.starRating/shop.starCount;
+                }else{
+                    shop.rate=null;
+                }
+                updateRecommendShops.push(shop);
+            }
+            recommendShops=updateRecommendShops; //!!!Please use sync and wait later
+            console.log("recommendShops:"+JSON.stringify(recommendShops));
+        });
+   });
+}
+
+router.getRecommendShops=function(){
+    console.log("recommendShops:"+JSON.stringify(recommendShops));
+    return recommendShops;
+}
+//////////////////////////////////////////////////////////////////////////
 var newShops;
 getNewShopsInfo();
 function getNewShopsInfo(){
@@ -1674,9 +1705,12 @@ router.saveOrder = function (order, shopInfo, next) {
 
         //3. encrypt phone
             let secretUserPhone = encryption(userInfo.phone, config.pPwd);
-            let command = "INSERT INTO orders(takitId,shopName,orderName,payMethod,amount,price,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,userMSG,deliveryAddress,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType,deliveryFee, imp_uid,approval,card_info,total,payInfo,couponDiscount,stampUsage,couponDiscountAmount,stampIssueCount) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-      //payInfo는 주문시 상점의 할인결제옵션임. payMethod와 다름.재주문을 위해 저장함. 
-            let values = [order.takitId,order.shopName, order.orderName, order.paymethod, order.amount,order.price,order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList,order.userMSG, order.deliveryAddress, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType,order.deliveryFee,order.imp_uid,order.approval,order.card_info,order.total,order.payInfo,order.couponDiscount,order.stampUsage,order.couponDiscountAmount,order.stampIssueCount];
+      
+         let command = "INSERT INTO orders(takitId,shopName,orderName,payMethod,amount,price,takeout,orderNO,userId,userName,userPhone,orderStatus,orderList,userMSG,deliveryAddress,orderedTime,localOrderedTime,localOrderedDay,localOrderedHour,localOrderedDate,receiptIssue,receiptId,receiptType,deliveryFee, imp_uid,approval,card_info,total,payInfo,couponDiscount,stampUsage,couponDiscountAmount,stampIssueCount,manualStore,feeRate,fee) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+
+         //payInfo는 주문시 상점의 할인결제옵션임. payMethod와 다름.재주문을 위해 저장함. 
+         let values = [order.takitId,order.shopName, order.orderName, order.paymethod, order.amount,order.price,order.takeout, order.orderNO, userInfo.userId, userInfo.name, secretUserPhone, order.orderStatus, order.orderList,order.userMSG, order.deliveryAddress, order.orderedTime, order.localOrderedTime, order.localOrderedDay, order.localOrderedHour, order.localOrderedDate, userInfo.receiptIssue, userInfo.receiptId, userInfo.receiptType,order.deliveryFee,order.imp_uid,order.approval,order.card_info,order.total,order.payInfo,order.couponDiscount,order.stampUsage,order.couponDiscountAmount,order.stampIssueCount,order.manualStore,order.feeRate,order.fee];
+
             performQueryWithParam(command, values, function (err, orderResult) {
                 if (err) {
                     console.error("saveOrder func inser orders Unable to query. Error:", JSON.stringify(err, null, 2));
@@ -5463,6 +5497,21 @@ router.update2019RegisterCounter=function(){
             console.log(JSON.stringify(err));
         } else {
             //Do nothing
+        }
+    });
+}
+
+// 학생식당과 같이 수동으로 주문번호를 입력하는경우 수동 주문번호 저장에 사용된다.
+router.saveManualOrderNO=function(orderId,manualOrderNO,next){
+   var command = "UPDATE orders set manualOrderNO=? where orderId=?";
+   var values=[manualOrderNO,orderId];
+
+   performQueryWithParam(command, values, function (err, result) {
+        console.log("c.query success");
+        if (err) {
+            next(err);
+        } else {
+                next(null,"success");
         }
     });
 }

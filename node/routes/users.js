@@ -217,6 +217,12 @@ router.facebookLogin = function(req, res){
 		 response.userInfo=userInfo;
          if(notice)
              response.notice=notice;
+         else{
+            if(req.body.version!=config.VERSION){
+                response.notice="최신 버전으로 앱을 업데이트 해주세요. 문의-카카오플러스 @웨이티";
+                //response.userInfo.recommendShops=mariaDB.getRecommendShops();
+            } 
+         }
          res.send(JSON.stringify(response));
       }
    });
@@ -259,6 +265,12 @@ router.kakaoLogin=function(req,res){//referenceId 확인해서 로그인.
 			response.setVersion(config.MIGRATION,req.version);
             if(notice)
                 response.notice=notice;
+            else{
+                if(req.body.version!=config.VERSION){
+                    response.notice="최신 버전으로 앱을 업데이트 해주세요. 문의-카카오플러스 @웨이티";
+                    //response.userInfo.recommendShops=mariaDB.getRecommendShops();
+                }
+            }
 			response.userInfo=userInfo;
 			console.log(JSON.stringify(response));
          res.send(JSON.stringify(response));
@@ -307,8 +319,13 @@ router.emailLogin=function(req,res){
 			response.userInfo=userInfo;		
             if(notice)
                 response.notice=notice;
+            else{
+                if(req.body.version!=config.VERSION){
+                    response.notice="최신 버전으로 앱을 업데이트 해주세요. 문의-카카오플러스 @웨이티";
+                    //response.userInfo.recommendShops=mariaDB.getRecommendShops();
+                }
+            }
             console.log(JSON.stringify(userInfo));
-            //console.log(JSON.stringify(response.recommendShops));
          res.send(JSON.stringify(response));
       }
    })
@@ -364,11 +381,18 @@ router.signup=function(req,res){
                	  response.result = result;
                   res.send(JSON.stringify(response));
                }else{
-						response.result = "success";
+				  response.result = "success";
                	  response.email=req.body.email;
                   req.session.uid=result;
                   console.log(req.session.uid);
-                  console.log('send result'+JSON.stringify());
+                  if(notice)
+                      response.notice=notice;
+                  else{
+                      if(req.body.version!=config.VERSION){
+                          response.notice="최신 버전으로 앱을 업데이트 해주세요. 문의-카카오플러스 @웨이티";
+                          //response.userInfo.recommendShops=mariaDB.getRecommendShops();
+                      }
+                  }
                	res.send(JSON.stringify(response));
                }
             }
