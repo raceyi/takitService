@@ -967,4 +967,21 @@ router.saveReviewResponse=function(req,res){
     })
 }
 
+router.getWithdrawOrders=function(req,res){
+    console.log("getWithdrawOrders:"+JSON.stringify(req.body));
+    mariaDB.getWithdrawOrders(req.body.takitId,req.body.fromOrderId,req.body.toOrderId,req.body.limit,function(err,result){
+        if(err){
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION,req.version);
+            res.send(JSON.stringify(response));
+        }else{
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION,req.version);
+            response.orders=result; // 주문목록
+            res.send(JSON.stringify(response));
+        }
+    });
+}
+
 module.exports = router;

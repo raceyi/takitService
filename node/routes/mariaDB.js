@@ -8,6 +8,7 @@ let config = require('../config');
 let moment = require('moment');
 let index = require('./index');
 let op = require('./op');
+let taxinvoice=require('./taxinvoice');
 const fs=require('fs');
 
 var AsyncLock = require('async-lock');
@@ -245,7 +246,7 @@ function recommendShopInfo(shops,next) {
                 next(err);
             } else {
                 let shopsResult=[];
-                console.log("result:"+JSON.stringify(result));
+                //console.log("result:"+JSON.stringify(result));
                 result.forEach(element => {
                     let shop={};
                     shop.upVoteCount    =element.upVoteCount;
@@ -284,12 +285,12 @@ router.existEmailAndPassword = function (email, password, next) {
             if (result.info.numRows === "0") {
                 next("invalidId");
             } else {
-                console.log(result);
+                //console.log(result); 2019.01.31 comment out 
                 let userInfo = result[0];
                 let secretPassword = crypto.createHash('sha256').update(password + userInfo.salt).digest('hex');
 
                 if (secretPassword === userInfo.password) {
-                    console.log("password success!!");
+                    //console.log("password success!!");
                     decryptObj(userInfo);
                     next(null, userInfo);
                 } else {
@@ -3056,12 +3057,26 @@ router.getBalnaceShop = function (takitId, next) {
     });
 }
 
-router.insertWithdrawalList = function (takitId, amount, fee, nowBalance, next) {
+/*
+  withdrawable-sales: 인출주문 매출총액(가격-웨이티 할인율)
+              -fee: 인출주문 수수료총액(웨이티 수수료)
+              -originalPrice: 인출 주문 가격총액
+              -fromOrderId: 인출 주문중 첫주문 Id
+              -toOrderId: 인출 주문중 마지막 주문 Id
+*/
+router.insertWithdrawalList = function (takitId,withdrawable,transactionFee, next) {
 
     console.log("mariaDB.insertWithdrawalList start!!");
 
-    let command = "INSERT INTO withdrawalList(takitId,amount,fee,nowBalance,withdrawalTime) VALUES(?,?,?,?,?)"
-    let values = [takitId, amount, fee, nowBalance, new Date().toISOString()];
+    let command = "INSERT INTO withdrawalList(takitId,price,waiteeFee,amount,fromOrderId,toOrderId,fee,withdrawalTime) VALUES(?,?,?,?,?,?,?,?)"
+    let values = [takitId, 
+                  withdrawable.originalPrice,
+                  withdrawable.fee,
+                 (withdrawable.sales-withdrawable.fee),
+                  withdrawable.fromOrderId, 
+                  withdrawable.toOrderId, 
+                  transactionFee, 
+                  new Date().toISOString()];
 
     performQueryWithParam(command, values, function (err, result) {
         if (err) {
@@ -4193,7 +4208,206 @@ function allSoldOutDate(next) {
     });
 }
 
+function checkIssueTaxInvoice(month,next){
+    let command = "SELECT done FROM taxIssueHistory WHERE month=?";
+    let values=[month];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.error("[checkIssueTaxInvoice]Unable to query. Error:", JSON.stringify(err, null, 2));
+            next(err);
+        } else {
+            console.log("[checkIssueTaxInvoice] Query Succeeded"+JSON.stringify(result));
+            if(result.length === 0)
+                next(null,false);
+            else{
+                next(null,result[0]);
+            }
+        }
+    });
+}
+
+function updateTaxIssueHistory(month,next){ 
+// 해당 month의 done 필드를 true로 설정함. 만약 없으면 insert함. 
+
+   let command=" INSERT INTO taxIssueHistory (month,done) VALUES (?,true) ON DUPLICATE KEY UPDATE done=true";
+   let values = [month];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            next(err);
+        } else {
+            console.log("updateTaxIssueHistory function result" + JSON.stringify(result));
+            next(null);
+        }
+    });
+}
+
+function findIssueTaxInvoiceShops(next){
+    var command = "select takitId from withdrawalList where waiteeFee>0 and taxInvoice=0"; 
+    performQuery(command, function (err, result) {
+        if (err) {
+            next(err);
+        } else {
+            console.dir("[findIssueTaxInvoiceShops]:" + result.info.numRows);
+            if (result.info.numRows === "0") {
+                next(null,[]);
+            } else {
+                next(null,result);
+            }
+        }
+    });
+}
+
+function updatetaxInvoiceFlag(withdNOs,next){
+    //console.log("updatetaxInvoiceFlag:"+JSON.stringify(withdNOs));
+
+    if(withdNOs.length==0){
+        next(null);
+    }else{
+      let command = "UPDATE withdrawalList set taxInvoice=true where withdNO="+withdNOs[0].withdNO;
+      for(let i=1;i<withdNOs.length;i++){
+         command+="OR withdNO="+ withdNOs[i].withdNO;
+      }
+
+      performQuery(command, function (err, result) {
+        if (err) {
+            next(err);
+        } else {
+            console.log("updatetaxInvoiceFlag function result" + JSON.stringify(result));
+            next(null);
+        }
+      });
+    }
+}
+
+function calculateTaxInvoiceAmount(takitId,next){
+    // waiteeFee(부가세 포함 금액)에서 부가세를 계산한다. 
+    var command = "select withdNO,waiteeFee from withdrawalList where waiteeFee>0 and taxInvoice=0 and takitId=?";
+    let values = [takitId];
+
+    performQueryWithParam(command,values,function (err, result) {
+        if (err) {
+            next(err);
+        } else {
+            // fee와 tax의 합이 반드시 total이 되어야만 한다 ㅜㅜ 
+            // 안맞으면 tax는 절사하고 나머지를 fee로 만들자. 맞는지 확인이 필요함.  
+            let total=0;
+
+            for(let i=0;i<result.length;i++)
+                total+=parseInt(result[i].waiteeFee);
+            let tax=Math.round(total/11);
+            let fee=total-tax;
+            let billInfo={fee:fee,tax:tax};
+            let output={billInfo:billInfo,withdNOs:result}; 
+            next(null,output);
+        }
+    });
+}
+
+function issueTaxInvoiceEachShop(shop,next){
+    let shopInfo;
+    let billInfo;
+    let withdNOs;
+    let takitId=shop.takitId;
+ 
+    async.waterfall([function(callback){
+        //takitId로 shopInfo를 가져옴. 	
+        router.getShopInfo(takitId,callback);
+    },function(result, callback){
+        shopInfo=result; //발행 금액을 가져옴. 	
+        calculateTaxInvoiceAmount(takitId,callback);        
+    },function(result,callback){
+        billInfo=result.billInfo;
+        withdNOs=result.withdNOs;
+        //세금계산서 발행
+        taxinvoice.registIssue(shopInfo,billInfo,callback);
+    },function(result,callback){ 
+        //withdrawlList의 taxInvoice를 true로 설정함. 
+        updatetaxInvoiceFlag(withdNOs,callback); 
+    }],function(err,result){
+        if(err){
+            next(err);  
+        }else{
+            next(null,"success");
+        } 
+    }); 
+}
+
+function insertMonth(month,next){ 
+   // 세금계산서 발급의 시작을 표기함. 발행 처리중 문제 발생시 tracking을 위해서.
+   let command=" INSERT INTO taxIssueHistory (month,done) VALUES (?,false)";
+   let values = [month];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            next(err);
+        } else {
+            console.log("insertMonth function result" + JSON.stringify(result));
+            next(null,"success");
+        }
+    });
+}
+
+function issueTaxInvoice(month){
+ /*
+   0. withdrawalList에서 waiteeFee는 0보다 크고 taxInvoice가 false인 takitId를 검색한다. 
+   1. takitId별 합산금액으로 세금계산서를 발급한다. 
+   2. takitId로 shopInfo를 가져온다. 
+   3. 타킷주식회사에서 세금계산서를 발행한다. 
+   4. TaxIssueHistory month의 done을 true로 설정한다. 
+  */
+    
+    async.waterfall([(callback)=>{
+        insertMonth(month,callback);
+    },(result,callback)=>{
+        findIssueTaxInvoiceShops(callback);
+    },(shops,callback)=>{
+        console.log("shops:"+JSON.stringify(shops));
+        if(shops.length>0)
+            async.map(shops,issueTaxInvoiceEachShop,callback); // 세금계산서를 발급하고 withdrawalList를 업데이트함.
+        else
+            callback(null,"success");
+    }],(err,result)=>{
+        if(err){
+           console.log("issueTaxInvoice fails due to "+JSON.stringify(err)); 
+        }else{
+           // taxIssueHistory의 done field를 업데이트함. 
+           updateTaxIssueHistory(month,function(error){
+               if(error){
+                   console.log("issueTaxInvoice fails due to updateTaxIssueHistory:"+JSON.stringify(error));
+               }else{
+                   console.log("issueTaxInvoice sucess");
+               }
+           });
+        }
+    });
+}
+
+function issueTaxInvoiceInterval(){
+/*
+    1.날짜가 1일인지 확인한다.
+    2.1일이 맞다면 세금계산서 발급여부를 확인한다.-> 어디에 저장을할까? 세금계산서 발급 정보를 db에 저장할 필요가 있다.
+      (발급시작과 발급완료를 표기해야 한다. DB table 생성필요함.)
+    3.세금계산서를 발급한다. 
+ */ 
+    let now= new Date();
+    console.log("issueTaxInvoiceInterval:"+now.getDate());
+    if(now.getDate()==1){ //발급 날짜가 1일이다. 
+        //get YEAR and month 
+        let month=now.getFullYear().toString()+'-'+now.getMonth().toString();
+        console.log("issueTaxInvoiceInterval month:"+month);
+        //check if tax invoice is already done or not 
+         checkIssueTaxInvoice(month,function(err,done){
+             if(!done){
+                issueTaxInvoice(month); 
+             }
+         });         
+    }
+}
+
 function configureSoldout(){
+  issueTaxInvoiceInterval();
   allSoldOutDate(function(err,shops){
     let now= new Date();
     let todayStr = now.getYear()+'-'+now.getMonth()+'-'+now.getDate();
@@ -5342,7 +5556,7 @@ router.updateFoodOrigin=function(takitId,foodOrigin,next){
              if(err){
                  next(err);
              }else{
-                 console.log("result:"+JSON.stringify(result));
+                 //console.log("result:"+JSON.stringify(result)); 2019.01.31 comment out 
                  menuInfos=[];
                  // 순서대로 나오는것이 아님 ㅜㅜ
                  //console.log("menus.length:"+menus.length);
@@ -5381,7 +5595,7 @@ router.updateFoodOrigin=function(takitId,foodOrigin,next){
                      menus.push(result[i]);
                  console.log("getFavoiteMenus16-menus.length:"+menus.length);
                  getFavoriteMenusInfo16(menus,function(err,menuInfos){
-                    console.log("!!!!menuInfos:"+JSON.stringify(menuInfos));
+                    //console.log("!!!!menuInfos:"+JSON.stringify(menuInfos));
                     if(err)
                         next(err);
                     else
@@ -5512,6 +5726,138 @@ router.saveManualOrderNO=function(orderId,manualOrderNO,next){
             next(err);
         } else {
                 next(null,"success");
+        }
+    });
+}
+
+router.getWithdrawableOrderInfo=function(lastOrderId,takitId,next){
+    let now=new Date();
+    let completedTime= new Date();
+
+    completedTime.setTime(now.getTime()-7*24*60*60*1000); // 7 days ago. Just for testing. Please uncomment 
+    
+    let command="select sum(amount) as sales, sum(fee) as fee, sum(price) as originalPrice,min(orderId) as fromOrderId,max(orderId) as toOrderId from orders \
+     				where payMethod='cash' AND takitId=? AND orderId > ? AND (orderStatus='pickup' OR orderStatus='completed') AND (completedTime <= ?)";
+
+    let values = [takitId,lastOrderId,completedTime.toISOString()];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log("getWithdrawableOrderInfo function error:" + JSON.stringify(err));
+            next(err);
+        } else {
+            console.log("getWithdrawableOrderInfo:"+JSON.stringify(result[0])); 
+            next(null, result[0]);
+        }
+    });
+}
+
+function getAvailableOrderInfo(lastOrderId,takitId,next){
+     let command="select sum(amount) as sales, sum(fee) as fee, sum(price) as originalPrice,min(orderId) as fromOrderId,max(orderId) as toOrderId from orders\
+					where payMethod='cash' AND takitId=? AND orderId >? AND (orderStatus='pickup' OR orderStatus='completed')";
+    let values = [takitId,lastOrderId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log("getAvailableOrderInfo function error:" + JSON.stringify(err));
+            next(err);
+        } else {
+            console.log("getAvailableOrderInfo "+JSON.stringify(result[0]));
+            next(null, result[0]);
+        }
+    });
+}
+
+router.getShopCashBalance=function(lastOrderId,takitId,next){
+    /* 
+        !!! 주문 결제가 cash 인 경우만 payMethod='cash'!!!
+        1. 인출 가능 금액 계산: 7일 이전의 주문(completedTime이 7일 이전)으로 completed or pickup상태인 경우
+             let now=new Date();
+             let completedTime= now.getTime()-7*24*60*60*1000;
+             
+             select sum(amount) as sales, sum(fee) as fee, sum(price) as originalPrice,min(orderId) as fromOrderId,max(orderId) as toOrderId from orders 
+                 where payMethod='cash' AND takitId=takitId AND orderId > lastOrderId AND (orderStatus='pickup' OR orderStatus='completed') AND (completedTime > completedTime); 
+             withdrawable{
+                 sales: 인출주문 매출총액(가격-웨이티 할인율)
+                 fee: 인출주문 수수료총액(웨이티 수수료) 
+                 originalPrice: 인출 주문 가격총액
+                 fromOrderId: 인출 주문중 첫주문 Id
+                 toOrderId: 인출 주문중 마지막 주문 Id
+             }
+        2.현재시간까지의 캐시 금액
+             select sum(amount) as sales, sum(fee) as fee, sum(price) as originalPrice from orders 
+                 where  payMethod='cash' AND takitId=takitId AND orderId > lastOrderId AND (orderStatus='pickup' OR orderStatus='completed');
+             available{
+                 sales: 미정산 매출 총액 
+                 fee: 미정산 수수료 총액
+                 originalPrice: 미정산 주문 가격 총액
+             }
+     */
+    let withdrawable={};
+
+    async.waterfall([function(callback){
+        router.getWithdrawableOrderInfo(lastOrderId,takitId,callback); 
+    },function(result,callback){
+        withdrawable=result;
+        withdrawable.netFee= withdrawable.fee;
+        withdrawable.tax=Math.floor(withdrawable.fee*0.1);
+        let netFee=parseInt(withdrawable.netFee); // hum... Is it necessary? Why?
+        withdrawable.fee= netFee+withdrawable.tax;
+        getAvailableOrderInfo(lastOrderId,takitId,callback); 
+    }], function (err, result) {
+        if(err){
+            next(err);
+        }else{
+            let output={};
+            if(result.sales==null){
+                result.sales=0;
+                result.fee=0;
+                result.originalPrice=0;
+            }
+            if(withdrawable.sales==null){
+                withdrawable.sales=0;
+                withdrawable.fee=0;
+                withdrawable.originalPrice=0;
+                withdrawable.fromOrderId=0;
+                withdrawable.toOrderId=0;
+            }
+            output.available=result;
+            let netFee= parseInt(result.fee);
+            output.available.tax=Math.floor(result.fee*0.1);
+            output.available.fee=netFee+output.available.tax;
+            output.available.netFee=netFee;
+            output.withdrawable=withdrawable;
+            next(null,output);
+        }
+   });
+}
+
+router.saveLastOrderId=function(takitId,lastOrderId,next){
+    let command = "UPDATE shopInfo set lastOrderId=? where takitId=?";
+    var values=[lastOrderId,takitId];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log("saveLastOrderId func Unable to query. Error:", JSON.stringify(err));
+            next(err);
+        } else {
+            console.log("saveLastOrderId Query succeeded. " + JSON.stringify(result));
+            next(null, "success");
+        }
+    });
+}
+
+router.getWithdrawOrders=function(takitId,from,to,limit,next){
+    let command = "SELECT orderNO,completedTime, price,amount,total,couponDiscountAmount,fee,orderId from orders \
+                   where takitId=? AND (orderStatus='completed' OR orderStatus='pickup') AND orderId>=? AND orderId<=?  ORDER BY orderId LIMIT "+limit;
+    var values=[takitId,from,to];
+
+    performQueryWithParam(command, values, function (err, result) {
+        if (err) {
+            console.log("getWithdrawOrders func Unable to query. Error:", JSON.stringify(err));
+            next(err);
+        } else {
+            next(null, result);
         }
     });
 }

@@ -154,16 +154,16 @@ router.RetrieveAgreementAccountTransactionHistory = function (startDate, endDate
             console.log("RetrieveAgreementAccountTransactionHistory error" + JSON.stringify(err));
             next(err);
         } else if (body.status === "failure") {
-            console.log("body:" + JSON.stringify(body)); // Show the HTML for the Google homepage.
-            console.log("response:" + JSON.stringify(response));
+            //console.log("body:" + JSON.stringify(body));  2019.01.31 comment out// Show the HTML for the Google homepage.
+            //console.log("response:" + JSON.stringify(response)); 2019.01.31 comment out
             if (body.Header.Rpcd === "AC002") {
                 next("no service time");
             } else {
                 next(body.Header.Rsms);
             }
         } else if (!err && body.status === "OK") {
-            console.log("body:" + JSON.stringify(body)); // Show the HTML for the Google homepage.
-            console.log("response:" + JSON.stringify(response));
+            //console.log("body:" + JSON.stringify(body)); 2019.01.31 comment out // Show the HTML for the Google homepage.
+            //console.log("response:" + JSON.stringify(response)); 2019.01.31 comment out
             next(null, body);
         }
     });
@@ -314,7 +314,7 @@ function checkAccountHistory(pageNO, count, startDate, next) {
                     cashList.confirm = 0;
                     cashList.bankCode = accHistory.Rec[i].HnisCd;
                     // cashList.branchCode = accHistory.Rec[i].HnbrCd;
-					console.log(cashList);
+					//console.log(cashList); 2019.01.31 comment out
 
                     // let NHisCd = ["010", "011", "012", "013", "014", "015", "016", "017", "018"];
 
@@ -967,59 +967,6 @@ router.checkWithdrawalCountShop = function (req, res) {
     });
 }
 
-
-//shop - cash인출 API
-//인출가능 금액,
-router.withdrawCashShop = function (req, res) {
-    //takitId, amount
-    //1. shopInfo에서 해당shop 계좌 가져옴
-    //2. 계좌에 금액만큼 넣어줌.
-    let shopInfo = {};
-    let fee = 0;
-    async.waterfall([function (callback) {
-        mariaDB.getShopInfoWithAccount(req.body.takitId, callback);
-    }, function (result, callback) {
-        shopInfo = result;
-        console.log("shopInfo:" + JSON.stringify(shopInfo));
-        console.log("req.body:" + JSON.stringify(req.body));
-        if (shopInfo.withdrawalCount >= 4 && req.body.bankCode === NHCode) {
-            console.log("인출 4회 초과 입니다. NH");
-            fee = 150;
-        } else if (shopInfo.withdrawalCount >= 4 && req.body.bankCode !== NHCode) {
-            console.log("인출 4회 초과 입니다. other")
-            fee = 400;
-        }
-
-        console.log("fee:" + fee);
-        if (parseInt(shopInfo.balance) >= parseInt(req.body.withdrawalAmount) + fee) { //환불받으려는 금액보다 잔액이 많아야 환불 가능
-            if (req.body.bankCode === NHCode) { //농협계좌로 환불할 때
-                router.ReceivedTransferAccountNumber(shopInfo.account, req.body.withdrawalAmount, callback);
-            } else {
-                router.ReceivedTransferOtherBank(req.body.bankCode, shopInfo.account, req.body.withdrawalAmount, callback);
-            }
-        } else {
-            callback("check your balance");
-        }
-    }, function (result, callback) {
-        mariaDB.updateWithdrawalShop(req.body.takitId, -parseInt(req.body.withdrawalAmount) - fee, shopInfo.balance, callback);
-    }, function (result, callback) {
-        mariaDB.insertWithdrawalList(req.body.takitId, req.body.withdrawalAmount, fee, parseInt(shopInfo.balance) - parseInt(req.body.withdrawalAmount) - fee, callback);
-    }], function (err, result) {
-        if (err) {
-            console.log(err);
-            let response = new index.FailResponse("failure", err);
-            response.setVersion(config.MIGRATION, req.version);
-            res.send(JSON.stringify(response));
-        } else {
-            console.log(result);
-            let response = new index.SuccResponse();
-            response.setVersion(config.MIGRATION, req.version);
-            res.send(JSON.stringify(response));
-        }
-    });
-}
-
-
 router.getBalnaceShop = function (req, res) {
     mariaDB.getBalnaceShop(req.body.takitId, function (err, result) {
         if (err) {
@@ -1190,6 +1137,123 @@ router.updateCashWithCoupon=function(cashId,couponName,amount,next){
         }
    });
 };
+
+router.computeBalanceShop= function (req, res) { 
+    // 1.shopInfo로 부터 마지막 정산한 orderId를 가져온다.
+    // 2. lastOrderId보다 크고 status가 complete or pickup인 주문의 amount를 합산한다. 
+    //   amount:실제 고객 결제금액, amount에서 fee를 마이너스 하여 상점에서 인출가능한 balance를 계산한다.  
+    // 3. amount와 balance,fee,price(할인전 금액)를 표기하도록 response로 return 한다. 
+    // 4. 인출 가능 금액은 7일 이전의 값으로 다시 수행되어야 한다(fromOrderId,toOrderId가 계산되어야함) ㅜㅜ 
+   let shopInfo = {};
+
+    async.waterfall([function(callback){
+         mariaDB.getShopInfoWithAccount(req.body.takitId, callback);
+    },function(result,callback){
+         shopInfo=result;
+         mariaDB.getShopCashBalance(shopInfo.lastOrderId,req.body.takitId,callback); 
+    }], function (err, result) {
+        if (err) {
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION, req.version);
+            res.send(JSON.stringify(response));
+        } else {
+            console.log(result);
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION, req.version);
+            response.sales = result;
+            res.send(JSON.stringify(response));
+        }
+    });   
+}
+
+/////////////////////////////////////////////////////////
+//shop - cash인출 API
+//인출가능 금액,
+//req의 값이 아닌 실제 값을 다시 한번 계산해야만 한다. 
+// shopWithdraw-takitId에 대해 sync로 처리하자. 
+// 한번에 하나만 가능하도록 해야 한다. 
+/////////////////////////////////////////////////////////
+router.withdrawCashShop = function (req, res) {
+    //takitId, amount
+    //1. shopInfo에서 해당shop 계좌 가져옴
+    //2. 계좌에 금액만큼 넣어줌.
+    let shopInfo = {};
+    let fee = 0;
+    let withdrawable ={};
+
+  let lockName="withdrawCashShop_"+req.body.takitId;
+  lock.acquire(lockName, function(done) {
+    async.waterfall([function (callback) {
+        mariaDB.getShopInfoWithAccount(req.body.takitId, callback);
+    }, function(result,callback){ // 실제 인출하려는 금액과 현재 상태가 동일한지 확인한다. 
+        shopInfo = result;
+        mariaDB.getWithdrawableOrderInfo(shopInfo.lastOrderId,req.body.takitId,callback); 
+    },function (result, callback) {
+        //만약 동일하지 않다면 error를 리턴한다.
+        withdrawable=result;
+        withdrawable.netFee=parseInt(withdrawable.fee);
+        withdrawable.tax=Math.floor(parseInt(withdrawable.fee)*0.1); 
+        withdrawable.fee=withdrawable.netFee+ withdrawable.tax; //부가세 포함 금액 
+
+        let withdrawalAmount= parseInt(withdrawable.sales)- withdrawable.fee;
+        console.log("sales:"+withdrawable.sales);
+        console.log("fee:"+withdrawable.fee);
+
+        console.log(".withdrawalAmount:"+withdrawalAmount);
+        console.log("...withdrawalAmount:"+req.body.withdrawalAmount);
+
+        if(withdrawalAmount!= req.body.withdrawalAmount){
+            callback("invalid value"); //사용자 화면의 값이 DB정보와 일치하지 않는다. 
+        }else{
+            //console.log("shopInfo:" + JSON.stringify(shopInfo));
+            //console.log("req.body:" + JSON.stringify(req.body));
+            if (shopInfo.withdrawalCount >= 4 && req.body.bankCode === NHCode) {
+                console.log("인출 4회 초과 입니다. NH");
+                fee = 150;
+            } else if (shopInfo.withdrawalCount >= 4 && req.body.bankCode !== NHCode) {
+                console.log("인출 4회 초과 입니다. other")
+                fee = 400;
+            }
+            console.log("fee:" + fee+" withdrawalAmount:"+req.body.withdrawalAmount);
+          
+            if (withdrawalAmount>=fee) { //환불받으려는 금액이 fee보다 많아야 환불 가능
+                if (req.body.bankCode === NHCode) { //농협계좌로 환불할 때
+                    router.ReceivedTransferAccountNumber(shopInfo.account, withdrawalAmount-fee, callback);
+                } else {
+                    router.ReceivedTransferOtherBank(req.body.bankCode, shopInfo.account, withdrawalAmount-fee, callback);
+                }
+            } else {
+                callback("check your balance");
+            }
+            callback(null,"success");
+        }
+    },function(result,callback){ // shopInfo의 lastOrderId를 수정한다. 
+        mariaDB.saveLastOrderId(req.body.takitId,withdrawable.toOrderId,callback); 
+    },function (result, callback) {
+        mariaDB.insertWithdrawalList(req.body.takitId, withdrawable, fee, callback);
+    }], function (err, result) {
+        if (err) {
+            done(err);
+        } else {
+            done(null, result);
+            console.log(result);
+        }
+    });
+  }, function(err, result) {
+        if (err) {
+            console.log(err);
+            let response = new index.FailResponse(err);
+            response.setVersion(config.MIGRATION, req.version);
+            res.send(JSON.stringify(response));
+        } else {
+            console.log("addCash success:" + JSON.stringify(result));
+            let response = new index.SuccResponse();
+            response.setVersion(config.MIGRATION, req.version);
+            res.send(JSON.stringify(response));
+        }
+    });
+}
 
 module.exports = router;
 

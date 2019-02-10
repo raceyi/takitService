@@ -313,7 +313,7 @@ router.emailLogin=function(req,res){
          delete userInfo.userId;
          delete userInfo.pushId;
          delete userInfo.countryCode
-         console.log(result);
+         //console.log(result); 2019.01.31 comment out 
 			let response = new index.SuccResponse();
 			response.setVersion(config.MIGRATION,req.version);
 			response.userInfo=userInfo;		
@@ -325,7 +325,7 @@ router.emailLogin=function(req,res){
                     //response.userInfo.recommendShops=mariaDB.getRecommendShops();
                 }
             }
-            console.log(JSON.stringify(userInfo));
+            //console.log(JSON.stringify(userInfo)); 2019.01.31 comment out 
          res.send(JSON.stringify(response));
       }
    })
@@ -854,7 +854,7 @@ router.getDiscountRate = function(req,res){
 
 router.shopEnter=function(req, res, next){
    if(req.session.uid){
-      console.log("check req.session.uid:"+req.session.uid+"shopList"+req.body.shopList);
+      //console.log("check req.session.uid:"+req.session.uid+"shopList"+req.body.shopList); 2019.01.31 comment out 
             mariaDB.updateShopList(req.session.uid,req.body.shopList,function(err,result){
             if(!err){
 					let response = new index.SuccResponse();

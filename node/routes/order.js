@@ -171,7 +171,7 @@ function sendOrderMSGShop(order, shopUserInfo,next){
          response.order = order;
          response.messageId = GCM.messageId;
          next(null,response);
-         if(order.takitId=="세종대@리얼후라이" || order.takitId=="세종대@학생식당"){
+         if(order.takitId=="세종대@리얼후라이" /* || order.takitId=="세종대@학생식당" */){
              const SMS = {};
              SMS.title = GCM.title;
              SMS.content = "주문번호 "+order.orderNO+" 새로고침 버튼을 눌러주세요";
@@ -348,7 +348,7 @@ function saveOrderEach(param,next){
             order.manualStore=shopInfo.manualStore;
         }
         order.feeRate=shopInfo.feeRate;
-        order.fee=shopInfo.feeRate*order.price;
+        order.fee=Math.floor(shopInfo.feeRate*order.price);
         mariaDB.saveOrder(order,shopInfo,callback);
     },function(orderId,callback){
         console.log(orderId);
@@ -1023,7 +1023,7 @@ router.inputReview=function(req,res){
 router.getFavoriteMenu=function(req,res){
     console.log("userId:"+req.session.uid);
     mariaDB.getFavoriteMenu(req.session.uid,function(err,result){
-        console.log("!!!!getFavoriteMenu:"+JSON.stringify(result));
+        //console.log("!!!!getFavoriteMenu:"+JSON.stringify(result));  2019.01.31. comment out 
         if(err){
             console.log(err);
             let response = new index.FailResponse(err);
@@ -1031,7 +1031,7 @@ router.getFavoriteMenu=function(req,res){
             res.send(JSON.stringify(response));
         }else{
             let response = new index.SuccResponse();
-            console.log("getFavoriteMenu:"+JSON.stringify(result));
+            //console.log("getFavoriteMenu:"+JSON.stringify(result)); 2019.01.31 comment out 
             response.menus=result;
             response.setVersion(config.MIGRATION,req.version);
             res.send(JSON.stringify(response));
@@ -1042,7 +1042,7 @@ router.getFavoriteMenu=function(req,res){
 router.getFavoriteMenu16=function(req,res){
     console.log("userId:"+req.session.uid);
     mariaDB.getFavoriteMenu16(req.session.uid,function(err,result){
-        console.log("!!!!getFavoriteMenu16:"+JSON.stringify(result));
+        //console.log("!!!!getFavoriteMenu16:"+JSON.stringify(result)); 2019.01.31 comment out 
         if(err){
             console.log(err);
             let response = new index.FailResponse(err);
@@ -1050,7 +1050,7 @@ router.getFavoriteMenu16=function(req,res){
             res.send(JSON.stringify(response));
         }else{
             let response = new index.SuccResponse();
-            console.log("getFavoriteMenu:"+JSON.stringify(result));
+            //console.log("getFavoriteMenu:"+JSON.stringify(result)); 2019.01.31 comment out 
             response.menus=result;
             response.setVersion(config.MIGRATION,req.version);
             res.send(JSON.stringify(response));
